@@ -1,0 +1,26 @@
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.p12
+*.pfx
+
+# Local runtime data
+data/
+tmp/
+logs/
+photos/
+
+# n8n / database exports that may contain secrets or real data
+*.dump
+*.backup
+*credentials*.json
+*credential*.json
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
