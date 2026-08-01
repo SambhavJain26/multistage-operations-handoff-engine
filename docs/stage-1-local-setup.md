@@ -12,7 +12,7 @@ This stage prepares the local runtime only. It does not create business workflow
 ## First-Time Setup
 
 1. Copy `.env.example` to `.env`.
-2. Replace all `change-me` and placeholder values, including separate passwords for the local Postgres admin, n8n database user, and `turndesk` application user.
+2. Replace all `change-me` and placeholder values, including separate passwords for the local Postgres admin, n8n database user, and `make_ready_demo` application user.
 3. Generate a durable `N8N_ENCRYPTION_KEY` before first n8n startup:
 
    ```powershell
@@ -51,13 +51,13 @@ Then open `http://localhost:8080`.
 
 Create these credentials manually in n8n. Do not hardcode secrets in workflow JSON.
 
-### `TurnDesk Postgres`
+### `Make-Ready Postgres`
 
 - Host: `postgres`
 - Port: `5432`
-- Database: value of `TURNDESK_DB`, default `turndesk`
-- User: value of `TURNDESK_DB_USER`, default `turndesk`
-- Password: value of `TURNDESK_DB_PASSWORD`
+- Database: value of `MAKE_READY_DB`, default `make_ready_demo`
+- User: value of `MAKE_READY_DB_USER`, default `make_ready_demo`
+- Password: value of `MAKE_READY_DB_PASSWORD`
 - SSL: disabled for local Docker
 
 Verify with:
@@ -68,7 +68,7 @@ SELECT 1;
 
 n8n itself uses a separate `n8n` database and role created during Postgres first boot. Do not reuse the n8n database credential for demo state.
 
-### `TurnDesk OpenAI HTTP`
+### `Make-Ready OpenAI HTTP`
 
 Use an HTTP header credential:
 
@@ -86,8 +86,8 @@ Create two BotFather bots:
 
 Store them as separate n8n Telegram credentials:
 
-- `TurnDesk Vendor Telegram Bot`
-- `TurnDesk Manager Telegram Bot`
+- `Make-Ready Vendor Telegram Bot`
+- `Make-Ready Manager Telegram Bot`
 
 Only one Telegram Trigger workflow may use each bot token.
 

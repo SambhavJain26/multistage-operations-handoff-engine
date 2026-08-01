@@ -703,7 +703,7 @@ Use Cloudflare Tunnel, ngrok, or an equivalent temporary HTTPS tunnel forwarding
 *Done when:* a Webhook node's production URL uses the active HTTPS tunnel URL and a test request through the tunnel reaches local n8n. **If it shows localhost, Telegram triggers will silently never fire.**
 
 **A4. Create the database.**
-Apply the §5.1 schema to a `turndesk` database. Create a dedicated `turndesk` Postgres role — do not reuse n8n's own database user.
+Apply the §5.1 schema to a `make_ready_demo` database. Create a dedicated `make_ready_demo` Postgres role — do not reuse n8n's own database user.
 *Done when:* all five tables and both indexes exist, and a Postgres credential in n8n runs `SELECT 1`.
 
 **A5. Create both Telegram bots.**

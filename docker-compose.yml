@@ -8,9 +8,9 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
       N8N_DB_PASSWORD: ${N8N_DB_PASSWORD:?Set N8N_DB_PASSWORD in .env}
-      TURNDESK_DB: ${TURNDESK_DB:-turndesk}
-      TURNDESK_DB_USER: ${TURNDESK_DB_USER:-turndesk}
-      TURNDESK_DB_PASSWORD: ${TURNDESK_DB_PASSWORD:?Set TURNDESK_DB_PASSWORD in .env}
+      MAKE_READY_DB: ${MAKE_READY_DB:-make_ready_demo}
+      MAKE_READY_DB_USER: ${MAKE_READY_DB_USER:-make_ready_demo}
+      MAKE_READY_DB_PASSWORD: ${MAKE_READY_DB_PASSWORD:?Set MAKE_READY_DB_PASSWORD in .env}
     ports:
       - "127.0.0.1:5432:5432"
     volumes:

@@ -60,7 +60,7 @@ This file is the running handoff record for future sessions. Read it before star
 
 - Confirm actual OpenAI model IDs available with the user's API key during Stage 1. Helper script exists at `scripts/openai-model-check.ps1`; `OPENAI_API_KEY` was not present during the smoke run.
 - Create two Telegram bots and confirm both tokens with `getMe`. Helper script exists at `scripts/telegram-getme-check.ps1`; bot tokens were not present during the smoke run.
-- Create n8n UI credentials manually: `TurnDesk Postgres`, `TurnDesk OpenAI HTTP`, `TurnDesk Vendor Telegram Bot`, and `TurnDesk Manager Telegram Bot`.
+- Create n8n UI credentials manually: `Make-Ready Postgres`, `Make-Ready OpenAI HTTP`, `Make-Ready Vendor Telegram Bot`, and `Make-Ready Manager Telegram Bot`.
 - Run a live Cloudflare Tunnel webhook test after a temporary tunnel is started and `WEBHOOK_URL` is switched from localhost to the tunnel origin.
 - Confirm the domain/VPS provider only before Stage 8 production/pilot readiness.
 - Verify Property Meld sequencing behavior before making competitive claims in sales.
@@ -85,7 +85,7 @@ This file is the running handoff record for future sessions. Read it before star
 ## Stage 1 Implementation Notes
 
 - Added `docker-compose.yml` with `n8n` and `postgres` services only; no Caddy or business workflows.
-- Added `db/postgres/00-init-databases.sh`, which creates separate `n8n` and `turndesk` databases/roles on first Postgres boot.
+- Added `db/postgres/00-init-databases.sh`, which creates separate `n8n` and `make_ready_demo` databases/roles on first Postgres boot.
 - Added `.env.example`; an ignored local `.env` was created for this machine with dev-only local passwords so Docker Compose commands work.
 - Added placeholder board at `board/index.html`; it is intentionally not the Stage 3 board UI.
 - Added Stage 1 setup guide at `docs/stage-1-local-setup.md`.
@@ -98,7 +98,7 @@ This file is the running handoff record for future sessions. Read it before star
   - `docker compose up -d` starts `make-ready-postgres` and `make-ready-n8n`.
   - n8n health and editor HTTP checks return 200 at `http://localhost:5678`.
   - Postgres is reachable on `127.0.0.1:5432`.
-  - `turndesk` role can run `SELECT 1` against the `turndesk` database.
+  - `make_ready_demo` role can run `SELECT 1` against the `make_ready_demo` database after the neutral naming correction.
   - Placeholder board returns 200 at `http://localhost:8080`.
   - `cloudflared` is installed: version 2026.7.2.
   - n8n public settings report community nodes disabled.
