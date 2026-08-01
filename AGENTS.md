@@ -46,6 +46,8 @@ Useful commands:
 
 Do not assume Docker images, API keys, Telegram bots, OpenAI credentials, tunnel accounts, or n8n credentials already exist. Document missing prerequisites before depending on them.
 
+Because `db/postgres` is mounted into `/docker-entrypoint-initdb.d`, do not put app schema or seed `.sql` files at the top level of `db/postgres`; fresh Postgres volumes may auto-run them against the admin bootstrap database. Keep app SQL in subdirectories such as `db/postgres/migrations/` and run it explicitly against `make_ready_demo`.
+
 ## Architecture Rules
 
 - n8n orchestrates workflows; Postgres is durable state.

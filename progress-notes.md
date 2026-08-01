@@ -4,8 +4,8 @@ This file is the running handoff record for future sessions. Read it before star
 
 ## Current Status
 
-- Stage 1 is complete.
-- Local runtime scaffolding, credentials, and live external checks have been verified.
+- Stage 2 is complete.
+- Local runtime, credentials, schema, stage template, and fixture seed data have been verified.
 - `build-plan.md` created with eight staged sessions.
 - Git repository initialized on `main`; remote target is private GitHub repo `make-ready-sequencing`.
 - Framing corrected: this is an AI automation demo, not a named software/SaaS product. Any UI is only for demo visualization.
@@ -21,7 +21,7 @@ This file is the running handoff record for future sessions. Read it before star
 | Stage | Name | Status | Notes |
 |---|---|---|---|
 | 1 | Local Environment And Tooling Setup | Complete | Docker Compose stack, n8n, Postgres, placeholder board, docs, smoke scripts, n8n credentials, OpenAI model check, Telegram `getMe`, Postgres credential execution, and Cloudflare Tunnel reachability are verified. |
-| 2 | Data Model, Stage Template, And Fixtures | Not started | No schema or seed data created yet. |
+| 2 | Data Model, Stage Template, And Fixtures | Complete | Schema, stage template, Cedar Ridge fixture seed, reset/load scripts, prospect CSV example, Telegram chat-ID helper, and Stage 2 verification checks added. |
 | 3 | Visibility Board And Manual Control | Not started | Core 0% vendor-reply path. |
 | 4 | Intake, Channel Normalization, And Matching | Not started | Inbound paths should log only until completion loop is built. |
 | 5 | Vendor Completion Loop With Human Approval | Not started | Must preserve manager approval for all outbound vendor messages. |
@@ -58,6 +58,7 @@ This file is the running handoff record for future sessions. Read it before star
 
 ## Open Questions / Validation Items
 
+- Run `scripts/read-telegram-chat-ids.ps1` again after sending messages to both Telegram bots; no updates were present during Stage 2 verification.
 - Re-check `WEBHOOK_URL` against an active Cloudflare Tunnel when Telegram Trigger workflows are built and activated; no Telegram Trigger workflows exist yet.
 - Confirm the domain/VPS provider only before Stage 8 production/pilot readiness.
 - Verify Property Meld sequencing behavior before making competitive claims in sales.
@@ -112,3 +113,33 @@ This file is the running handoff record for future sessions. Read it before star
   - n8n public settings report community nodes disabled.
   - Temporary decrypted credential export used for live checks was removed from the n8n container.
 - Non-blocking runtime note: current local n8n image logs a Python task runner warning because Python 3 is not present in the container. The JS task runner registers and n8n starts normally; Stage 1 workflows are not blocked.
+
+## Stage 2 Implementation Notes
+
+- Added app schema in `db/postgres/migrations/001-schema.sql`.
+- Added Cedar Ridge relative-time seed in `db/postgres/seed/seed.sql`.
+- Added committed stage template source at `fixtures/stage-template.json`; `scripts/reset-demo.ps1` copies it to ignored runtime path `data/config/stage_template.json`.
+- Added prospect import contract at `docs/prospect-csv-format.md` and fictional sample CSV at `fixtures/prospect-turns.example.csv`.
+- Added helper scripts:
+  - `scripts/reset-demo.ps1`
+  - `scripts/load-prospect.ps1`
+  - `scripts/check-stage-2.ps1`
+  - `scripts/read-telegram-chat-ids.ps1`
+  - `scripts/reset_demo.sh`
+  - `scripts/load_prospect.sh`
+- Schema decisions:
+  - Added `vendor.is_fixture` so fixture vendor rows can be reset safely without touching future prospect vendor data.
+  - Added partial unique index `uniq_one_active_stage_per_turn` to prevent multiple active stages per turn.
+  - Added partial unique index `uniq_outbound_awaiting_per_stage_vendor` for later duplicate draft prevention.
+  - Kept app SQL under `db/postgres/migrations/` and `db/postgres/seed/` so Docker's first-boot init hook does not accidentally run app schema/seed SQL against the admin database.
+- Verified:
+  - `scripts/reset-demo.ps1` applies schema, clears fixture rows only, copies the stage template, and reseeds six fixture turns.
+  - Re-running reset restores 12B Paint at about 96 hours and 3 Oak Trash-out at about 30 hours.
+  - `scripts/check-stage-2.ps1` verifies required tables, indexes, fixture counts, active-stage uniqueness, stage ages, current-stage calculations, vacancy days, dollars burned, vendor reply rate, and auto-handled rate.
+  - Seeded current-stage summary returns six active fixture turns.
+  - Seeded metrics currently compute to vendor reply rate 68% and auto-handled rate 72%.
+  - `scripts/load-prospect.ps1` imports the sample CSV as two `is_fixture=false` turns.
+  - `scripts/reset-demo.ps1` refuses to run while non-fixture rows exist.
+  - Sample prospect rows were removed after testing; final local DB state is six fixture turns and zero non-fixture turns.
+  - n8n workflow count remains zero after Stage 2 verification.
+  - `scripts/read-telegram-chat-ids.ps1` runs without printing tokens; no bot updates were present yet.

@@ -1,0 +1,90 @@
+[
+  {
+    "seq": 0,
+    "stage_code": "NOTICE",
+    "stage_name": "Notice received",
+    "sla_hours": 0,
+    "has_sla": false,
+    "requires_complete": []
+  },
+  {
+    "seq": 1,
+    "stage_code": "PRE_INSPECT",
+    "stage_name": "Pre-move-out inspection",
+    "sla_hours": 48,
+    "has_sla": true,
+    "requires_complete": []
+  },
+  {
+    "seq": 2,
+    "stage_code": "MOVEOUT",
+    "stage_name": "Move-out / keys returned",
+    "sla_hours": 0,
+    "has_sla": false,
+    "requires_complete": []
+  },
+  {
+    "seq": 3,
+    "stage_code": "INSPECT_PUNCH",
+    "stage_name": "Inspection + punch list",
+    "sla_hours": 24,
+    "has_sla": true,
+    "requires_complete": ["MOVEOUT"]
+  },
+  {
+    "seq": 4,
+    "stage_code": "TRASHOUT",
+    "stage_name": "Trash-out",
+    "sla_hours": 24,
+    "has_sla": true,
+    "requires_complete": ["MOVEOUT"]
+  },
+  {
+    "seq": 5,
+    "stage_code": "REPAIRS",
+    "stage_name": "Repairs / trades",
+    "sla_hours": 72,
+    "has_sla": true,
+    "requires_complete": ["MOVEOUT"]
+  },
+  {
+    "seq": 6,
+    "stage_code": "PAINT",
+    "stage_name": "Paint",
+    "sla_hours": 48,
+    "has_sla": true,
+    "requires_complete": ["MOVEOUT", "REPAIRS"]
+  },
+  {
+    "seq": 7,
+    "stage_code": "FLOORING",
+    "stage_name": "Flooring",
+    "sla_hours": 48,
+    "has_sla": true,
+    "requires_complete": ["MOVEOUT", "PAINT"]
+  },
+  {
+    "seq": 8,
+    "stage_code": "DEEP_CLEAN",
+    "stage_name": "Deep clean",
+    "sla_hours": 24,
+    "has_sla": true,
+    "requires_complete": ["MOVEOUT", "REPAIRS", "PAINT", "FLOORING"]
+  },
+  {
+    "seq": 9,
+    "stage_code": "QA_PHOTOS",
+    "stage_name": "QA walkthrough + photos",
+    "sla_hours": 12,
+    "has_sla": true,
+    "requires_complete": ["MOVEOUT", "DEEP_CLEAN"]
+  },
+  {
+    "seq": 10,
+    "stage_code": "RELIST",
+    "stage_name": "Relist",
+    "sla_hours": 0,
+    "has_sla": false,
+    "requires_complete": ["MOVEOUT", "QA_PHOTOS"]
+  }
+]

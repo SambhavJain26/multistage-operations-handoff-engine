@@ -1,0 +1,3 @@
+unit_label,property_address,rent_monthly,notice_date,moveout_date,target_ready_date,current_stage_code,current_stage_activated_at,notice_completed_at,pre_inspect_completed_at,moveout_completed_at,inspect_punch_completed_at,trashout_completed_at,repairs_completed_at,paint_completed_at,flooring_completed_at,deep_clean_completed_at,qa_photos_completed_at,relist_completed_at
+22C,900 Example Ave,1550.00,2026-07-20,2026-07-28,2026-08-05,PAINT,2026-08-01T09:00:00-07:00,2026-07-20T10:00:00-07:00,2026-07-25T10:00:00-07:00,2026-07-28T09:00:00-07:00,2026-07-28T16:00:00-07:00,2026-07-29T12:00:00-07:00,2026-07-30T17:00:00-07:00,,,,,
+9,901 Example Ave,1250.00,2026-07-24,2026-08-02,2026-08-08,NOTICE,2026-07-24T11:30:00-07:00,,,,,,,,,,,
