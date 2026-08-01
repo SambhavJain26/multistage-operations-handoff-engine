@@ -4,8 +4,8 @@ This file is the running handoff record for future sessions. Read it before star
 
 ## Current Status
 
-- Planning phase complete.
-- No implementation code has been written.
+- Stage 1 implementation has started.
+- Local runtime scaffolding has been added and smoke-tested.
 - `build-plan.md` created with eight staged sessions.
 - Git repository initialized on `main`; remote target is private GitHub repo `make-ready-sequencing`.
 - Framing corrected: this is an AI automation demo, not a named software/SaaS product. Any UI is only for demo visualization.
@@ -20,7 +20,7 @@ This file is the running handoff record for future sessions. Read it before star
 
 | Stage | Name | Status | Notes |
 |---|---|---|---|
-| 1 | Local Environment And Tooling Setup | Not started | Needs local Docker/n8n/Postgres/board, Telegram tunnel, and OpenAI verification. |
+| 1 | Local Environment And Tooling Setup | Runtime ready; credential checks pending | Docker Compose stack, n8n, Postgres, placeholder board, docs, and smoke scripts added. OpenAI model check, Telegram `getMe`, n8n UI credential creation, and live tunnel webhook test still require user-provided secrets / manual UI steps. |
 | 2 | Data Model, Stage Template, And Fixtures | Not started | No schema or seed data created yet. |
 | 3 | Visibility Board And Manual Control | Not started | Core 0% vendor-reply path. |
 | 4 | Intake, Channel Normalization, And Matching | Not started | Inbound paths should log only until completion loop is built. |
@@ -50,13 +50,18 @@ This file is the running handoff record for future sessions. Read it before star
 - Default to `gpt-5.6-luna` for both classification and short draft rewriting unless live testing shows draft quality is insufficient.
 - Keep `gpt-5.6-terra` or `gpt-5.4-mini` as draft-quality fallbacks, not defaults.
 - Use only core n8n nodes; no community nodes in the demo.
+- Stage 1 tunnel default is Cloudflare Tunnel.
+- Stage 1 demo timezone is `America/Phoenix`.
+- Stage 1 secret handling uses committed `.env.example`, an ignored local `.env`, and n8n credentials created manually in the UI.
 - Surface vendor reply rate and auto-handled rate in the board header, weekly digest, and manager `/health` command.
 - After every completed task, commit and push changes to `main` unless blocked; report the commit hash or push failure.
 
 ## Open Questions / Validation Items
 
-- Confirm actual OpenAI model IDs available with the user's API key during Stage 1.
-- Confirm the local tunnel provider before Telegram testing.
+- Confirm actual OpenAI model IDs available with the user's API key during Stage 1. Helper script exists at `scripts/openai-model-check.ps1`; `OPENAI_API_KEY` was not present during the smoke run.
+- Create two Telegram bots and confirm both tokens with `getMe`. Helper script exists at `scripts/telegram-getme-check.ps1`; bot tokens were not present during the smoke run.
+- Create n8n UI credentials manually: `TurnDesk Postgres`, `TurnDesk OpenAI HTTP`, `TurnDesk Vendor Telegram Bot`, and `TurnDesk Manager Telegram Bot`.
+- Run a live Cloudflare Tunnel webhook test after a temporary tunnel is started and `WEBHOOK_URL` is switched from localhost to the tunnel origin.
 - Confirm the domain/VPS provider only before Stage 8 production/pilot readiness.
 - Verify Property Meld sequencing behavior before making competitive claims in sales.
 - Check whether the prospect is in a metro where managed make-ready providers like Lula materially change the objection.
@@ -76,3 +81,25 @@ This file is the running handoff record for future sessions. Read it before star
 - The sequence-enforcement differentiator against competitors is not yet verified.
 - OpenAI model availability/pricing may differ from the researched defaults and must be checked live.
 - Telegram reliability during local testing depends on the tunnel and `WEBHOOK_URL`; a bad value can silently break Telegram triggers.
+
+## Stage 1 Implementation Notes
+
+- Added `docker-compose.yml` with `n8n` and `postgres` services only; no Caddy or business workflows.
+- Added `db/postgres/00-init-databases.sh`, which creates separate `n8n` and `turndesk` databases/roles on first Postgres boot.
+- Added `.env.example`; an ignored local `.env` was created for this machine with dev-only local passwords so Docker Compose commands work.
+- Added placeholder board at `board/index.html`; it is intentionally not the Stage 3 board UI.
+- Added Stage 1 setup guide at `docs/stage-1-local-setup.md`.
+- Added helper scripts:
+  - `scripts/check-stage-1.ps1`
+  - `scripts/openai-model-check.ps1`
+  - `scripts/telegram-getme-check.ps1`
+- Verified:
+  - `docker compose config` succeeds.
+  - `docker compose up -d` starts `make-ready-postgres` and `make-ready-n8n`.
+  - n8n health and editor HTTP checks return 200 at `http://localhost:5678`.
+  - Postgres is reachable on `127.0.0.1:5432`.
+  - `turndesk` role can run `SELECT 1` against the `turndesk` database.
+  - Placeholder board returns 200 at `http://localhost:8080`.
+  - `cloudflared` is installed: version 2026.7.2.
+  - n8n public settings report community nodes disabled.
+- Non-blocking runtime note: current local n8n image logs a Python task runner warning because Python 3 is not present in the container. The JS task runner registers and n8n starts normally; Stage 1 workflows are not blocked.

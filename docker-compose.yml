@@ -1,0 +1,64 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: make-ready-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      N8N_DB_PASSWORD: ${N8N_DB_PASSWORD:?Set N8N_DB_PASSWORD in .env}
+      TURNDESK_DB: ${TURNDESK_DB:-turndesk}
+      TURNDESK_DB_USER: ${TURNDESK_DB_USER:-turndesk}
+      TURNDESK_DB_PASSWORD: ${TURNDESK_DB_PASSWORD:?Set TURNDESK_DB_PASSWORD in .env}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./db/postgres:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: make-ready-n8n
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      GENERIC_TIMEZONE: ${GENERIC_TIMEZONE:-America/Phoenix}
+      TZ: ${GENERIC_TIMEZONE:-America/Phoenix}
+      WEBHOOK_URL: ${WEBHOOK_URL:-http://localhost:5678}
+      N8N_HOST: localhost
+      N8N_PORT: 5678
+      N8N_PROTOCOL: http
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:?Set N8N_ENCRYPTION_KEY in .env}
+      N8N_SECURE_COOKIE: "false"
+      N8N_BASIC_AUTH_ACTIVE: "true"
+      N8N_BASIC_AUTH_USER: ${N8N_BASIC_AUTH_USER:?Set N8N_BASIC_AUTH_USER in .env}
+      N8N_BASIC_AUTH_PASSWORD: ${N8N_BASIC_AUTH_PASSWORD:?Set N8N_BASIC_AUTH_PASSWORD in .env}
+      N8N_COMMUNITY_PACKAGES_ENABLED: "false"
+      N8N_DEFAULT_BINARY_DATA_MODE: filesystem
+      N8N_STORAGE_PATH: /data
+      N8N_USER_FOLDER: /home/node/.n8n
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_PORT: 5432
+      DB_POSTGRESDB_DATABASE: n8n
+      DB_POSTGRESDB_USER: n8n
+      DB_POSTGRESDB_PASSWORD: ${N8N_DB_PASSWORD:?Set N8N_DB_PASSWORD in .env}
+    ports:
+      - "5678:5678"
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./board:/home/node/board:ro
+      - ./n8n-workflows:/home/node/workflows
+      - ./data:/data
+
+volumes:
+  n8n_data:
+  pg_data:
