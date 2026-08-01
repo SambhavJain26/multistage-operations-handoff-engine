@@ -58,7 +58,7 @@ This file is the running handoff record for future sessions. Read it before star
 
 ## Open Questions / Validation Items
 
-- Vendor Telegram trigger remains inactive by default; optional verification needs a fresh HTTPS tunnel, container-recreated `WEBHOOK_URL`, and local-only `VENDOR_TELEGRAM_CHAT_ID`.
+- Vendor Telegram trigger remains inactive by default. Optional Stage 4 live Telegram verification has been completed once locally; repeat it only with a fresh HTTPS tunnel, container-recreated `WEBHOOK_URL`, and local-only `VENDOR_TELEGRAM_CHAT_ID`.
 - Confirm the domain/VPS provider only before Stage 8 production/pilot readiness.
 - Verify Property Meld sequencing behavior before making competitive claims in sales.
 - Check whether the prospect is in a metro where managed make-ready providers like Lula materially change the objection.
@@ -273,4 +273,12 @@ This file is the running handoff record for future sessions. Read it before star
     - Intake form submission creates test turn `99Z-STAGE4`, board shows it with `NOTICE` active and 11 stages, cleanup removes it, and reset succeeds.
   - `scripts/check-stage-3.ps1 -SkipReset` passes after Stage 4 import, confirming board/manual Stage 3 behavior still works.
   - Final local DB state was reset to the opening fixture state after checks.
-- Optional Telegram verification was not run in Stage 4 because no active HTTPS tunnel and `VENDOR_TELEGRAM_CHAT_ID` were configured for this stage. The workflow export and gated import path are present.
+- Optional Telegram verification completed after the Stage 4 commit:
+  - Captured the vendor bot chat ID from a real user-to-bot message; the value is intentionally not recorded.
+  - Started a temporary Cloudflare Tunnel container into local n8n and recreated n8n so the container used the HTTPS `WEBHOOK_URL`.
+  - Ran `scripts/import-stage-4-workflows.ps1 -ActivateTelegram`; vendor Telegram ingest activated successfully.
+  - Sent real vendor Telegram text `done with 12b stage4 tg verify 20260801-1939`.
+  - Telegram ingest logged `vendor_inbound` with Rivera Painting as a known vendor, `classification.status='deferred_stage_5'`, selected 12B Paint at score 100, `needs_manager=false`, and `stage_state_mutated=false`.
+  - Sent the same text through generic `/webhook/vendor-in` with the placeholder Rivera sender; the stored event matched Telegram on event type, raw text, vendor, classification, selected unit/stage, score, and non-mutation. It differed only by `channel`, `sender_ref`, and received timestamp.
+  - Confirmed 12B Paint stayed active and outbound queue count stayed zero.
+  - Cleaned up by importing Stage 4 without `-ActivateTelegram`, restoring local `.env` to localhost `WEBHOOK_URL` and blank `VENDOR_TELEGRAM_CHAT_ID`, recreating n8n, stopping the temporary tunnel container, and resetting fixtures. Post-cleanup, `wf4-vendor-telegram-ingest` is inactive, non-Telegram Stage 4 workflows are active, Rivera fixture sender mapping is restored, and verification event rows are gone.
