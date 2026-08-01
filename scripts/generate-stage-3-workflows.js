@@ -314,7 +314,14 @@ const unauthorizedCode = `return [{ json: {
 } }];`;
 
 const guardQuery = `WITH input AS (
-  SELECT {{ Number($json.stage_id || 0) }}::int AS stage_id
+  SELECT
+    {{ Number($json.stage_id || 0) }}::int AS stage_id,
+    '{{ String($json.actor_id || "board-manager").replace(/'/g, "''") }}'::text AS actor_id,
+    '{{ String($json.channel || "board").replace(/'/g, "''") }}'::text AS channel,
+    '{{ String($json.override_token || "").replace(/'/g, "''") }}'::text AS override_token,
+    '{{ String($json.override_reason || "").replace(/'/g, "''") }}'::text AS override_reason,
+    '{{ String($json.telegram_callback_query_id || "").replace(/'/g, "''") }}'::text AS telegram_callback_query_id,
+    '{{ String($json.telegram_chat_id || "").replace(/'/g, "''") }}'::text AS telegram_chat_id
 ), target AS (
   SELECT
     ts.id,
@@ -344,6 +351,12 @@ const guardQuery = `WITH input AS (
 )
 SELECT
   input.stage_id AS requested_stage_id,
+  input.actor_id,
+  input.channel,
+  input.override_token,
+  input.override_reason,
+  input.telegram_callback_query_id,
+  input.telegram_chat_id,
   target.id AS stage_id,
   target.turn_id,
   target.seq,
@@ -417,7 +430,9 @@ const completeQuery = `WITH input AS (
     {{ Number($json.stage_id || 0) }}::int AS stage_id,
     '{{ String($json.actor_id || "board-manager").replace(/'/g, "''") }}'::text AS actor_id,
     '{{ String($json.channel || "board").replace(/'/g, "''") }}'::text AS channel,
-    '{{ $json.completed_via === "override" ? "override" : "manual" }}'::text AS completed_via
+    '{{ $json.completed_via === "override" ? "override" : "manual" }}'::text AS completed_via,
+    '{{ String($json.telegram_callback_query_id || "").replace(/'/g, "''") }}'::text AS telegram_callback_query_id,
+    '{{ String($json.telegram_chat_id || "").replace(/'/g, "''") }}'::text AS telegram_chat_id
 ), requested AS (
   SELECT ts.*, t.unit_label, t.property_address
   FROM turn_stage ts
@@ -477,9 +492,12 @@ SELECT
   mark_complete.completed_at,
   mark_complete.completed_by,
   (mark_complete.id IS NOT NULL) AS updated,
-  (SELECT row_to_json(activate_next) FROM activate_next LIMIT 1) AS next_stage
+  (SELECT row_to_json(activate_next) FROM activate_next LIMIT 1) AS next_stage,
+  NULLIF(input.telegram_callback_query_id, '') AS telegram_callback_query_id,
+  NULLIF(input.telegram_chat_id, '') AS telegram_chat_id
 FROM requested
-LEFT JOIN mark_complete ON mark_complete.id = requested.id;`;
+LEFT JOIN mark_complete ON mark_complete.id = requested.id
+CROSS JOIN input;`;
 
 const successCode = `const nextStage = typeof $json.next_stage === 'string' && $json.next_stage ? JSON.parse($json.next_stage) : $json.next_stage;
 const updated = Boolean($json.updated);
@@ -516,7 +534,9 @@ const blockLogQuery = `WITH input AS (
     '{{ String($json.channel || "board").replace(/'/g, "''") }}'::text AS channel,
     '{{ String($json.reason || "Sequence guard blocked the completion.").replace(/'/g, "''") }}'::text AS reason,
     '{{ JSON.stringify($json.blocked_by || []).replace(/'/g, "''") }}'::jsonb AS blocked_by,
-    '{{ String($json.override_token || "").replace(/'/g, "''") }}'::text AS override_token
+    '{{ String($json.override_token || "").replace(/'/g, "''") }}'::text AS override_token,
+    '{{ String($json.telegram_callback_query_id || "").replace(/'/g, "''") }}'::text AS telegram_callback_query_id,
+    '{{ String($json.telegram_chat_id || "").replace(/'/g, "''") }}'::text AS telegram_chat_id
 ), inserted AS (
 INSERT INTO event_log (turn_id, stage_id, actor_type, actor_id, channel, event_type, raw_text, parsed_json)
 SELECT
@@ -539,6 +559,8 @@ SELECT
   input.reason,
   input.blocked_by,
   input.override_token,
+  NULLIF(input.telegram_callback_query_id, '') AS telegram_callback_query_id,
+  NULLIF(input.telegram_chat_id, '') AS telegram_chat_id,
   inserted.id AS event_id
 FROM input
 CROSS JOIN inserted;`;

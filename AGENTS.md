@@ -85,6 +85,7 @@ Known n8n gotchas to account for:
 - Execute Sub-workflow nodes may emit no downstream items when the called workflow exits through routed branches. For ingestion connectors, treat the core workflow as a database-writing side effect and reselect by stable identifiers before post-processing.
 - In n8n 2.29 local regular deployment mode, `n8n import:workflow --activeState=fromJson` is rejected. Import workflows inactive, publish required workflow IDs with `n8n publish:workflow --id=<id>`, then restart n8n.
 - Imported Execute Sub-workflow nodes are most reliable with type version 1 and a plain `workflowId` string. Newer workflow-selector JSON can import but fail at runtime with "No information about the workflow to execute found."
+- Execute Sub-workflow calls that load database context must explicitly carry caller metadata, such as `actor_id`, `channel`, Telegram callback IDs, and override fields, through the load query. Otherwise downstream audit rows and callback answers can silently fall back to defaults.
 - `$env` access can be blocked inside n8n Code nodes and expressions. For local demo workflow exports, prefer import-time substitution into temporary JSON copies instead of runtime `$env` lookups.
 - Form Trigger submissions can produce generic keys like `field-0`; normalize before SQL or AI steps.
 - Imported Form Trigger workflows may register under workflow/node-prefixed form paths. Query n8n's webhook records or test the registered `/form/...` path after import.

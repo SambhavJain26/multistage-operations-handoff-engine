@@ -22,7 +22,7 @@ This file is the running handoff record for future sessions. Read it before star
 |---|---|---|---|
 | 1 | Local Environment And Tooling Setup | Complete | Docker Compose stack, n8n, Postgres, placeholder board, docs, smoke scripts, n8n credentials, OpenAI model check, Telegram `getMe`, Postgres credential execution, and Cloudflare Tunnel reachability are verified. |
 | 2 | Data Model, Stage Template, And Fixtures | Complete | Schema, stage template, Cedar Ridge fixture seed, reset/load scripts, prospect CSV example, Telegram chat-ID helper, and Stage 2 verification checks added. |
-| 3 | Visibility Board And Manual Control | Implementation complete; callback verification pending | Board API, static board, reusable guard, guarded manual completion, and manager digest send are implemented. Telegram callback router is built but not activated/verified because `WEBHOOK_URL` is still localhost. |
+| 3 | Visibility Board And Manual Control | Complete | Board API, static board, reusable guard, guarded manual completion, manager digest send, and Telegram callback completion are implemented and verified locally. |
 | 4 | Intake, Channel Normalization, And Matching | Not started | Inbound paths should log only until completion loop is built. |
 | 5 | Vendor Completion Loop With Human Approval | Not started | Must preserve manager approval for all outbound vendor messages. |
 | 6 | Stall Detection, Digest, Simulator, And Photos | Not started | Absence detector and demo companion surfaces. |
@@ -158,6 +158,7 @@ This file is the running handoff record for future sessions. Read it before star
   - n8n 2.29.10 rejected `import:workflow --activeState=fromJson` in regular deployment mode, so the helper imports inactive, publishes required workflow IDs, and restarts n8n.
   - The helper writes temporary JSON copies under ignored `data/tmp-stage-3-workflow-import/` as UTF-8 without BOM.
   - Telegram workflows stay unpublished unless `-ActivateTelegram` is used with `MANAGER_TELEGRAM_CHAT_ID` and an HTTPS `WEBHOOK_URL`.
+  - Guard and completion-core workflow queries explicitly preserve caller metadata so board and Telegram callback paths audit the correct `actor_id`, `channel`, and callback IDs after database context is loaded.
 - Added verification SQL and script:
   - `db/postgres/verify-stage-3.sql`
   - `scripts/check-stage-3.ps1`
@@ -195,8 +196,10 @@ This file is the running handoff record for future sessions. Read it before star
   - Static board server returned `200` at `http://localhost:8080`.
   - Browser smoke test with local Chrome passed at 1280x900 and 390x844: six cards, demo badge, metrics, Mark done, turn history, no horizontal overflow.
   - Browser-side API abort shows the reconnecting strip while keeping last-known board state.
-  - `scripts/read-telegram-chat-ids.ps1` found manager chat ID `1236425631`.
+  - `scripts/read-telegram-chat-ids.ps1` found the manager chat ID in local Telegram updates; the value is intentionally not recorded here.
   - Manual isolated digest execution via `docker compose run --rm --no-deps n8n execute --id=wf3-daily-digest` succeeded and Telegram returned `ok=true` with six `Done ...` inline buttons.
-- Not yet verified:
-  - Real Telegram callback button press, because `WEBHOOK_URL` is still `http://localhost:5678`. Activate with `.\scripts\import-stage-3-workflows.ps1 -ActivateTelegram` only after setting `WEBHOOK_URL` to an active HTTPS tunnel, then press a digest `Done` button.
-- Final local demo DB state was reset after mutating checks: six active fixture turns, 12B first/red, vendor reply rate 68%, auto-handled rate 72%.
+  - A temporary Cloudflare Tunnel was run through Docker and `WEBHOOK_URL` was set locally to the HTTPS tunnel origin; the tunnel URL is intentionally not recorded.
+  - `.\scripts\import-stage-3-workflows.ps1 -ActivateTelegram` activated the manager digest and callback router with the HTTPS webhook.
+  - Real Telegram callback button press was verified on the manager digest: `Done 12B Paint` completed stage `1316`, wrote `completed_by` from the manager Telegram user ID, logged `manual_advance` with `channel='digest'`, advanced 12B to Flooring, and the manager-router execution completed successfully.
+  - After the callback, the board API showed 12B moved out of the first red-card slot and vendor reply rate dropped to 66%.
+- Final local demo DB state after callback verification is intentionally mutated: 12B Paint complete via manager digest callback, 12B Flooring active.
