@@ -4,8 +4,8 @@ This file is the running handoff record for future sessions. Read it before star
 
 ## Current Status
 
-- Stage 1 implementation has started.
-- Local runtime scaffolding has been added and smoke-tested.
+- Stage 1 is complete.
+- Local runtime scaffolding, credentials, and live external checks have been verified.
 - `build-plan.md` created with eight staged sessions.
 - Git repository initialized on `main`; remote target is private GitHub repo `make-ready-sequencing`.
 - Framing corrected: this is an AI automation demo, not a named software/SaaS product. Any UI is only for demo visualization.
@@ -20,7 +20,7 @@ This file is the running handoff record for future sessions. Read it before star
 
 | Stage | Name | Status | Notes |
 |---|---|---|---|
-| 1 | Local Environment And Tooling Setup | Runtime and credentials present; live external checks pending | Docker Compose stack, n8n, Postgres, placeholder board, docs, and smoke scripts added. n8n credential records now exist for Postgres, OpenAI, vendor Telegram, and manager Telegram. OpenAI model availability, Telegram `getMe`, and live tunnel webhook test still need explicit verification. |
+| 1 | Local Environment And Tooling Setup | Complete | Docker Compose stack, n8n, Postgres, placeholder board, docs, smoke scripts, n8n credentials, OpenAI model check, Telegram `getMe`, Postgres credential execution, and Cloudflare Tunnel reachability are verified. |
 | 2 | Data Model, Stage Template, And Fixtures | Not started | No schema or seed data created yet. |
 | 3 | Visibility Board And Manual Control | Not started | Core 0% vendor-reply path. |
 | 4 | Intake, Channel Normalization, And Matching | Not started | Inbound paths should log only until completion loop is built. |
@@ -58,11 +58,7 @@ This file is the running handoff record for future sessions. Read it before star
 
 ## Open Questions / Validation Items
 
-- Confirm actual OpenAI model IDs available with the user's API key during Stage 1. Helper script exists at `scripts/openai-model-check.ps1`; `OPENAI_API_KEY` was not present during the smoke run.
-- Create two Telegram bots and confirm both tokens with `getMe`. Helper script exists at `scripts/telegram-getme-check.ps1`; bot tokens were not present during the smoke run.
-- n8n local Postgres credential exists as `Make-Ready Postgres`.
-- n8n UI credential records exist for external APIs: `Make-Ready OpenAI`, `Make-Ready Vendor Telegram Bot`, and `Make-Ready Manager Telegram Bot`.
-- Run a live Cloudflare Tunnel webhook test after a temporary tunnel is started and `WEBHOOK_URL` is switched from localhost to the tunnel origin.
+- Re-check `WEBHOOK_URL` against an active Cloudflare Tunnel when Telegram Trigger workflows are built and activated; no Telegram Trigger workflows exist yet.
 - Confirm the domain/VPS provider only before Stage 8 production/pilot readiness.
 - Verify Property Meld sequencing behavior before making competitive claims in sales.
 - Check whether the prospect is in a metro where managed make-ready providers like Lula materially change the objection.
@@ -102,11 +98,17 @@ This file is the running handoff record for future sessions. Read it before star
   - Postgres is reachable on `127.0.0.1:5432`.
   - `make_ready_demo` role can run `SELECT 1` against the `make_ready_demo` database after the neutral naming correction.
   - n8n credential `Make-Ready Postgres` imported with credential type `postgres`.
+  - n8n temporary smoke workflow executed `SELECT 1` through `Make-Ready Postgres`; the smoke workflow was removed after verification.
   - n8n credential records confirmed in the local n8n database:
     - `Make-Ready OpenAI` (`openAiApi`)
     - `Make-Ready Vendor Telegram Bot` (`telegramApi`)
     - `Make-Ready Manager Telegram Bot` (`telegramApi`)
+  - OpenAI `GET /v1/models` succeeds through `Make-Ready OpenAI`; `gpt-5.6-luna` is available and remains selected for both classification and drafting.
+  - Telegram `getMe` succeeds for `@make_ready_vendor_demo_bot`.
+  - Telegram `getMe` succeeds for `@make_ready_manager_demo_bot`.
   - Placeholder board returns 200 at `http://localhost:8080`.
   - `cloudflared` is installed: version 2026.7.2.
+  - A temporary Cloudflare Tunnel reached local n8n `/healthz` successfully; the temporary URL was not recorded because tunnel URLs must not be committed.
   - n8n public settings report community nodes disabled.
+  - Temporary decrypted credential export used for live checks was removed from the n8n container.
 - Non-blocking runtime note: current local n8n image logs a Python task runner warning because Python 3 is not present in the container. The JS task runner registers and n8n starts normally; Stage 1 workflows are not blocked.

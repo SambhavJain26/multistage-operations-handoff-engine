@@ -106,6 +106,12 @@ Start a temporary tunnel to n8n:
 cloudflared tunnel --url http://localhost:5678
 ```
 
+Verify the tunnel can reach local n8n:
+
+```powershell
+.\scripts\verify-cloudflare-tunnel.ps1
+```
+
 Copy the generated `https://...trycloudflare.com` URL. Set `WEBHOOK_URL` in `.env` to that exact HTTPS origin, then restart n8n:
 
 ```powershell
