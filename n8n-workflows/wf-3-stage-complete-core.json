@@ -1,0 +1,211 @@
+{
+  "id": "wf3-stage-complete-core",
+  "name": "WF-3 Stage Complete Core",
+  "active": false,
+  "nodes": [
+    {
+      "id": "trigger",
+      "name": "Receive Completion Request",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "inputSource": "passthrough"
+      }
+    },
+    {
+      "id": "call-sequence-guard",
+      "name": "Call Sequence Guard",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [
+        240,
+        0
+      ],
+      "parameters": {
+        "source": "database",
+        "workflowId": "wf3-sequence-guard",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      }
+    },
+    {
+      "id": "guard-passed",
+      "name": "Guard Passed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        480,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "guard-passed-condition",
+              "leftValue": "={{ $json.allowed }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "complete-stage",
+      "name": "Complete Stage And Activate Next",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        720,
+        -120
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH input AS (\n  SELECT\n    {{ Number($json.stage_id || 0) }}::int AS stage_id,\n    '{{ String($json.actor_id || \"board-manager\").replace(/'/g, \"''\") }}'::text AS actor_id,\n    '{{ String($json.channel || \"board\").replace(/'/g, \"''\") }}'::text AS channel,\n    '{{ $json.completed_via === \"override\" ? \"override\" : \"manual\" }}'::text AS completed_via\n), requested AS (\n  SELECT ts.*, t.unit_label, t.property_address\n  FROM turn_stage ts\n  JOIN \"turn\" t ON t.id = ts.turn_id\n  JOIN input i ON i.stage_id = ts.id\n  FOR UPDATE OF ts\n), mark_complete AS (\n  UPDATE turn_stage ts\n  SET status = 'complete',\n      completed_at = now(),\n      completed_via = input.completed_via,\n      completed_by = input.actor_id\n  FROM input, requested\n  WHERE ts.id = requested.id\n    AND ts.status IN ('active', 'pending', 'blocked')\n  RETURNING ts.id, ts.turn_id, ts.seq, ts.stage_code, ts.stage_name, ts.completed_at, ts.completed_via, ts.completed_by\n), activate_next AS (\n  UPDATE turn_stage next_stage\n  SET status = 'active',\n      activated_at = COALESCE(next_stage.activated_at, now())\n  FROM mark_complete mc\n  WHERE next_stage.turn_id = mc.turn_id\n    AND next_stage.status = 'pending'\n    AND (SELECT status FROM requested LIMIT 1) = 'active'\n    AND next_stage.seq = (\n      SELECT min(candidate.seq)\n      FROM turn_stage candidate\n      WHERE candidate.turn_id = mc.turn_id\n        AND candidate.status = 'pending'\n        AND candidate.seq > mc.seq\n    )\n  RETURNING next_stage.id, next_stage.seq, next_stage.stage_code, next_stage.stage_name\n), write_event AS (\n  INSERT INTO event_log (turn_id, stage_id, actor_type, actor_id, channel, event_type, raw_text, parsed_json)\n  SELECT\n    mc.turn_id,\n    mc.id,\n    'manager',\n    input.actor_id,\n    input.channel,\n    CASE WHEN input.completed_via = 'override' THEN 'override' ELSE 'manual_advance' END,\n    'manager marked ' || mc.stage_code || ' done',\n    jsonb_build_object('completed_via', input.completed_via, 'source', input.channel, 'next_stage_id', (SELECT id FROM activate_next LIMIT 1))\n  FROM mark_complete mc\n  CROSS JOIN input\n  RETURNING id\n)\nSELECT\n  requested.turn_id,\n  requested.unit_label,\n  requested.property_address,\n  requested.id AS stage_id,\n  requested.stage_code,\n  requested.stage_name,\n  requested.status AS previous_status,\n  COALESCE(mark_complete.completed_via, requested.completed_via) AS completed_via,\n  mark_complete.completed_at,\n  mark_complete.completed_by,\n  (mark_complete.id IS NOT NULL) AS updated,\n  (SELECT row_to_json(activate_next) FROM activate_next LIMIT 1) AS next_stage\nFROM requested\nLEFT JOIN mark_complete ON mark_complete.id = requested.id;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "cred_make_ready_pg",
+          "name": "Make-Ready Postgres"
+        }
+      }
+    },
+    {
+      "id": "format-completion-success",
+      "name": "Format Completion Success",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        -120
+      ],
+      "parameters": {
+        "jsCode": "const nextStage = typeof $json.next_stage === 'string' && $json.next_stage ? JSON.parse($json.next_stage) : $json.next_stage;\nconst updated = Boolean($json.updated);\nconst response = {\n  allowed: true,\n  updated,\n  message: updated\n    ? $json.unit_label + ' - ' + $json.stage_name + ' marked done.'\n    : $json.unit_label + ' - ' + $json.stage_name + ' was already handled.',\n  turn_id: Number($json.turn_id),\n  stage_id: Number($json.stage_id),\n  stage_code: $json.stage_code,\n  stage_name: $json.stage_name,\n  completed_via: $json.completed_via,\n  completed_at: $json.completed_at,\n  completed_by: $json.completed_by,\n  next_stage: nextStage || null,\n  manager_response_text: updated\n    ? 'Done recorded: ' + $json.unit_label + ' - ' + $json.stage_name + (nextStage ? '. Next: ' + nextStage.stage_name + '.' : '.')\n    : 'No change: ' + $json.unit_label + ' - ' + $json.stage_name + ' was already handled.',\n  cors_origin: 'http://localhost:8080',\n  telegram_callback_query_id: $json.telegram_callback_query_id || null,\n  telegram_chat_id: $json.telegram_chat_id || null\n};\nreturn [{ json: response }];"
+      }
+    },
+    {
+      "id": "log-guard-block",
+      "name": "Log Guard Block",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        720,
+        120
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH input AS (\n  SELECT\n    {{ Number($json.stage_id || 0) }}::int AS stage_id,\n    {{ Number($json.turn_id || 0) }}::int AS turn_id,\n    '{{ String($json.stage_code || \"\").replace(/'/g, \"''\") }}'::text AS stage_code,\n    '{{ String($json.stage_name || \"\").replace(/'/g, \"''\") }}'::text AS stage_name,\n    '{{ String($json.actor_id || \"board-manager\").replace(/'/g, \"''\") }}'::text AS actor_id,\n    '{{ String($json.channel || \"board\").replace(/'/g, \"''\") }}'::text AS channel,\n    '{{ String($json.reason || \"Sequence guard blocked the completion.\").replace(/'/g, \"''\") }}'::text AS reason,\n    '{{ JSON.stringify($json.blocked_by || []).replace(/'/g, \"''\") }}'::jsonb AS blocked_by,\n    '{{ String($json.override_token || \"\").replace(/'/g, \"''\") }}'::text AS override_token\n), inserted AS (\nINSERT INTO event_log (turn_id, stage_id, actor_type, actor_id, channel, event_type, raw_text, parsed_json)\nSELECT\n  NULLIF(turn_id, 0),\n  NULLIF(stage_id, 0),\n  'manager',\n  actor_id,\n  channel,\n  'guard_blocked',\n  reason,\n  jsonb_build_object('blocked_by', blocked_by, 'override_token', override_token)\nFROM input\nRETURNING id\n)\nSELECT\n  input.stage_id,\n  input.turn_id,\n  input.stage_code,\n  input.stage_name,\n  input.reason,\n  input.blocked_by,\n  input.override_token,\n  inserted.id AS event_id\nFROM input\nCROSS JOIN inserted;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "cred_make_ready_pg",
+          "name": "Make-Ready Postgres"
+        }
+      }
+    },
+    {
+      "id": "format-guard-block",
+      "name": "Format Guard Block",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        120
+      ],
+      "parameters": {
+        "jsCode": "return [{ json: {\n  allowed: false,\n  updated: false,\n  message: $json.reason || 'Sequence guard blocked the completion.',\n  reason: $json.reason || 'Sequence guard blocked the completion.',\n  turn_id: $json.turn_id ? Number($json.turn_id) : null,\n  stage_id: Number($json.stage_id || $json.requested_stage_id || 0),\n  stage_code: $json.stage_code || null,\n  stage_name: $json.stage_name || null,\n  blocked_by: $json.blocked_by || [],\n  override_token: $json.override_token || null,\n  manager_response_text: $json.reason || 'Sequence guard blocked the completion.',\n  cors_origin: 'http://localhost:8080',\n  telegram_callback_query_id: $json.telegram_callback_query_id || null,\n  telegram_chat_id: $json.telegram_chat_id || null\n} }];"
+      }
+    }
+  ],
+  "connections": {
+    "Receive Completion Request": {
+      "main": [
+        [
+          {
+            "node": "Call Sequence Guard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Sequence Guard": {
+      "main": [
+        [
+          {
+            "node": "Guard Passed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guard Passed?": {
+      "main": [
+        [
+          {
+            "node": "Complete Stage And Activate Next",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Guard Block",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Complete Stage And Activate Next": {
+      "main": [
+        [
+          {
+            "node": "Format Completion Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Guard Block": {
+      "main": [
+        [
+          {
+            "node": "Format Guard Block",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "pinData": {},
+  "versionId": "wf3-stage-complete-core-v1",
+  "triggerCount": 0,
+  "tags": []
+}

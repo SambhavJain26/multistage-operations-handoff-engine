@@ -45,6 +45,9 @@ services:
       N8N_DEFAULT_BINARY_DATA_MODE: filesystem
       N8N_STORAGE_PATH: /data
       N8N_USER_FOLDER: /home/node/.n8n
+      BOARD_DEMO_TOKEN: ${BOARD_DEMO_TOKEN:-local-stage-3-demo-token}
+      BOARD_ALLOWED_ORIGIN: ${BOARD_ALLOWED_ORIGIN:-http://localhost:8080}
+      MANAGER_TELEGRAM_CHAT_ID: ${MANAGER_TELEGRAM_CHAT_ID:-}
       DB_TYPE: postgresdb
       DB_POSTGRESDB_HOST: postgres
       DB_POSTGRESDB_PORT: 5432

@@ -22,7 +22,7 @@ This file is the running handoff record for future sessions. Read it before star
 |---|---|---|---|
 | 1 | Local Environment And Tooling Setup | Complete | Docker Compose stack, n8n, Postgres, placeholder board, docs, smoke scripts, n8n credentials, OpenAI model check, Telegram `getMe`, Postgres credential execution, and Cloudflare Tunnel reachability are verified. |
 | 2 | Data Model, Stage Template, And Fixtures | Complete | Schema, stage template, Cedar Ridge fixture seed, reset/load scripts, prospect CSV example, Telegram chat-ID helper, and Stage 2 verification checks added. |
-| 3 | Visibility Board And Manual Control | Not started | Core 0% vendor-reply path. |
+| 3 | Visibility Board And Manual Control | Implementation complete; callback verification pending | Board API, static board, reusable guard, guarded manual completion, and manager digest send are implemented. Telegram callback router is built but not activated/verified because `WEBHOOK_URL` is still localhost. |
 | 4 | Intake, Channel Normalization, And Matching | Not started | Inbound paths should log only until completion loop is built. |
 | 5 | Vendor Completion Loop With Human Approval | Not started | Must preserve manager approval for all outbound vendor messages. |
 | 6 | Stall Detection, Digest, Simulator, And Photos | Not started | Absence detector and demo companion surfaces. |
@@ -143,3 +143,60 @@ This file is the running handoff record for future sessions. Read it before star
   - Sample prospect rows were removed after testing; final local DB state is six fixture turns and zero non-fixture turns.
   - n8n workflow count remains zero after Stage 2 verification.
   - `scripts/read-telegram-chat-ids.ps1` runs without printing tokens; no bot updates were present yet.
+
+## Stage 3 Implementation Notes
+
+- Added Stage 3 n8n workflow exports in `n8n-workflows/`:
+  - `wf-3-sequence-guard.json`
+  - `wf-3-stage-complete-core.json`
+  - `wf-3-board-api.json`
+  - `wf-3-stage-complete-api.json`
+  - `wf-3-daily-digest.json`
+  - `wf-3-manager-router.json`
+- Added deterministic workflow generator `scripts/generate-stage-3-workflows.js` so the exports can be regenerated without hand-editing escaped node code.
+- Added import helper `scripts/import-stage-3-workflows.ps1`.
+  - n8n 2.29.10 rejected `import:workflow --activeState=fromJson` in regular deployment mode, so the helper imports inactive, publishes required workflow IDs, and restarts n8n.
+  - The helper writes temporary JSON copies under ignored `data/tmp-stage-3-workflow-import/` as UTF-8 without BOM.
+  - Telegram workflows stay unpublished unless `-ActivateTelegram` is used with `MANAGER_TELEGRAM_CHAT_ID` and an HTTPS `WEBHOOK_URL`.
+- Added verification SQL and script:
+  - `db/postgres/verify-stage-3.sql`
+  - `scripts/check-stage-3.ps1`
+- Replaced the Stage 1 placeholder board with the real single-file board at `board/index.html`.
+  - Polls `http://localhost:5678/webhook/board`.
+  - Uses query-token auth to avoid CORS preflight for the static local board.
+  - Stores last-known board state in `localStorage`.
+  - Shows reconnecting/error status instead of going blank.
+  - Renders the permanent demo badge, board metrics, worst-first cards, stage strip, latest event, manual completion control, and turn-history placeholder.
+- Added Stage 3 runbook at `docs/stage-3-visibility-board.md`.
+- Added Stage 3 local config placeholders to `.env.example` and passed them through `docker-compose.yml`.
+- Sequence guard behavior implemented:
+  - Skipped stages count as satisfied.
+  - Paint requires Repairs.
+  - Flooring requires Paint.
+  - Deep Clean requires Repairs, Paint, and Flooring.
+  - QA/photos requires Deep Clean.
+  - Relist requires QA/photos.
+  - Stages after Move-out require Move-out.
+  - 14A Deep Clean returns a clear Repairs-open reason.
+- Manual stage completion behavior implemented:
+  - Board `POST /webhook/stage/complete` uses the shared completion core.
+  - Successful manual completion writes `completed_via='manual'`, logs `manual_advance`, and activates the next pending stage when the completed stage was active.
+  - 12B Paint advances to Flooring, not Deep Clean, because the seeded Flooring stage is not skipped.
+- Verified:
+  - Stage 3 workflow JSON files parse with `ConvertFrom-Json`.
+  - `docker compose config` succeeds with the Stage 3 environment additions.
+  - `scripts/import-stage-3-workflows.ps1` imports and publishes the four non-Telegram workflows.
+  - `GET /webhook/board` without token returns `401`.
+  - `GET /webhook/board?token=local-stage-3-demo-token` returns six active turns in the reset opening state.
+  - Board sorting puts 12B first as a red stalled card after reset.
+  - 14A Deep Clean from the board path returns `409` with "Repairs still open on 14A. Cleaning before repairs means cleaning twice."
+  - 12B Paint from the board path completes via manual, logs the event, lowers vendor reply rate, and activates Flooring.
+  - `scripts/check-stage-3.ps1` passes after a fresh reset.
+  - Static board server returned `200` at `http://localhost:8080`.
+  - Browser smoke test with local Chrome passed at 1280x900 and 390x844: six cards, demo badge, metrics, Mark done, turn history, no horizontal overflow.
+  - Browser-side API abort shows the reconnecting strip while keeping last-known board state.
+  - `scripts/read-telegram-chat-ids.ps1` found manager chat ID `1236425631`.
+  - Manual isolated digest execution via `docker compose run --rm --no-deps n8n execute --id=wf3-daily-digest` succeeded and Telegram returned `ok=true` with six `Done ...` inline buttons.
+- Not yet verified:
+  - Real Telegram callback button press, because `WEBHOOK_URL` is still `http://localhost:5678`. Activate with `.\scripts\import-stage-3-workflows.ps1 -ActivateTelegram` only after setting `WEBHOOK_URL` to an active HTTPS tunnel, then press a digest `Done` button.
+- Final local demo DB state was reset after mutating checks: six active fixture turns, 12B first/red, vendor reply rate 68%, auto-handled rate 72%.

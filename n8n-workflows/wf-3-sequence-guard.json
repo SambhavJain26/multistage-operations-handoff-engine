@@ -1,0 +1,86 @@
+{
+  "id": "wf3-sequence-guard",
+  "name": "WF-3 Sequence Guard",
+  "active": false,
+  "nodes": [
+    {
+      "id": "trigger",
+      "name": "Receive Guard Request",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "inputSource": "passthrough"
+      }
+    },
+    {
+      "id": "load-stage-state",
+      "name": "Load Stage State For Guard",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        240,
+        0
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH input AS (\n  SELECT {{ Number($json.stage_id || 0) }}::int AS stage_id\n), target AS (\n  SELECT\n    ts.id,\n    ts.turn_id,\n    ts.seq,\n    ts.stage_code,\n    ts.stage_name,\n    ts.status,\n    t.unit_label,\n    t.property_address\n  FROM turn_stage ts\n  JOIN \"turn\" t ON t.id = ts.turn_id\n  JOIN input i ON i.stage_id = ts.id\n), stage_rows AS (\n  SELECT\n    s.turn_id,\n    jsonb_agg(jsonb_build_object(\n      'id', s.id,\n      'seq', s.seq,\n      'stage_code', s.stage_code,\n      'stage_name', s.stage_name,\n      'status', s.status\n    ) ORDER BY s.seq) AS stages\n  FROM turn_stage s\n  WHERE s.turn_id = (SELECT turn_id FROM target)\n  GROUP BY s.turn_id\n)\nSELECT\n  input.stage_id AS requested_stage_id,\n  target.id AS stage_id,\n  target.turn_id,\n  target.seq,\n  target.stage_code,\n  target.stage_name,\n  target.status,\n  target.unit_label,\n  target.property_address,\n  COALESCE(stage_rows.stages, '[]'::jsonb) AS stages\nFROM input\nLEFT JOIN target ON TRUE\nLEFT JOIN stage_rows ON stage_rows.turn_id = target.turn_id;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "cred_make_ready_pg",
+          "name": "Make-Ready Postgres"
+        }
+      }
+    },
+    {
+      "id": "evaluate-sequence-guard",
+      "name": "Evaluate Sequence Guard",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const input = $json;\nconst stages = Array.isArray(input.stages) ? input.stages : (input.stages ? JSON.parse(input.stages) : []);\nconst stageByCode = new Map(stages.map(stage => [stage.stage_code, stage]));\nconst targetCode = input.stage_code;\nconst targetSeq = Number(input.seq);\nconst stageId = Number(input.stage_id || input.requested_stage_id || 0);\nconst requestedOverride = String(input.override_token || '').trim();\nconst overrideAccepted = requestedOverride.startsWith('OVR:' + stageId + ':');\nconst satisfied = stage => stage && ['complete', 'skipped'].includes(stage.status);\nconst required = [];\nif (!input.stage_id) {\n  return [{ json: { ...input, allowed: false, blocked_by: [], reason: 'Stage not found.', override_token: null } }];\n}\nif (['complete', 'skipped'].includes(input.status)) {\n  return [{ json: { ...input, allowed: false, blocked_by: [], reason: input.stage_name + ' is already ' + input.status + '.', override_token: null } }];\n}\nif (targetSeq > 2) required.push('MOVEOUT');\nconst ruleMap = {\n  PAINT: ['REPAIRS'],\n  FLOORING: ['PAINT'],\n  DEEP_CLEAN: ['REPAIRS', 'PAINT', 'FLOORING'],\n  QA_PHOTOS: ['DEEP_CLEAN'],\n  RELIST: ['QA_PHOTOS']\n};\nfor (const code of ruleMap[targetCode] || []) {\n  if (!required.includes(code)) required.push(code);\n}\nconst missing = required\n  .map(code => stageByCode.get(code))\n  .filter(stage => !satisfied(stage))\n  .sort((a, b) => Number(a.seq) - Number(b.seq));\nif (missing.length === 0 || overrideAccepted) {\n  return [{ json: {\n    ...input,\n    allowed: true,\n    override: overrideAccepted,\n    blocked_by: missing.map(stage => ({ stage_code: stage.stage_code, stage_name: stage.stage_name, status: stage.status })),\n    reason: overrideAccepted ? 'Manager override accepted.' : 'Sequence guard passed.',\n    completed_via: overrideAccepted ? 'override' : 'manual'\n  } }];\n}\nconst first = missing[0];\nlet reason = first.stage_name + ' is still open on ' + input.unit_label + '.';\nif (targetCode === 'DEEP_CLEAN' && first.stage_code === 'REPAIRS') {\n  reason = 'Repairs still open on ' + input.unit_label + '. Cleaning before repairs means cleaning twice.';\n}\nreturn [{ json: {\n  ...input,\n  allowed: false,\n  override: false,\n  blocked_by: missing.map(stage => ({ stage_code: stage.stage_code, stage_name: stage.stage_name, status: stage.status })),\n  reason,\n  override_token: 'OVR:' + stageId + ':' + Date.now()\n} }];"
+      }
+    }
+  ],
+  "connections": {
+    "Receive Guard Request": {
+      "main": [
+        [
+          {
+            "node": "Load Stage State For Guard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Stage State For Guard": {
+      "main": [
+        [
+          {
+            "node": "Evaluate Sequence Guard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "pinData": {},
+  "versionId": "wf3-sequence-guard-v1",
+  "triggerCount": 0,
+  "tags": []
+}
