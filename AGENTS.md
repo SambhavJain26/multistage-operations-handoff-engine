@@ -1,6 +1,6 @@
 # Repository Guidelines
 
-This repository is the planning and implementation workspace for **TurnDesk**, a local-first n8n make-ready coordination demo. Treat it as an automation project, not a compiled app. Core behavior will live in n8n workflow exports, Postgres schema/state, synthetic fixtures, the board UI, and helper scripts.
+This repository is the planning and implementation workspace for a local-first n8n make-ready sequencing AI automation demo. Treat it as an automation project, not a software product, SaaS, or compiled app. Core behavior will live in n8n workflow exports, Postgres schema/state, synthetic fixtures, demo visualization UI, and helper scripts.
 
 ## Read Order And Authority
 
@@ -8,7 +8,7 @@ Before changing scope or implementation details, read:
 
 1. `progress-notes.md`: current status, locked decisions, deviations, and open items.
 2. `build-plan.md`: staged implementation plan and verification gates.
-3. `make-ready-demo-build-plan.md`: controlling detailed product/workflow/demo spec.
+3. `make-ready-demo-build-plan.md`: controlling detailed automation/workflow/demo spec.
 4. `03-make-ready-coordination.md` and `foundation-3-turnover-makeready.md`: background only.
 
 If documents conflict, prefer the newest decision in `progress-notes.md`, then update stale docs instead of guessing.
@@ -19,7 +19,7 @@ Current files are planning docs only. When implementation begins, use:
 
 - `n8n-workflows/`: importable workflow JSON exports, named like `wf-3-board-api.json`.
 - `db/postgres/`: schema, migrations, seed SQL, reset SQL.
-- `board/`: `index.html`, `sim.html`, CSS/JS assets if split later.
+- `board/`: demo visualization files such as `index.html` and `sim.html`; not a production app surface.
 - `scripts/`: setup, import/export, reset, fixture, and verification helpers.
 - `fixtures/`: F01-F20 payloads, expected outputs, demo photos.
 - `prompts/`: classification and drafting prompts/schemas if kept outside workflow JSON.
@@ -30,7 +30,7 @@ Use lowercase hyphenated filenames. Use `snake_case` for database columns and JS
 
 ## Local Services And Commands
 
-Expected local services are n8n at `http://localhost:5678`, Postgres on `127.0.0.1:5432`, and the board on a local static server. Telegram testing requires a temporary HTTPS tunnel into local n8n; do not use a VPS/domain/Caddy until production or paid pilot readiness.
+Expected local services are n8n at `http://localhost:5678`, Postgres on `127.0.0.1:5432`, and the visualization board on a local static server. Telegram testing requires a temporary HTTPS tunnel into local n8n; do not use a VPS/domain/Caddy until production or paid pilot readiness.
 
 Useful commands:
 
@@ -85,7 +85,7 @@ Known n8n gotchas to account for:
 - Imported Form Trigger workflows may register under workflow/node-prefixed form paths. Query n8n's webhook records or test the registered `/form/...` path after import.
 - Form Trigger workflows should use the Form completion step, not Respond to Webhook.
 - AI structured output may be wrapped; downstream code should handle wrapped and direct JSON shapes.
-- Board and detail pages are manager-facing by default. Show model outputs, guard outcomes, and event details in plain language first; keep raw JSON behind collapsed technical audit controls.
+- Board and detail pages are demo visualizations by default. Show model outputs, guard outcomes, and event details in plain language first; keep raw JSON behind collapsed technical audit controls.
 - Repeated live-model rehearsal can expose small variance. Prefer deterministic post-model boundaries and document every boundary in `progress-notes.md`.
 - One-off `n8n execute` commands can collide with the running task broker. Prefer isolated `docker compose run --rm --no-deps n8n execute ...` or stop the service before CLI execution, then restart it.
 - In PowerShell, piping JSON into native commands can introduce a UTF-8 BOM. If `n8n import:workflow` fails with an unexpected token at the start, verify the file is clean and import through Bash or another BOM-safe path.

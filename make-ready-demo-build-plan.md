@@ -1,6 +1,6 @@
 # Make-Ready Coordination — Demo Build Plan
 
-**Product working name:** TurnDesk
+**Working name:** none. This is a make-ready sequencing AI automation demo, not a named software/SaaS product.
 **Target:** US residential PM companies, 150–600 doors
 **Deliverable:** a live demo that survives five minutes on a sales call with an unproven vendor running it
 **Audience for this document:** Claude Code, executing directly
@@ -13,9 +13,9 @@
 
 **0.2 — "Weakest demo of the four" is a fixable framing problem, not a fact.** The stated weakness is that value unfolds over days. True, but the demo doesn't need to show days elapsing — it needs to show *knowing something the manager doesn't currently know*. That's instantaneous. Pre-seeded state with genuinely backdated timestamps gives you real ages, and the stall detector fires live during the call. The demo is fine.
 
-**0.3 — Build order caution stands, and it's stronger than the doc says.** The qualifying question ("When your painter finishes a unit, how do you find out?") gates the *product*, not just the client. But it does **not** gate the *demo build* — the board and the sequence guard deliver value at a 0% vendor reply rate. Build the visibility layer as the core and the vendor loop as the extension, so that a bad answer to the qualifying question downgrades the sale instead of killing it.
+**0.3 — Build order caution stands, and it's stronger than the doc says.** The qualifying question ("When your painter finishes a unit, how do you find out?") gates the *automation value*, not just the client. But it does **not** gate the *demo build* — the board and the sequence guard deliver value at a 0% vendor reply rate. Build the visibility layer as the core and the vendor loop as the extension, so that a bad answer to the qualifying question downgrades the offer instead of killing it.
 
-**0.4 — The 0% claim is only true because of WF-7. Do not drop it.** The hedge in 0.3 is repeated in §6 and stated to the prospect in §11, and it is the reason this product is safe to sell before you know a client's vendor reply rate. It holds only if a manager can advance a stage with no vendor message at all — otherwise every unit freezes at its first stage, the stall detector fires on everything, and the board becomes noise inside two days. **WF-7 (§3.2) is what makes the claim true, and it is built before the vendor loop, not after.** If you cut one thing from this plan, do not cut that.
+**0.4 — The 0% claim is only true because of WF-7. Do not drop it.** The hedge in 0.3 is repeated in §6 and stated to the prospect in §11, and it is the reason this automation is safe to demo before you know a client's vendor reply rate. It holds only if a manager can advance a stage with no vendor message at all — otherwise every unit freezes at its first stage, the stall detector fires on everything, and the board becomes noise inside two days. **WF-7 (§3.2) is what makes the claim true, and it is built before the vendor loop, not after.** If you cut one thing from this plan, do not cut that.
 
 ---
 
@@ -56,7 +56,7 @@ n8n also ships some files with `.ee.` in the filename under a separate Enterpris
 | Docker Engine | Apache 2.0 | None |
 | Telegram Bot API | Free service, Telegram ToS | No licence fee. Not open source — you depend on Telegram's service. Acceptable for demo, replaced by SMS in production |
 | OpenAI API | Commercial ToS | Paid per token. You own outputs per OpenAI's terms |
-| Board UI (written by you) | Yours | You own it |
+| Demo visualization UI (written by you) | Yours | Used only to show the automation state during demos |
 | EspoCRM | AGPLv3 | **Cut from this build** — see §4.9 |
 
 No community n8n nodes are used. Every node in this design is a core node. That is deliberate: community nodes are the most common source of "worked last week, broken today" in a live demo, and their maintenance status is your problem in front of a prospect.
@@ -83,13 +83,13 @@ No community n8n nodes are used. Every node in this design is a core node. That 
 - The FCC's one-to-one consent rule was vacated by the Eleventh Circuit in January 2025 and subsequently eliminated. It does not apply. Several sources still describe it as live — ignore them
 - State-level SMS statutes (Florida's FTSA, Oklahoma, others) impose additional constraints. **I did not verify these state by state.** Before the first production SMS goes out, check the client's operating states with a US attorney. This is cheap to check and expensive to get wrong
 
-**Does not apply — Fair Housing Act AI guidance.** HUD's May 2024 guidance covers two specific areas: **tenant screening** and **housing advertising/ad targeting**. This product does neither. It coordinates vendors on already-vacant units. FHA is not implicated by the demo as designed.
+**Does not apply — Fair Housing Act AI guidance.** HUD's May 2024 guidance covers two specific areas: **tenant screening** and **housing advertising/ad targeting**. This automation does neither. It coordinates vendors on already-vacant units. FHA is not implicated by the demo as designed.
 
 The boundary matters though, and it is your boundary to hold: **the moment anything in this system touches applicant selection, listing copy, or ad targeting, HUD's guidance applies and the liability sits with the housing provider regardless of who built the tool.** Relist (stage 10) is a *notification to the manager that the unit is ready*, never a listing action. Keep it there.
 
 Related boundary marker: Colorado's SB 24-205 classifies AI tenant-screening systems as high-risk, with a compliance date of June 30, 2026. Its effective date has been moved more than once, so **verify current status if a Colorado prospect appears**. It does not reach vendor coordination.
 
-**Does not apply — state habitability response windows.** Those govern repair response in *occupied* units. This product runs on vacant units between tenancies. If a prospect asks whether this handles maintenance tickets, the answer is no (§11).
+**Does not apply — state habitability response windows.** Those govern repair response in *occupied* units. This automation runs on vacant units between tenancies. If a prospect asks whether this handles maintenance tickets, the answer is no (§11).
 
 **Adjacent and dangerous — security deposit itemization.** Move-out inspection and punch list are stage 3 of this pipeline, and the same walkthrough that generates a punch list often generates deposit deductions. Every US state sets a deadline and an itemization standard for deposit disposition, and getting it wrong creates statutory penalties for your client. **The system must never classify damage as tenant-chargeable versus normal wear, never compute a deduction, and never generate deposit correspondence.** Punch list items are work items for vendors, full stop. This is stated as a hard exclusion in §11 and enforced in the prompt design in §5.
 
@@ -211,7 +211,7 @@ Before any demo:
 1. **Metro check.** Is the prospect inside one of Lula's 17? If yes, they can outsource the problem instead of instrumenting it — lead with cost and control, since they keep their own vendors, their own pricing, and their own relationships.
 2. **Door count.** Under ~250 doors your flat fee is more expensive per door than a better-supported incumbent. Know that before you quote.
 3. **Single-family scattered or multifamily?** Determines which competitor you're being compared against and which half of §1.8 you lean on.
-4. **What are they using today?** If the answer is Property Meld, Rent Ready or Lessen, **do not demo** — ask what it doesn't do for turns and listen. That's product research, not a deal.
+4. **What are they using today?** If the answer is Property Meld, Rent Ready or Lessen, **do not demo** — ask what it doesn't do for turns and listen. That's automation research, not a deal.
 5. **Book a Property Meld demo as a prospect, once, before your first sales call.** Ask directly whether you can mark cleaning complete while repairs are still open, and what a 300-door account actually costs all-in. An hour of your time either confirms your best competitive line or stops you claiming something false in front of a buyer.
 
 ### 1.9 What I could not verify
@@ -337,7 +337,7 @@ Ages and dollar figures are computed **at request time**, never stored. Two cons
 Two rules, both non-negotiable:
 
 1. **A manual advance goes through the guard.** A manager marking Deep Clean done while Repairs is open gets blocked and offered an override, the same as a vendor would. The guard exists to prevent rework, and rework is caused by managers sending cleaners in early at least as often as by vendors reporting out of order. A guard you can bypass by using a different button is not a guard.
-2. **It is recorded as manual.** `completed_via` is what separates "the vendor told us" from "we found out ourselves," and that distinction is the entire basis of §3.7. Without it you cannot compute the one number this product lives on.
+2. **It is recorded as manual.** `completed_via` is what separates "the vendor told us" from "we found out ourselves," and that distinction is the entire basis of §3.7. Without it you cannot compute the one number this automation lives on.
 
 Entry points: a `Mark done` button on every daily-digest line and every stall alert, and a per-card control on the board. Both hit the same logic.
 
@@ -405,13 +405,13 @@ This is also a demo moment (fixture F02, §7): a genuinely ambiguous message pro
 
 **Rejected: an LLM agent that decides what to do next.** Nondeterministic behaviour on exactly the logic that must never be wrong, more expensive, slower on a live call, and impossible to explain to a sceptical buyer.
 
-**Rejected: EspoCRM as the board.** It's a sales CRM. Bending its Kanban into an age-ranked ops board costs more effort than writing a single HTML page, and AGPLv3 adds copyleft to an otherwise clean stack for zero benefit.
+**Rejected: EspoCRM as the board.** It's a sales CRM. Bending its Kanban into an age-ranked ops board costs more effort than writing a single demo visualization page, and AGPLv3 adds copyleft to an otherwise clean stack for zero benefit.
 
 ---
 
 ### 3.7 The two metrics — the feature no competitor will ship
 
-The source document is emphatic that vendor reply rate decides whether this product works at all: below roughly 30% the board is fiction, above 60% it works. Your pilot offer stakes the engagement on it. §11 promises the prospect you will measure it.
+The source document is emphatic that vendor reply rate decides whether this automation works at all: below roughly 30% the board is fiction, above 60% it works. Your pilot offer stakes the engagement on it. §11 promises the prospect you will measure it.
 
 **So measure it.** With `completed_via` in place from WF-7, both numbers are plain SQL:
 
@@ -432,7 +432,7 @@ WHERE actor_type = 'vendor'
   AND created_at > now() - interval '30 days';
 ```
 
-**Vendor reply rate** answers "is this product working for this client." **Auto-handled rate** answers "is it removing work or creating it" — if most inbound messages end up as a manager decision, you have built a notification system with extra steps, and you want to know that before the client says it.
+**Vendor reply rate** answers "is this automation working for this client." **Auto-handled rate** answers "is it removing work or creating it" — if most inbound messages end up as a manager decision, you have built a notification flow with extra steps, and you want to know that before the client says it.
 
 Surface both in three places: the board header permanently (§8), the weekly digest with the prior week for trend, and a `/health` command on the manager bot.
 
@@ -449,7 +449,7 @@ Surface both in three places: the board header permanently (§8), the weekly dig
 | **Local static server** | Demo board hosting | Free | Yours / local tooling | Enough for local build and screen-share testing. Beat n8n-rendered HTML by dodging the iframe sandbox (§1.6). Caddy moves to production |
 | **Telegram Bot API** (2 bots) | Vendor and manager messaging | Free | Free service | Native n8n nodes, no registration delay, real message on the prospect's real phone during the call. Beat SMS on the only axis that matters right now: you can use it today (§1.4) |
 | **OpenAI `gpt-5.6-luna`** | Vendor reply classification + short draft rewriting | Low token cost | Commercial ToS | Current OpenAI docs position Luna for cost-sensitive workloads, and live pricing makes it cheaper than the older `gpt-5.4-nano` on output. Use it first for both model steps |
-| **Board UI** — one HTML file, vanilla JS | The visibility layer | Free | Yours | No build step, no npm, no framework churn, opens in any browser. See §8 |
+| **Demo visualization board** — one HTML file, vanilla JS | Shows the automation state during the demo | Free | Yours | No build step, no npm, no framework churn, opens in any browser. See §8 |
 | **Tunnel** — Cloudflare Tunnel or ngrok | Temporary public HTTPS URL for local Telegram webhook testing | Free or low cost | Provider terms | Required only when testing Telegram triggers locally. The generic webhook and simulator do not need it |
 | **Docker + Compose** | Local runtime | Free | Apache 2.0 | Runs n8n and Postgres on this machine and gives a clean later path to production |
 | **Caddy 2** | Production TLS, reverse proxy, static board hosting | Free | Apache 2.0 | Production only for now. Automatic Let's Encrypt with a two-line config |
@@ -457,9 +457,9 @@ Surface both in three places: the board header permanently (§8), the weekly dig
 
 **Total fixed cost during demo build: $0 beyond OpenAI token usage.** Everything runs locally. VPS/domain/Caddy are production-stage items (§14).
 
-**Explicitly not in the demo product stack:** EspoCRM (§3.6), Twilio (production only, client's account), any n8n community node, any paid SaaS, or any free-tier service that is critical to the board/manual-control path. The tunnel is a dev/testing convenience for Telegram only.
+**Explicitly not in the demo automation stack:** EspoCRM (§3.6), Twilio (production only, client's account), any n8n community node, any paid SaaS, or any free-tier service that is critical to the board/manual-control path. The tunnel is a dev/testing convenience for Telegram only.
 
-**§4.9 — On EspoCRM:** it stays in your toolkit for its actual job, which is tracking *your* sales pipeline as you prospect. It has no role inside this product.
+**§4.9 — On EspoCRM:** it stays in your toolkit for its actual job, which is tracking *your* sales pipeline as you prospect. It has no role inside this automation.
 
 ---
 
@@ -752,7 +752,7 @@ Create an HTTP Request credential for `Authorization: Bearer <key>`. Then run th
 **C5. Build WF-5, Daily Digest.** Reuse C2's query and Code node. Every line carries a `Mark done` button hitting C3.
 *Done when:* manually triggering it puts a correctly-ordered summary in the manager Telegram chat, and pressing `Mark done` on a line advances that stage.
 
-**Checkpoint — and it is a bigger one than it looks.** At this point you have a complete, honest, sellable product with no vendor automation at all: a live turn board, a rework guard that works on manual entry, a stall detector, a daily digest, and a metric that reports how much of it is running itself. You can demo this, pilot this, and charge for this at a 0% vendor reply rate. Everything in Phase D is an accelerator bolted onto a system that already stands up. Do not start Phase D until this checkpoint is genuinely true.
+**Checkpoint — and it is a bigger one than it looks.** At this point you have a complete, honest, demoable automation with no vendor automation at all: a live turn board, a rework guard that works on manual entry, a stall detector, a daily digest, and a metric that reports how much of it is running itself. You can demo this, pilot this, and charge for this workflow at a 0% vendor reply rate. Everything in Phase D is an accelerator bolted onto an automation that already stands up. Do not start Phase D until this checkpoint is genuinely true.
 
 ### Phase D — Write path
 
@@ -872,13 +872,13 @@ Combined, the board shows **$1,847 of rent currently burning** across six units.
 
 **F02, F05, F07 and F10 are the four that make it feel real.** A demo without them is a demo of a script.
 
-**F19 and F20 are the two that prove the product stands up without vendors.** If either fails, the claim in §0.3 and §11 that the board works at a 0% reply rate is not true yet, and you should not make it on a call.
+**F19 and F20 are the two that prove the automation stands up without vendors.** If either fails, the claim in §0.3 and §11 that the board works at a 0% reply rate is not true yet, and you should not make it on a call.
 
 ---
 
-## 8. UI
+## 8. Demo Visualization UI
 
-**Yes, build it.** The board is not decoration — it is the thing that delivers value at a 0% vendor reply rate, it is your opening shot, and per the source document's own positioning, the visibility layer is easier to sell than the automation. A Telegram-only demo would be a demo of plumbing.
+**Yes, build it.** The board is demo visualization, not a software product surface. It is the thing that makes the automation visible at a 0% vendor reply rate, and it is your opening shot. A Telegram-only demo would be a demo of plumbing.
 
 **One screen. One HTML file. No framework, no build step, no npm.**
 
@@ -897,7 +897,7 @@ Combined, the board shows **$1,847 of rent currently burning** across six units.
 **How it's built:** `index.html` with inline CSS and a `fetch()` on a 10-second timer against WF-6. Served locally during the demo build. In production, Caddy serves the same static file at `board.<domain>`. Auth by a token in the query string for the demo; §14 replaces it.
 
 **Design constraints that actually matter for a screen-share:**
-- The age number is the biggest text on the card. Not the unit, not the stage. The number is the product
+- The age number is the biggest text on the card. Not the unit, not the stage. The number is what the automation is exposing
 - Red must be obvious on a compressed video call at low bandwidth. Test it over an actual Zoom/Meet screen-share before you rely on it
 - Dark background. It photographs and compresses better and looks less like a spreadsheet
 - **No animation on refresh.** When a card changes state during the demo it should be noticed because it changed, not because it moved
@@ -1011,7 +1011,7 @@ Why this and not the two-week vendor pilot: the pilot requires them to expose ve
 
 **If they say yes immediately, escalate to the qualifying gate — it doubles as the second ask:**
 
-> "One more thing, and it's the question that decides whether any of this is worth building for you. Next time you send your painter to a unit, ask him to text you 'done' when he finishes. Just once. Tell me in a week whether he did. If he didn't, I'll tell you this product isn't for you and we'll stop — the board still works, but the automation won't."
+> "One more thing, and it's the question that decides whether any of this is worth building for you. Next time you send your painter to a unit, ask him to text you 'done' when he finishes. Just once. Tell me in a week whether he did. If he didn't, I'll tell you this automation isn't for you and we'll stop — the board still works, but the vendor loop won't."
 
 Offering to disqualify yourself is the strongest move available to someone with no case studies, and unlike a testimonial, it costs nothing and can't be faked.
 
@@ -1098,7 +1098,7 @@ The fail-safe argument is your strongest structural answer here. Every outbound 
 | OpenAI — development iteration (~200 short Luna calls) | ~$0.05 |
 | OpenAI — full fixture run F01–F20, run five times | ~$0.15 |
 | Telegram | $0 |
-| All software licences | $0 |
+| Tool licences | $0 |
 | **Runtime API spend to build and test** | **under $0.25** |
 
 Your $10 budget is not at risk from the product's own API calls — they round to nothing. **The real spend is Claude Code's own generation tokens**, which are the dominant cost by an order of magnitude. To keep that down:
@@ -1216,7 +1216,7 @@ What changes the day someone pays you. None of this belongs in the demo, and bui
 - **A documented off-boarding path**: how they export their data and switch it off without you. Offering this at the start is one of the most persuasive things an unproven freelancer can do
 
 **Success measurement, agreed before go-live**
-- Vendor reply rate — the number that decides whether the product works at all
+- Vendor reply rate — the number that decides whether the automation works at all
 - Median hours per stage, before and after
 - Median days move-out to relist
 - Count of sequence violations blocked

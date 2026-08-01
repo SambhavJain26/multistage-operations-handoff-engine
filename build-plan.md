@@ -1,4 +1,4 @@
-# TurnDesk Staged Build Plan
+# Make-Ready Sequencing Staged Build Plan
 
 This plan is based on a full read of:
 
@@ -6,18 +6,18 @@ This plan is based on a full read of:
 - `foundation-3-turnover-makeready.md`
 - `make-ready-demo-build-plan.md`
 
-The target is a local-first live demo of a make-ready coordination system for US residential property managers, not a production SMS product yet. The demo must sell the visibility layer first, prove the sequencing guard, and only then show the vendor-reply automation. Everything runs on this machine during the demo build except Telegram webhooks, which use a temporary HTTPS tunnel into local n8n when needed.
+The target is a local-first live demo of a make-ready sequencing AI automation for US residential property managers, not a named software product or SaaS. Any UI exists only for demo visualization. The demo must show the visibility/sequence layer first, prove the sequencing guard, and only then show the vendor-reply automation. Everything runs on this machine during the demo build except Telegram webhooks, which use a temporary HTTPS tunnel into local n8n when needed.
 
 ## Important Spec Decisions And Conflicts
 
 1. **Outbound vendor messages are human-gated.**
-   The source product spec says the system should automatically advance and notify the next vendor. The demo build plan explicitly corrects this: every outbound vendor message is drafted by the system and released by the manager. This plan follows the demo build plan. Do not auto-send vendor messages.
+   The source spec says the automation should automatically advance and notify the next vendor. The demo build plan explicitly corrects this: every outbound vendor message is drafted by the automation and released by the manager. This plan follows the demo build plan. Do not auto-send vendor messages.
 
 2. **Postgres is the demo state store.**
    The source spec allows Google Sheets for demos. The demo build plan rejects Sheets because the sequence guard needs transactional state and the live demo should not depend on Sheets quota or concurrent write behavior. This plan uses Postgres from the start.
 
 3. **The board must work even if no vendor replies.**
-   The product is conditional on vendor reply behavior, but the demo is not. Manual manager advance through the same sequence guard is a core feature, not a fallback. This is what makes the visibility layer sellable at a 0% vendor reply rate.
+   The automation value is conditional on vendor reply behavior, but the demo is not. Manual manager advance through the same sequence guard is a core workflow, not a fallback. This is what makes the visibility/sequence layer useful at a 0% vendor reply rate.
 
 4. **Turnover starts at notice, vacancy cost starts at move-out.**
    The documents agree once the terms are separated. The record begins at notice received. Vacancy-day and rent-loss arithmetic starts at move-out / keys returned.
@@ -134,7 +134,7 @@ The target is a local-first live demo of a make-ready coordination system for US
   - Downstream make-ready stages require move-out.
   - Skipped stages count as satisfied.
 - Build the Board API returning active turns, live ages, vacancy dollars, health color, stage strip, latest event, vendor reply rate, and auto-handled rate.
-- Build the single-file board UI served locally.
+- Build the single-file visualization board served locally.
 - Add `Mark done` on each card wired to manual stage advance.
 - Ensure manual advance uses the same sequence guard as vendor completion will later use.
 - Build or stub the daily digest enough to prove manager-side manual controls can call the same path.
@@ -155,7 +155,7 @@ The target is a local-first live demo of a make-ready coordination system for US
 - `Mark done` on an allowed stage completes it with `completed_via='manual'`.
 - Attempting Deep Clean on the seeded unit with Repairs still open is blocked with a clear rework reason.
 - Vendor reply rate metric reflects manual completions rather than pretending automation handled them.
-- If the Board API is unavailable, the UI shows last-known state plus a reconnecting/error strip rather than a blank page.
+- If the Board API is unavailable, the visualization shows last-known state plus a reconnecting/error strip rather than a blank page.
 
 ## Stage 4 - Intake, Channel Normalization, And Matching
 
@@ -305,7 +305,7 @@ The target is a local-first live demo of a make-ready coordination system for US
 
 ## Stage 8 - Production Pilot Readiness
 
-**Goal:** Prepare the demo for the first paying or pilot client without turning it into a multi-client SaaS.
+**Goal:** Prepare the demo automation for the first paying or pilot client without turning it into a multi-client SaaS.
 
 **In scope:**
 

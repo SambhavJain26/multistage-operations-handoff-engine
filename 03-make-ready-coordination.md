@@ -8,6 +8,8 @@
 
 ## Quick Summary
 
+**Implementation framing amendment, 2026-08-01:** treat this as a make-ready sequencing AI automation demo, not a named software/SaaS product. Any UI is only for demo visualization.
+
 | | |
 |---|---|
 | **What it is** | Automated stage-by-stage vendor handoff tracking during unit turnover |

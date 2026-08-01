@@ -1,4 +1,4 @@
-# TurnDesk Progress Notes
+# Make-Ready Sequencing Progress Notes
 
 This file is the running handoff record for future sessions. Read it before starting any stage.
 
@@ -8,6 +8,7 @@ This file is the running handoff record for future sessions. Read it before star
 - No implementation code has been written.
 - `build-plan.md` created with eight staged sessions.
 - Git repository initialized on `main`; remote target is private GitHub repo `make-ready-sequencing`.
+- Framing corrected: this is an AI automation demo, not a named software/SaaS product. Any UI is only for demo visualization.
 
 ## Source Documents Read
 
@@ -31,6 +32,7 @@ This file is the running handoff record for future sessions. Read it before star
 ## Decisions Locked For Now
 
 - Use Postgres for demo state, not Google Sheets.
+- Do not assign a product name. Refer to the work as the make-ready sequencing AI automation demo.
 - Build and test the demo locally by default.
 - Keep VPS, domain, and Caddy for production/pilot deployment only.
 - Use a temporary HTTPS tunnel, such as Cloudflare Tunnel or ngrok, only when testing Telegram triggers against local n8n.
@@ -65,7 +67,7 @@ This file is the running handoff record for future sessions. Read it before star
 
 - The original source spec allowed automatic next-vendor notification; this plan follows the later demo build correction and requires manager approval.
 - The original source spec suggested Google Sheets for demos; this plan follows the later demo build correction and uses Postgres.
-- The original source spec framed vendor reply behavior as a product gate; this plan treats it as an automation gate while preserving a board/manual-control product at 0% vendor reply.
+- The original source spec framed vendor reply behavior as a product gate; this plan treats it as an automation gate while preserving a board/manual-control automation path at 0% vendor reply.
 
 ## Outstanding Risks
 
