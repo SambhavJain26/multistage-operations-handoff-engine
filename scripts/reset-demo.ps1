@@ -27,7 +27,12 @@ function Invoke-AppPsqlScalar {
   return ($result | Select-Object -First 1).Trim()
 }
 
-Invoke-AppPsqlFile "/docker-entrypoint-initdb.d/migrations/001-schema.sql"
+$migrationDir = Join-Path $repoRoot "db\postgres\migrations"
+Get-ChildItem -LiteralPath $migrationDir -Filter "*.sql" |
+  Sort-Object Name |
+  ForEach-Object {
+    Invoke-AppPsqlFile "/docker-entrypoint-initdb.d/migrations/$($_.Name)"
+  }
 
 $nonFixtureCount = [int](Invoke-AppPsqlScalar "SELECT (SELECT count(*) FROM ""turn"" WHERE is_fixture = false) + (SELECT count(*) FROM vendor WHERE is_fixture = false);")
 if ($nonFixtureCount -gt 0) {

@@ -1,0 +1,91 @@
+{
+  "id": "wf4-vendor-telegram-ingest",
+  "name": "WF-4 Vendor Telegram Ingest",
+  "active": false,
+  "nodes": [
+    {
+      "id": "vendor-telegram-trigger",
+      "name": "VendorTelegramTrigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "5mBfLarFM6t8Cgcz",
+          "name": "Make-Ready Vendor Telegram Bot"
+        }
+      }
+    },
+    {
+      "id": "normalize-vendor-telegram-message",
+      "name": "Normalize Vendor Telegram Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        280,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const message = $json.message || $json.edited_message || {};\nconst from = message.from || {};\nconst chat = message.chat || {};\nconst photos = Array.isArray(message.photo) ? message.photo : [];\nconst photo = photos.length ? photos[photos.length - 1] : null;\nconst text = String(message.text || message.caption || '').trim();\nconst senderRef = String(chat.id || from.id || '').trim();\nreturn [{ json: {\n  channel: 'telegram',\n  sender_ref: senderRef,\n  text,\n  media: photo ? { type: 'photo', file_id: photo.file_id || null } : null,\n  received_at: message.date ? new Date(Number(message.date) * 1000).toISOString() : new Date().toISOString()\n} }];"
+      }
+    },
+    {
+      "id": "call-vendor-router-from-telegram",
+      "name": "Call Vendor Router From Telegram",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [
+        560,
+        0
+      ],
+      "parameters": {
+        "source": "database",
+        "workflowId": "wf4-vendor-router",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      }
+    }
+  ],
+  "connections": {
+    "VendorTelegramTrigger": {
+      "main": [
+        [
+          {
+            "node": "Normalize Vendor Telegram Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Vendor Telegram Message": {
+      "main": [
+        [
+          {
+            "node": "Call Vendor Router From Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "pinData": {},
+  "versionId": "wf4-vendor-telegram-ingest-v1",
+  "triggerCount": 0,
+  "tags": []
+}

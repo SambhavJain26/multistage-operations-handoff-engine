@@ -75,6 +75,7 @@ Known n8n gotchas to account for:
 - Strict IF nodes require boolean values. Normalize truthy strings or draft bodies to booleans in Code nodes before routing.
 - Telegram Trigger needs a public HTTPS `WEBHOOK_URL`; localhost will not work.
 - Publish/activate Telegram Trigger workflows only after real chat IDs and `WEBHOOK_URL` are set.
+- Docker Compose `restart` does not apply `.env` changes to existing containers. After changing `WEBHOOK_URL` for Telegram testing, run `docker compose up -d --force-recreate n8n` before import/activation.
 - Telegram Trigger node names should avoid spaces; space-bearing names can produce webhook-path mismatches.
 - Telegram inline keyboards should use explicit fixed-collection rows/buttons. Do not pass the whole `inlineKeyboard` object as a single expression.
 - Telegram `answerQuery` responses may not preserve upstream callback context; reattach chat/message IDs before edit-message or audit nodes need them.
@@ -87,7 +88,9 @@ Known n8n gotchas to account for:
 - Imported Execute Sub-workflow nodes are most reliable with type version 1 and a plain `workflowId` string. Newer workflow-selector JSON can import but fail at runtime with "No information about the workflow to execute found."
 - Execute Sub-workflow calls that load database context must explicitly carry caller metadata, such as `actor_id`, `channel`, Telegram callback IDs, and override fields, through the load query. Otherwise downstream audit rows and callback answers can silently fall back to defaults.
 - `$env` access can be blocked inside n8n Code nodes and expressions. For local demo workflow exports, prefer import-time substitution into temporary JSON copies instead of runtime `$env` lookups.
+- After n8n restart, active webhook registration can lag behind container readiness; wait for webhook records or a real successful HTTP probe before verification.
 - Form Trigger submissions can produce generic keys like `field-0`; normalize before SQL or AI steps.
+- Direct scripted Form Trigger submissions must use `multipart/form-data` and the rendered field IDs such as `field-0`, not only semantic field names.
 - Imported Form Trigger workflows may register under workflow/node-prefixed form paths. Query n8n's webhook records or test the registered `/form/...` path after import.
 - Form Trigger workflows should use the Form completion step, not Respond to Webhook.
 - AI structured output may be wrapped; downstream code should handle wrapped and direct JSON shapes.

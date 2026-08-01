@@ -1,0 +1,255 @@
+{
+  "id": "wf4-turn-intake",
+  "name": "WF-4 Turn Intake",
+  "active": false,
+  "nodes": [
+    {
+      "id": "turn-intake-form",
+      "name": "Turn Intake Form",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.5,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "wf4-turn-intake",
+      "parameters": {
+        "authentication": "none",
+        "path": "turn-intake",
+        "formTitle": "Make-ready turn intake",
+        "formDescription": "Add a turn to the local demo board.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Unit label",
+              "fieldName": "unit_label",
+              "fieldType": "text",
+              "placeholder": "12B",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Property address",
+              "fieldName": "property_address",
+              "fieldType": "text",
+              "placeholder": "418 Maple St",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Monthly rent",
+              "fieldName": "rent_monthly",
+              "fieldType": "number",
+              "placeholder": "1450",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Notice date",
+              "fieldName": "notice_date",
+              "fieldType": "date",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Move-out date",
+              "fieldName": "moveout_date",
+              "fieldType": "date",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Target ready date",
+              "fieldName": "target_ready_date",
+              "fieldType": "date",
+              "requiredField": false
+            },
+            {
+              "fieldLabel": "Trash-out vendor",
+              "fieldName": "trashout_vendor",
+              "fieldType": "dropdown",
+              "requiredField": true,
+              "defaultValue": "QuickHaul Junk Removal",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "QuickHaul Junk Removal"
+                  },
+                  {
+                    "option": "Cedar Ridge in-house"
+                  }
+                ]
+              }
+            },
+            {
+              "fieldLabel": "Repairs vendor",
+              "fieldName": "repairs_vendor",
+              "fieldType": "dropdown",
+              "requiredField": true,
+              "defaultValue": "Dale Hutchins",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "Dale Hutchins"
+                  },
+                  {
+                    "option": "Cedar Ridge in-house"
+                  }
+                ]
+              }
+            },
+            {
+              "fieldLabel": "Paint vendor",
+              "fieldName": "paint_vendor",
+              "fieldType": "dropdown",
+              "requiredField": true,
+              "defaultValue": "Rivera Painting",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "Rivera Painting"
+                  },
+                  {
+                    "option": "Cedar Ridge in-house"
+                  }
+                ]
+              }
+            },
+            {
+              "fieldLabel": "Flooring vendor",
+              "fieldName": "flooring_vendor",
+              "fieldType": "dropdown",
+              "requiredField": true,
+              "defaultValue": "Statewide Flooring",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "Statewide Flooring"
+                  },
+                  {
+                    "option": "Cedar Ridge in-house"
+                  }
+                ]
+              }
+            },
+            {
+              "fieldLabel": "Deep clean vendor",
+              "fieldName": "deep_clean_vendor",
+              "fieldType": "dropdown",
+              "requiredField": true,
+              "defaultValue": "Maria's Cleaning Co",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "Maria's Cleaning Co"
+                  },
+                  {
+                    "option": "Cedar Ridge in-house"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "responseMode": "onReceived",
+        "options": {
+          "path": "turn-intake",
+          "buttonLabel": "Add turn",
+          "appendAttribution": false,
+          "useWorkflowTimezone": true,
+          "respondWithOptions": {
+            "values": {
+              "respondWith": "text",
+              "formSubmittedText": "Turn added to board."
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "normalize-intake-submission",
+      "name": "Normalize Intake Submission",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        280,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const input = $json;\nfunction pick(...keys) {\n  for (const key of keys) {\n    if (input[key] !== undefined && input[key] !== null && String(input[key]).trim() !== '') return String(input[key]).trim();\n  }\n  return '';\n}\nfunction dateOnly(value, field) {\n  if (!value) throw new Error(field + ' is required.');\n  const parsed = new Date(value);\n  if (Number.isNaN(parsed.getTime())) throw new Error(field + ' is not a valid date.');\n  return parsed.toISOString().slice(0, 10);\n}\nfunction addDays(dateText, days) {\n  const date = new Date(dateText + 'T00:00:00Z');\n  date.setUTCDate(date.getUTCDate() + days);\n  return date.toISOString().slice(0, 10);\n}\nconst unitLabel = pick('unit_label', 'Unit label', 'field-0');\nconst propertyAddress = pick('property_address', 'Property address', 'field-1');\nconst rentMonthly = Number(pick('rent_monthly', 'Monthly rent', 'field-2'));\nif (!unitLabel) throw new Error('unit_label is required.');\nif (!propertyAddress) throw new Error('property_address is required.');\nif (!Number.isFinite(rentMonthly) || rentMonthly < 0) throw new Error('rent_monthly must be a non-negative number.');\nconst noticeDate = dateOnly(pick('notice_date', 'Notice date', 'field-3'), 'notice_date');\nconst moveoutDate = dateOnly(pick('moveout_date', 'Move-out date', 'field-4'), 'moveout_date');\nconst targetInput = pick('target_ready_date', 'Target ready date', 'field-5');\nconst targetReadyDate = targetInput ? dateOnly(targetInput, 'target_ready_date') : addDays(moveoutDate, 5);\nreturn [{ json: {\n  unit_label: unitLabel,\n  property_address: propertyAddress,\n  rent_monthly: rentMonthly,\n  notice_date: noticeDate,\n  moveout_date: moveoutDate,\n  target_ready_date: targetReadyDate,\n  trashout_vendor: pick('trashout_vendor', 'Trash-out vendor', 'field-6') || 'QuickHaul Junk Removal',\n  repairs_vendor: pick('repairs_vendor', 'Repairs vendor', 'field-7') || 'Dale Hutchins',\n  paint_vendor: pick('paint_vendor', 'Paint vendor', 'field-8') || 'Rivera Painting',\n  flooring_vendor: pick('flooring_vendor', 'Flooring vendor', 'field-9') || 'Statewide Flooring',\n  deep_clean_vendor: pick('deep_clean_vendor', 'Deep clean vendor', 'field-10') || \"Maria's Cleaning Co\"\n} }];"
+      }
+    },
+    {
+      "id": "insert-intake-turn-and-stages",
+      "name": "Insert Intake Turn And Stages",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        560,
+        0
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH input AS (\n  SELECT\n    '{{ String($json.unit_label || \"\").replace(/'/g, \"''\") }}'::text AS unit_label,\n    '{{ String($json.property_address || \"\").replace(/'/g, \"''\") }}'::text AS property_address,\n    {{ Number($json.rent_monthly || 0) }}::numeric AS rent_monthly,\n    '{{ String($json.notice_date || \"\").replace(/'/g, \"''\") }}'::date AS notice_date,\n    '{{ String($json.moveout_date || \"\").replace(/'/g, \"''\") }}'::date AS moveout_date,\n    '{{ String($json.target_ready_date || \"\").replace(/'/g, \"''\") }}'::date AS target_ready_date,\n    '{{ String($json.trashout_vendor || \"QuickHaul Junk Removal\").replace(/'/g, \"''\") }}'::text AS trashout_vendor,\n    '{{ String($json.repairs_vendor || \"Dale Hutchins\").replace(/'/g, \"''\") }}'::text AS repairs_vendor,\n    '{{ String($json.paint_vendor || \"Rivera Painting\").replace(/'/g, \"''\") }}'::text AS paint_vendor,\n    '{{ String($json.flooring_vendor || \"Statewide Flooring\").replace(/'/g, \"''\") }}'::text AS flooring_vendor,\n    '{{ String($json.deep_clean_vendor || \"Maria's Cleaning Co\").replace(/'/g, \"''\") }}'::text AS deep_clean_vendor\n), inserted_turn AS (\n  INSERT INTO \"turn\" (unit_label, property_address, rent_monthly, notice_date, moveout_date, target_ready_date, status, is_fixture)\n  SELECT unit_label, property_address, rent_monthly, notice_date, moveout_date, target_ready_date, 'active', false\n  FROM input\n  RETURNING id, unit_label, property_address, target_ready_date\n), stage_template(seq, stage_code, stage_name, sla_hours) AS (\n  VALUES\n    (0, 'NOTICE', 'Notice received', 0),\n    (1, 'PRE_INSPECT', 'Pre-move-out inspection', 48),\n    (2, 'MOVEOUT', 'Move-out / keys returned', 0),\n    (3, 'INSPECT_PUNCH', 'Inspection + punch list', 24),\n    (4, 'TRASHOUT', 'Trash-out', 24),\n    (5, 'REPAIRS', 'Repairs / trades', 72),\n    (6, 'PAINT', 'Paint', 48),\n    (7, 'FLOORING', 'Flooring', 48),\n    (8, 'DEEP_CLEAN', 'Deep clean', 24),\n    (9, 'QA_PHOTOS', 'QA walkthrough + photos', 12),\n    (10, 'RELIST', 'Relist', 0)\n), stage_vendor AS (\n  SELECT 'NOTICE'::text AS stage_code, 'Cedar Ridge in-house'::text AS vendor_name FROM input\n  UNION ALL SELECT 'PRE_INSPECT', 'Cedar Ridge in-house' FROM input\n  UNION ALL SELECT 'MOVEOUT', 'Cedar Ridge in-house' FROM input\n  UNION ALL SELECT 'INSPECT_PUNCH', 'Cedar Ridge in-house' FROM input\n  UNION ALL SELECT 'TRASHOUT', trashout_vendor FROM input\n  UNION ALL SELECT 'REPAIRS', repairs_vendor FROM input\n  UNION ALL SELECT 'PAINT', paint_vendor FROM input\n  UNION ALL SELECT 'FLOORING', flooring_vendor FROM input\n  UNION ALL SELECT 'DEEP_CLEAN', deep_clean_vendor FROM input\n  UNION ALL SELECT 'QA_PHOTOS', 'Cedar Ridge in-house' FROM input\n  UNION ALL SELECT 'RELIST', 'Cedar Ridge in-house' FROM input\n), inserted_stages AS (\n  INSERT INTO turn_stage (turn_id, seq, stage_code, stage_name, status, vendor_id, sla_hours, activated_at)\n  SELECT\n    it.id,\n    st.seq,\n    st.stage_code,\n    st.stage_name,\n    CASE WHEN st.stage_code = 'NOTICE' THEN 'active' ELSE 'pending' END,\n    v.id,\n    st.sla_hours,\n    CASE WHEN st.stage_code = 'NOTICE' THEN now() ELSE NULL END\n  FROM inserted_turn it\n  CROSS JOIN stage_template st\n  JOIN stage_vendor sv ON sv.stage_code = st.stage_code\n  LEFT JOIN vendor v ON v.name = sv.vendor_name AND v.active = true\n  ORDER BY st.seq\n  RETURNING id, turn_id, stage_code, status\n), write_event AS (\n  INSERT INTO event_log (turn_id, stage_id, actor_type, actor_id, channel, event_type, raw_text, parsed_json)\n  SELECT\n    it.id,\n    (SELECT id FROM inserted_stages WHERE stage_code = 'NOTICE' LIMIT 1),\n    'manager',\n    'intake-form',\n    'form',\n    'turn_intake',\n    'manager submitted turn intake',\n    jsonb_build_object(\n      'unit_label', input.unit_label,\n      'property_address', input.property_address,\n      'target_ready_date', input.target_ready_date,\n      'stage_count', (SELECT count(*) FROM inserted_stages),\n      'initial_stage_code', 'NOTICE'\n    )\n  FROM inserted_turn it\n  CROSS JOIN input\n  RETURNING id\n)\nSELECT\n  it.id AS turn_id,\n  it.unit_label,\n  it.property_address,\n  it.target_ready_date,\n  (SELECT count(*) FROM inserted_stages) AS stage_count,\n  (SELECT id FROM write_event LIMIT 1) AS event_id,\n  'NOTICE'::text AS current_stage_code,\n  'Turn added to board.'::text AS formSubmittedText\nFROM inserted_turn it;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "cred_make_ready_pg",
+          "name": "Make-Ready Postgres"
+        }
+      }
+    },
+    {
+      "id": "format-intake-result",
+      "name": "Format Intake Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        840,
+        0
+      ],
+      "parameters": {
+        "jsCode": "return items.map(item => ({ json: {\n  accepted: true,\n  outcome: 'turn_intake',\n  turn_id: Number(item.json.turn_id),\n  unit_label: item.json.unit_label,\n  property_address: item.json.property_address,\n  target_ready_date: item.json.target_ready_date,\n  stage_count: Number(item.json.stage_count),\n  current_stage_code: item.json.current_stage_code,\n  event_id: Number(item.json.event_id),\n  formSubmittedText: item.json.formsubmittedtext || item.json.formSubmittedText || 'Turn added to board.'\n} }));"
+      }
+    }
+  ],
+  "connections": {
+    "Turn Intake Form": {
+      "main": [
+        [
+          {
+            "node": "Normalize Intake Submission",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Intake Submission": {
+      "main": [
+        [
+          {
+            "node": "Insert Intake Turn And Stages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Intake Turn And Stages": {
+      "main": [
+        [
+          {
+            "node": "Format Intake Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "pinData": {},
+  "versionId": "wf4-turn-intake-v1",
+  "triggerCount": 0,
+  "tags": []
+}

@@ -1,0 +1,348 @@
+{
+  "id": "wf4-vendor-router",
+  "name": "WF-4 Vendor Router",
+  "active": false,
+  "nodes": [
+    {
+      "id": "trigger",
+      "name": "Receive Vendor Envelope",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "inputSource": "passthrough"
+      }
+    },
+    {
+      "id": "load-vendor-context",
+      "name": "Load Vendor Context",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        280,
+        0
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH input AS (\n  SELECT\n    '{{ String($json.channel || \"generic\").replace(/'/g, \"''\") }}'::text AS channel,\n    '{{ String($json.sender_ref || \"\").replace(/'/g, \"''\") }}'::text AS sender_ref,\n    '{{ String($json.text || \"\").replace(/'/g, \"''\") }}'::text AS text,\n    '{{ JSON.stringify($json.media || null).replace(/'/g, \"''\") }}'::jsonb AS media,\n    '{{ String($json.received_at || new Date().toISOString()).replace(/'/g, \"''\") }}'::timestamptz AS received_at\n)\nSELECT\n  input.channel,\n  input.sender_ref,\n  input.text,\n  input.media,\n  input.received_at,\n  v.id AS vendor_id,\n  v.name AS vendor_name,\n  v.trade AS vendor_trade,\n  (v.id IS NOT NULL) AS known_vendor,\n  EXISTS (\n    SELECT 1\n    FROM event_log e\n    WHERE e.actor_type = 'vendor'\n      AND e.actor_id = input.sender_ref\n      AND e.channel = input.channel\n      AND e.raw_text = input.text\n      AND e.event_type IN ('vendor_inbound', 'manager_match_needed', 'duplicate_inbound')\n      AND e.created_at > now() - interval '60 seconds'\n  ) AS duplicate_like\nFROM input\nLEFT JOIN vendor v\n  ON v.active = true\n AND (v.telegram_chat_id = input.sender_ref OR v.phone_e164 = input.sender_ref)\nORDER BY v.id\nLIMIT 1;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "cred_make_ready_pg",
+          "name": "Make-Ready Postgres"
+        }
+      }
+    },
+    {
+      "id": "known-vendor",
+      "name": "Known Vendor?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        560,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "known-vendor-condition",
+              "leftValue": "={{ $json.known_vendor }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "call-unit-matcher",
+      "name": "Call Unit Matcher",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [
+        840,
+        -140
+      ],
+      "parameters": {
+        "source": "database",
+        "workflowId": "wf4-unit-matcher",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      }
+    },
+    {
+      "id": "prepare-known-event",
+      "name": "Prepare Known Event",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        -140
+      ],
+      "parameters": {
+        "jsCode": "const envelope = $json.envelope || {};\nconst match = $json.match || { needs_manager: true, candidates: [], selected: null, score: 0 };\nconst mediaOnly = envelope.media && !String(envelope.text || '').trim();\nlet eventType = 'vendor_inbound';\nlet outcome = 'matched_logged';\nlet shouldNotify = false;\nif ($json.duplicate_like) {\n  eventType = 'duplicate_inbound';\n  outcome = 'duplicate_like';\n  shouldNotify = true;\n} else if (mediaOnly) {\n  eventType = 'manager_match_needed';\n  outcome = 'media_needs_manager';\n  shouldNotify = true;\n} else if (match.needs_manager) {\n  eventType = 'manager_match_needed';\n  outcome = 'manager_match_needed';\n  shouldNotify = true;\n}\nconst vendorName = $json.vendor && $json.vendor.name ? $json.vendor.name : 'Known vendor';\nconst candidateText = (match.candidates || []).map(candidate => candidate.unit_label + ' ' + candidate.stage_name + ' (' + candidate.score + ')').join(', ');\nconst notice = outcome === 'duplicate_like'\n  ? 'Duplicate-like vendor message from ' + vendorName + ': \"' + envelope.text + '\"'\n  : 'Vendor message needs manager match: ' + vendorName + ': \"' + envelope.text + '\"' + (candidateText ? ' Candidates: ' + candidateText : '');\nreturn [{ json: {\n  accepted: true,\n  outcome,\n  event_type: eventType,\n  envelope,\n  vendor: $json.vendor,\n  match,\n  classification: $json.classification || { status: 'deferred_stage_5', intent: null, confidence: null },\n  duplicate_like: Boolean($json.duplicate_like),\n  needs_manager: Boolean(shouldNotify),\n  should_notify_manager: Boolean(shouldNotify),\n  manager_chat_id: 'stage4-manager-chat-id-missing',\n  manager_notice_text: notice,\n  cors_origin: 'http://localhost:8080'\n} }];"
+      }
+    },
+    {
+      "id": "prepare-unknown-event",
+      "name": "Prepare Unknown Event",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        840,
+        140
+      ],
+      "parameters": {
+        "jsCode": "const media = typeof $json.media === 'string' && $json.media ? JSON.parse($json.media) : $json.media || null;\nconst envelope = {\n  channel: $json.channel || 'generic',\n  sender_ref: $json.sender_ref || '',\n  text: $json.text || '',\n  media,\n  received_at: $json.received_at || new Date().toISOString()\n};\nconst classification = { status: 'deferred_stage_5', intent: null, confidence: null };\nreturn [{ json: {\n  accepted: true,\n  outcome: 'unknown_sender',\n  event_type: 'unknown_sender',\n  envelope,\n  vendor: { known: false },\n  match: null,\n  classification,\n  duplicate_like: Boolean($json.duplicate_like),\n  needs_manager: true,\n  should_notify_manager: true,\n  manager_chat_id: 'stage4-manager-chat-id-missing',\n  manager_notice_text: 'Unknown vendor message from ' + envelope.sender_ref + ': \"' + envelope.text + '\"',\n  cors_origin: 'http://localhost:8080'\n} }];"
+      }
+    },
+    {
+      "id": "log-vendor-router-event",
+      "name": "Log Vendor Router Event",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1400,
+        0
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH input AS (\n  SELECT\n    '{{ String($json.event_type || \"vendor_inbound\").replace(/'/g, \"''\") }}'::text AS event_type,\n    '{{ String($json.outcome || \"matched_logged\").replace(/'/g, \"''\") }}'::text AS outcome,\n    '{{ JSON.stringify($json.envelope || {}).replace(/'/g, \"''\") }}'::jsonb AS envelope,\n    '{{ JSON.stringify($json.vendor || {}).replace(/'/g, \"''\") }}'::jsonb AS vendor,\n    '{{ JSON.stringify($json.match || null).replace(/'/g, \"''\") }}'::jsonb AS match,\n    '{{ JSON.stringify($json.classification || { status: \"deferred_stage_5\" }).replace(/'/g, \"''\") }}'::jsonb AS classification,\n    {{ $json.duplicate_like ? 'true' : 'false' }}::boolean AS duplicate_like,\n    {{ $json.needs_manager ? 'true' : 'false' }}::boolean AS needs_manager,\n    {{ $json.should_notify_manager ? 'true' : 'false' }}::boolean AS should_notify_manager,\n    '{{ String($json.manager_chat_id || \"\").replace(/'/g, \"''\") }}'::text AS manager_chat_id,\n    '{{ String($json.manager_notice_text || \"\").replace(/'/g, \"''\") }}'::text AS manager_notice_text,\n    '{{ String(($json.envelope || {}).channel || \"generic\").replace(/'/g, \"''\") }}'::text AS channel,\n    '{{ String(($json.envelope || {}).sender_ref || \"\").replace(/'/g, \"''\") }}'::text AS sender_ref,\n    '{{ String(($json.envelope || {}).text || \"\").replace(/'/g, \"''\") }}'::text AS raw_text,\n    {{ Number($json.match && $json.match.selected ? $json.match.selected.turn_id : 0) }}::int AS turn_id,\n    {{ Number($json.match && $json.match.selected ? $json.match.selected.stage_id : 0) }}::int AS stage_id\n), inserted AS (\n  INSERT INTO event_log (turn_id, stage_id, actor_type, actor_id, channel, event_type, raw_text, parsed_json)\n  SELECT\n    NULLIF(turn_id, 0),\n    NULLIF(stage_id, 0),\n    'vendor',\n    sender_ref,\n    channel,\n    event_type,\n    raw_text,\n    jsonb_build_object(\n      'envelope', envelope,\n      'vendor', vendor,\n      'match', match,\n      'classification', classification,\n      'duplicate_like', duplicate_like,\n      'needs_manager', needs_manager,\n      'stage_state_mutated', false\n    )\n  FROM input\n  RETURNING id\n)\nSELECT\n  true AS accepted,\n  inserted.id AS event_id,\n  input.outcome,\n  input.event_type,\n  input.envelope,\n  input.vendor,\n  input.match,\n  input.classification,\n  input.duplicate_like,\n  input.needs_manager,\n  (input.should_notify_manager AND input.manager_chat_id <> '' AND input.manager_chat_id <> 'stage4-manager-chat-id-missing') AS should_notify_manager,\n  NULLIF(input.manager_chat_id, 'stage4-manager-chat-id-missing') AS manager_chat_id,\n  input.manager_notice_text,\n  false AS stage_state_mutated,\n  'http://localhost:8080'::text AS cors_origin\nFROM input\nCROSS JOIN inserted;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "cred_make_ready_pg",
+          "name": "Make-Ready Postgres"
+        }
+      }
+    },
+    {
+      "id": "notify-manager",
+      "name": "Notify Manager?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1680,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "notify-manager-condition",
+              "leftValue": "={{ $json.should_notify_manager }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "send-manager-notice",
+      "name": "Send Manager Notice",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1960,
+        -120
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $json.manager_chat_id }}",
+        "text": "={{ $json.manager_notice_text }}",
+        "additionalFields": {
+          "disable_web_page_preview": true,
+          "appendAttribution": false
+        }
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "jASZWMlrfp3v2tWH",
+          "name": "Make-Ready Manager Telegram Bot"
+        }
+      }
+    },
+    {
+      "id": "return-after-manager-notice",
+      "name": "Return After Manager Notice",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2240,
+        -120
+      ],
+      "parameters": {
+        "jsCode": "const source = $('Log Vendor Router Event').first().json;\nreturn [{ json: source }];"
+      }
+    },
+    {
+      "id": "return-router-result",
+      "name": "Return Router Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1960,
+        120
+      ],
+      "parameters": {
+        "jsCode": "return items;"
+      }
+    }
+  ],
+  "connections": {
+    "Receive Vendor Envelope": {
+      "main": [
+        [
+          {
+            "node": "Load Vendor Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Vendor Context": {
+      "main": [
+        [
+          {
+            "node": "Known Vendor?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Known Vendor?": {
+      "main": [
+        [
+          {
+            "node": "Call Unit Matcher",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Unknown Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Unit Matcher": {
+      "main": [
+        [
+          {
+            "node": "Prepare Known Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Known Event": {
+      "main": [
+        [
+          {
+            "node": "Log Vendor Router Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Unknown Event": {
+      "main": [
+        [
+          {
+            "node": "Log Vendor Router Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Vendor Router Event": {
+      "main": [
+        [
+          {
+            "node": "Notify Manager?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Manager?": {
+      "main": [
+        [
+          {
+            "node": "Send Manager Notice",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return Router Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Manager Notice": {
+      "main": [
+        [
+          {
+            "node": "Return After Manager Notice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "pinData": {},
+  "versionId": "wf4-vendor-router-v1",
+  "triggerCount": 0,
+  "tags": []
+}

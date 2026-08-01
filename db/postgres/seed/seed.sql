@@ -11,6 +11,15 @@ DELETE FROM event_log
 WHERE turn_id IN (SELECT id FROM fixture_turns)
    OR stage_id IN (SELECT id FROM fixture_stages);
 
+DELETE FROM event_log
+WHERE actor_type = 'vendor'
+  AND channel IN ('generic', 'telegram')
+  AND event_type IN ('vendor_inbound', 'manager_match_needed', 'duplicate_inbound', 'unknown_sender')
+  AND (
+    actor_id LIKE 'placeholder\_%' ESCAPE '\'
+    OR actor_id = 'mystery_vendor'
+  );
+
 DELETE FROM outbound_queue
 WHERE turn_id IN (SELECT id FROM "turn" WHERE is_fixture = TRUE)
    OR stage_id IN (
@@ -23,13 +32,13 @@ WHERE turn_id IN (SELECT id FROM "turn" WHERE is_fixture = TRUE)
 DELETE FROM "turn" WHERE is_fixture = TRUE;
 DELETE FROM vendor WHERE is_fixture = TRUE;
 
-INSERT INTO vendor (name, trade, telegram_chat_id, active, is_fixture) VALUES
-  ('Rivera Painting', 'paint', 'placeholder_rivera_painting', TRUE, TRUE),
-  ('Maria''s Cleaning Co', 'clean', 'placeholder_marias_cleaning', TRUE, TRUE),
-  ('Dale Hutchins', 'repairs', 'placeholder_dale_hutchins', TRUE, TRUE),
-  ('QuickHaul Junk Removal', 'trashout', NULL, TRUE, TRUE),
-  ('Statewide Flooring', 'flooring', NULL, TRUE, TRUE),
-  ('Cedar Ridge in-house', 'inspect', NULL, TRUE, TRUE);
+INSERT INTO vendor (name, trade, telegram_chat_id, phone_e164, active, is_fixture) VALUES
+  ('Rivera Painting', 'paint', 'placeholder_rivera_painting_tg', 'placeholder_rivera_painting', TRUE, TRUE),
+  ('Maria''s Cleaning Co', 'clean', 'placeholder_marias_cleaning_tg', 'placeholder_marias_cleaning', TRUE, TRUE),
+  ('Dale Hutchins', 'repairs', 'placeholder_dale_hutchins_tg', 'placeholder_dale_hutchins', TRUE, TRUE),
+  ('QuickHaul Junk Removal', 'trashout', 'placeholder_quickhaul_junk_tg', 'placeholder_quickhaul_junk', TRUE, TRUE),
+  ('Statewide Flooring', 'flooring', 'placeholder_statewide_flooring_tg', 'placeholder_statewide_flooring', TRUE, TRUE),
+  ('Cedar Ridge in-house', 'inspect', 'placeholder_cedar_inhouse_tg', 'placeholder_cedar_inhouse', TRUE, TRUE);
 
 CREATE TEMP TABLE stage_template_seed (
   seq INT PRIMARY KEY,

@@ -1,0 +1,86 @@
+{
+  "id": "wf4-unit-matcher",
+  "name": "WF-4 Unit Matcher",
+  "active": false,
+  "nodes": [
+    {
+      "id": "trigger",
+      "name": "Receive Match Request",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "inputSource": "passthrough"
+      }
+    },
+    {
+      "id": "load-active-match-candidates",
+      "name": "Load Active Match Candidates",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        280,
+        0
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH input AS (\n  SELECT\n    '{{ String($json.channel || \"generic\").replace(/'/g, \"''\") }}'::text AS channel,\n    '{{ String($json.sender_ref || \"\").replace(/'/g, \"''\") }}'::text AS sender_ref,\n    '{{ String($json.text || \"\").replace(/'/g, \"''\") }}'::text AS text,\n    {{ Number($json.vendor_id || 0) }}::int AS vendor_id,\n    '{{ String($json.vendor_name || \"\").replace(/'/g, \"''\") }}'::text AS vendor_name,\n    '{{ String($json.vendor_trade || \"\").replace(/'/g, \"''\") }}'::text AS vendor_trade,\n    {{ $json.known_vendor ? 'true' : 'false' }}::boolean AS known_vendor,\n    {{ $json.duplicate_like ? 'true' : 'false' }}::boolean AS duplicate_like,\n    '{{ JSON.stringify($json.media || null).replace(/'/g, \"''\") }}'::jsonb AS media,\n    '{{ String($json.received_at || new Date().toISOString()).replace(/'/g, \"''\") }}'::timestamptz AS received_at\n), active_stage AS (\n  SELECT DISTINCT ON (turn_id) *\n  FROM turn_stage\n  WHERE status = 'active'\n  ORDER BY turn_id, seq\n)\nSELECT\n  input.channel,\n  input.sender_ref,\n  input.text,\n  input.vendor_id,\n  input.vendor_name,\n  input.vendor_trade,\n  input.known_vendor,\n  input.duplicate_like,\n  input.media,\n  input.received_at,\n  t.id AS turn_id,\n  t.unit_label,\n  t.property_address,\n  ast.id AS stage_id,\n  ast.stage_code,\n  ast.stage_name,\n  ast.vendor_id AS active_vendor_id,\n  v.name AS active_vendor_name\nFROM input\nCROSS JOIN \"turn\" t\nJOIN active_stage ast ON ast.turn_id = t.id\nLEFT JOIN vendor v ON v.id = ast.vendor_id\nWHERE t.status = 'active'\nORDER BY t.unit_label;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "cred_make_ready_pg",
+          "name": "Make-Ready Postgres"
+        }
+      }
+    },
+    {
+      "id": "score-unit-candidates",
+      "name": "Score Unit Candidates",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        560,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const rows = items.map(item => item.json);\nconst first = rows[0] || {};\nfunction compact(value) {\n  return String(value || '').toLowerCase().normalize('NFKD').replace(/[\\u0300-\\u036f]/g, '').replace(/[^a-z0-9]+/g, '');\n}\nfunction normalizedTokens(value) {\n  return String(value || '').toLowerCase().normalize('NFKD').replace(/[\\u0300-\\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim().split(/\\s+/).filter(Boolean);\n}\nfunction streetToken(address) {\n  const tokens = normalizedTokens(address).filter(token => !/^\\d+$/.test(token));\n  const suffixes = new Set(['st', 'street', 'ave', 'avenue', 'ct', 'court', 'rd', 'road', 'dr', 'drive', 'ln', 'lane', 'blvd', 'way', 'pl', 'place']);\n  return tokens.find(token => !suffixes.has(token)) || '';\n}\nconst text = first.text || '';\nconst tokens = normalizedTokens(text);\nconst tokenSet = new Set(tokens);\nconst media = typeof first.media === 'string' && first.media ? JSON.parse(first.media) : first.media || null;\nconst base = {\n  envelope: {\n    channel: first.channel || 'generic',\n    sender_ref: first.sender_ref || '',\n    text,\n    media,\n    received_at: first.received_at || new Date().toISOString()\n  },\n  vendor: {\n    known: Boolean(first.known_vendor),\n    id: first.vendor_id ? Number(first.vendor_id) : null,\n    name: first.vendor_name || null,\n    trade: first.vendor_trade || null\n  },\n  duplicate_like: Boolean(first.duplicate_like),\n  classification: { status: 'deferred_stage_5', intent: null, confidence: null }\n};\nconst candidates = rows.filter(row => row.turn_id).map(row => {\n  let score = 0;\n  const reasons = [];\n  const unit = String(row.unit_label || '');\n  const unitCompact = compact(unit);\n  const numericPart = (unitCompact.match(/\\d+/) || [''])[0];\n  if (unitCompact && tokenSet.has(unitCompact)) {\n    score = 100;\n    reasons.push('exact_unit_label');\n  } else if (numericPart && tokenSet.has(numericPart)) {\n    score = 90;\n    reasons.push('unit_token');\n  }\n  const street = streetToken(row.property_address);\n  if (street && tokenSet.has(street) && score < 70) {\n    score = 70;\n    reasons.push('street_name');\n  }\n  return {\n    turn_id: Number(row.turn_id),\n    stage_id: Number(row.stage_id),\n    unit_label: row.unit_label,\n    property_address: row.property_address,\n    stage_code: row.stage_code,\n    stage_name: row.stage_name,\n    assigned_vendor_id: row.active_vendor_id ? Number(row.active_vendor_id) : null,\n    score,\n    reasons\n  };\n});\nconst hasExplicitHint = candidates.some(candidate => candidate.score >= 70);\nif (!hasExplicitHint && base.vendor.known && base.vendor.id) {\n  const assigned = candidates.filter(candidate => candidate.assigned_vendor_id === base.vendor.id);\n  if (assigned.length === 1 && assigned[0].score < 60) {\n    assigned[0].score = 60;\n    assigned[0].reasons.push('single_open_stage_for_vendor');\n  }\n}\nconst scored = candidates.filter(candidate => candidate.score > 0).sort((a, b) => (b.score - a.score) || a.unit_label.localeCompare(b.unit_label));\nconst top = scored[0] || null;\nconst tiedTop = top ? scored.filter(candidate => candidate.score === top.score) : [];\nconst selected = top && top.score >= 70 && tiedTop.length === 1 ? top : null;\nconst match = {\n  selected,\n  score: selected ? selected.score : (top ? top.score : 0),\n  needs_manager: !selected,\n  candidates: selected ? [selected] : scored.slice(0, 6)\n};\nreturn [{ json: { ...base, match } }];"
+      }
+    }
+  ],
+  "connections": {
+    "Receive Match Request": {
+      "main": [
+        [
+          {
+            "node": "Load Active Match Candidates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Active Match Candidates": {
+      "main": [
+        [
+          {
+            "node": "Score Unit Candidates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "pinData": {},
+  "versionId": "wf4-unit-matcher-v1",
+  "triggerCount": 0,
+  "tags": []
+}

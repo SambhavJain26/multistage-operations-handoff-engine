@@ -4,7 +4,7 @@ This file is the running handoff record for future sessions. Read it before star
 
 ## Current Status
 
-- Stage 2 is complete.
+- Stage 4 is complete.
 - Local runtime, credentials, schema, stage template, and fixture seed data have been verified.
 - `build-plan.md` created with eight staged sessions.
 - Git repository initialized on `main`; remote target is private GitHub repo `make-ready-sequencing`.
@@ -23,7 +23,7 @@ This file is the running handoff record for future sessions. Read it before star
 | 1 | Local Environment And Tooling Setup | Complete | Docker Compose stack, n8n, Postgres, placeholder board, docs, smoke scripts, n8n credentials, OpenAI model check, Telegram `getMe`, Postgres credential execution, and Cloudflare Tunnel reachability are verified. |
 | 2 | Data Model, Stage Template, And Fixtures | Complete | Schema, stage template, Cedar Ridge fixture seed, reset/load scripts, prospect CSV example, Telegram chat-ID helper, and Stage 2 verification checks added. |
 | 3 | Visibility Board And Manual Control | Complete | Board API, static board, reusable guard, guarded manual completion, manager digest send, and Telegram callback completion are implemented and verified locally. |
-| 4 | Intake, Channel Normalization, And Matching | Not started | Inbound paths should log only until completion loop is built. |
+| 4 | Intake, Channel Normalization, And Matching | Complete | Manager intake form, deterministic unit matcher, generic `/vendor-in`, vendor Telegram ingest export, shared router/logger, duplicate handling, and manager notices are implemented. Vendor replies log only and do not mutate stages. |
 | 5 | Vendor Completion Loop With Human Approval | Not started | Must preserve manager approval for all outbound vendor messages. |
 | 6 | Stall Detection, Digest, Simulator, And Photos | Not started | Absence detector and demo companion surfaces. |
 | 7 | Full Fixture Testing And Demo Hardening | Not started | F01-F20, fallback behavior, rehearsal, recording, export/rebuild. |
@@ -58,8 +58,7 @@ This file is the running handoff record for future sessions. Read it before star
 
 ## Open Questions / Validation Items
 
-- Run `scripts/read-telegram-chat-ids.ps1` again after sending messages to both Telegram bots; no updates were present during Stage 2 verification.
-- Re-check `WEBHOOK_URL` against an active Cloudflare Tunnel when Telegram Trigger workflows are built and activated; no Telegram Trigger workflows exist yet.
+- Vendor Telegram trigger remains inactive by default; optional verification needs a fresh HTTPS tunnel, container-recreated `WEBHOOK_URL`, and local-only `VENDOR_TELEGRAM_CHAT_ID`.
 - Confirm the domain/VPS provider only before Stage 8 production/pilot readiness.
 - Verify Property Meld sequencing behavior before making competitive claims in sales.
 - Check whether the prospect is in a metro where managed make-ready providers like Lula materially change the objection.
@@ -202,4 +201,76 @@ This file is the running handoff record for future sessions. Read it before star
   - `.\scripts\import-stage-3-workflows.ps1 -ActivateTelegram` activated the manager digest and callback router with the HTTPS webhook.
   - Real Telegram callback button press was verified on the manager digest: `Done 12B Paint` completed stage `1316`, wrote `completed_by` from the manager Telegram user ID, logged `manual_advance` with `channel='digest'`, advanced 12B to Flooring, and the manager-router execution completed successfully.
   - After the callback, the board API showed 12B moved out of the first red-card slot and vendor reply rate dropped to 66%.
-- Final local demo DB state after callback verification is intentionally mutated: 12B Paint complete via manager digest callback, 12B Flooring active.
+- Final Stage 3 callback verification mutated the DB at the time, but later Stage 4 verification ended with a fixture reset. Current intended local demo DB state is the six-turn opening fixture state.
+
+## Stage 4 Implementation Notes
+
+- Added Stage 4 n8n workflow exports in `n8n-workflows/`:
+  - `wf-4-turn-intake.json`
+  - `wf-4-unit-matcher.json`
+  - `wf-4-vendor-router.json`
+  - `wf-4-vendor-in-api.json`
+  - `wf-4-vendor-telegram-ingest.json`
+- Added deterministic workflow generator `scripts/generate-stage-4-workflows.js`.
+- Added import and verification helpers:
+  - `scripts/import-stage-4-workflows.ps1`
+  - `scripts/check-stage-4.ps1`
+  - `db/postgres/verify-stage-4.sql`
+- Added Stage 4 migration `db/postgres/migrations/002-stage-4-event-log.sql`.
+  - Adds `form` as an event channel.
+  - Adds event types `turn_intake`, `vendor_inbound`, `manager_match_needed`, and `duplicate_inbound`.
+- Updated `scripts/reset-demo.ps1` to apply all migration files in lexical order.
+- Updated fixture vendors to include generic placeholder sender refs in `phone_e164`, while keeping Telegram placeholder IDs separate in `telegram_chat_id`.
+- Updated reset seed cleanup so Stage 4 demo sender events without `turn_id` are removed during fixture reset.
+- Added `.env.example` placeholders and Compose pass-through for:
+  - `VENDOR_IN_DEMO_TOKEN`
+  - `VENDOR_TELEGRAM_CHAT_ID`
+- Added Stage 4 runbook at `docs/stage-4-intake-and-matching.md`.
+- Turn intake behavior implemented:
+  - Manager Form Trigger creates `is_fixture=false`, `status='active'` turns.
+  - `NOTICE` is active immediately; the other ten stages are pending.
+  - `target_ready_date` defaults to `moveout_date + 5 days`.
+  - In-house stages use Cedar Ridge in-house; selected vendor stages use the submitted vendors.
+- Vendor ingest behavior implemented:
+  - `POST /webhook/vendor-in` accepts JSON or form-derived n8n webhook bodies.
+  - Auth accepts `?token=`, `X-Demo-Token`, or `X-Vendor-In-Token` against the import-time `VENDOR_IN_DEMO_TOKEN`.
+  - Unknown senders log `unknown_sender`, disclose no match candidates, and do not reply to the sender.
+  - Known senders log inbound envelopes and deterministic match results.
+  - OpenAI classification remains deferred with `classification.status='deferred_stage_5'`.
+  - Duplicate-like messages within 60 seconds log `duplicate_inbound`.
+  - Ambiguous, below-threshold, duplicate-like, unknown, or photo-only messages notify the manager only when `MANAGER_TELEGRAM_CHAT_ID` was configured before import.
+  - No inbound path completes, skips, advances, drafts, or sends vendor messages in Stage 4.
+- Unit matcher behavior implemented:
+  - Candidate pool is all active turns and their current active stages.
+  - Exact normalized unit label scores 100.
+  - Unit label token scores 90.
+  - Street-name match scores 70.
+  - Known sender with exactly one active assigned stage and no unit/street hint scores 60.
+  - Only one untied candidate at score 70 or higher is selected automatically.
+- n8n/local gotchas found and documented:
+  - Active webhooks can return 404 briefly while n8n is still activating workflows after restart; verification waits for webhook registration.
+  - n8n Form Trigger requires `multipart/form-data` and rendered field IDs like `field-0` for direct script submission, even when configured field names are present.
+  - Docker Compose `restart` does not apply `.env` changes such as `WEBHOOK_URL`; recreate n8n before Telegram activation.
+  - Windows `curl.exe` can mangle inline JSON passed from PowerShell variables; the Stage 4 checker sends JSON bodies from temporary UTF-8 files.
+- Verified:
+  - `node scripts/generate-stage-4-workflows.js` regenerates exports.
+  - All `wf-4-*.json` files parse with `ConvertFrom-Json`.
+  - PowerShell parser accepts `scripts/import-stage-4-workflows.ps1` and `scripts/check-stage-4.ps1`.
+  - `docker compose config` succeeds with the Stage 4 environment additions.
+  - `scripts/reset-demo.ps1` applies migrations in lexical order.
+  - `scripts/import-stage-3-workflows.ps1` refreshed the Stage 3 baseline.
+  - `scripts/import-stage-4-workflows.ps1` imports and publishes the non-Telegram Stage 4 workflows; vendor Telegram remains inactive by default.
+  - `scripts/check-stage-4.ps1` passes:
+    - Unauthorized `/vendor-in` returns 401.
+    - Malformed `/vendor-in` returns 400.
+    - F01 `done with 12b` from Rivera scores 100, logs `vendor_inbound`, selects 12B Paint, and leaves 12B Paint active.
+    - Immediate duplicate F01 logs `duplicate_inbound`.
+    - F02 `finished the one on maple` returns multiple Maple candidates and logs manager-match-needed behavior.
+    - F03 `all set at oak, unit 7` resolves to unit 7 Oak.
+    - F04 bare `done` from Rivera scores 60 and needs manager choice.
+    - Unknown sender logs `unknown_sender` with no match disclosure.
+    - Fixture stage statuses and outbound queue count do not change during inbound tests.
+    - Intake form submission creates test turn `99Z-STAGE4`, board shows it with `NOTICE` active and 11 stages, cleanup removes it, and reset succeeds.
+  - `scripts/check-stage-3.ps1 -SkipReset` passes after Stage 4 import, confirming board/manual Stage 3 behavior still works.
+  - Final local DB state was reset to the opening fixture state after checks.
+- Optional Telegram verification was not run in Stage 4 because no active HTTPS tunnel and `VENDOR_TELEGRAM_CHAT_ID` were configured for this stage. The workflow export and gated import path are present.
