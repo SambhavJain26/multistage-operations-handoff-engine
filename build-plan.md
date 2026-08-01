@@ -62,7 +62,7 @@ The target is a local-first live demo of a make-ready sequencing AI automation f
 - Choose a tunnel option for Telegram testing, preferably Cloudflare Tunnel or ngrok, and document the command used.
 - Set `WEBHOOK_URL` to the temporary HTTPS tunnel URL only while testing Telegram triggers.
 - Create two Telegram bots: vendor bot and manager bot.
-- Add Postgres, Telegram, and OpenAI credentials in n8n.
+- Add Postgres, Telegram, and OpenAI credentials in n8n. Postgres can be scripted locally; Telegram and OpenAI require user-provided external tokens.
 - Verify OpenAI model availability and record chosen classification/drafting model IDs.
 - Confirm the workflows can be built with core n8n nodes only.
 

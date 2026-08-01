@@ -711,7 +711,7 @@ Via BotFather: `<name>_vendor_bot` and `<name>_manager_bot`. Store both tokens a
 *Done when:* `getMe` succeeds for both tokens and the two credentials are distinguishable at a glance in the n8n UI.
 
 **A6. Store OpenAI credentials and verify models.**
-Create an HTTP Request credential for `Authorization: Bearer <key>`. Then run the model check in §1.7 and record the resolved IDs.
+Create an n8n OpenAI API credential and use it from HTTP Request nodes through predefined credential authentication. Then run the model check in §1.7 and record the resolved IDs.
 *Done when:* `GET /v1/models` returns 200 and `gpt-5.6-luna` is confirmed present, or documented fallbacks are recorded.
 
 ### Phase B — State and seed

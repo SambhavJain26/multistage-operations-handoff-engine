@@ -20,7 +20,7 @@ This file is the running handoff record for future sessions. Read it before star
 
 | Stage | Name | Status | Notes |
 |---|---|---|---|
-| 1 | Local Environment And Tooling Setup | Runtime ready; credential checks pending | Docker Compose stack, n8n, Postgres, placeholder board, docs, and smoke scripts added. OpenAI model check, Telegram `getMe`, n8n UI credential creation, and live tunnel webhook test still require user-provided secrets / manual UI steps. |
+| 1 | Local Environment And Tooling Setup | Runtime ready; external credential checks pending | Docker Compose stack, n8n, Postgres, placeholder board, docs, and smoke scripts added. Local Postgres n8n credential is imported. OpenAI model check, Telegram `getMe`, Telegram n8n credentials, and live tunnel webhook test still require user-provided external tokens / manual UI steps. |
 | 2 | Data Model, Stage Template, And Fixtures | Not started | No schema or seed data created yet. |
 | 3 | Visibility Board And Manual Control | Not started | Core 0% vendor-reply path. |
 | 4 | Intake, Channel Normalization, And Matching | Not started | Inbound paths should log only until completion loop is built. |
@@ -52,7 +52,7 @@ This file is the running handoff record for future sessions. Read it before star
 - Use only core n8n nodes; no community nodes in the demo.
 - Stage 1 tunnel default is Cloudflare Tunnel.
 - Stage 1 demo timezone is `America/Phoenix`.
-- Stage 1 secret handling uses committed `.env.example`, an ignored local `.env`, and n8n credentials created manually in the UI.
+- Stage 1 secret handling uses committed `.env.example`, an ignored local `.env`, scripted local Postgres credential import, and manual n8n credentials for external APIs.
 - Surface vendor reply rate and auto-handled rate in the board header, weekly digest, and manager `/health` command.
 - After every completed task, commit and push changes to `main` unless blocked; report the commit hash or push failure.
 
@@ -60,7 +60,8 @@ This file is the running handoff record for future sessions. Read it before star
 
 - Confirm actual OpenAI model IDs available with the user's API key during Stage 1. Helper script exists at `scripts/openai-model-check.ps1`; `OPENAI_API_KEY` was not present during the smoke run.
 - Create two Telegram bots and confirm both tokens with `getMe`. Helper script exists at `scripts/telegram-getme-check.ps1`; bot tokens were not present during the smoke run.
-- Create n8n UI credentials manually: `Make-Ready Postgres`, `Make-Ready OpenAI HTTP`, `Make-Ready Vendor Telegram Bot`, and `Make-Ready Manager Telegram Bot`.
+- n8n local Postgres credential exists as `Make-Ready Postgres`.
+- Create n8n UI credentials manually for external APIs: `Make-Ready OpenAI`, `Make-Ready Vendor Telegram Bot`, and `Make-Ready Manager Telegram Bot`.
 - Run a live Cloudflare Tunnel webhook test after a temporary tunnel is started and `WEBHOOK_URL` is switched from localhost to the tunnel origin.
 - Confirm the domain/VPS provider only before Stage 8 production/pilot readiness.
 - Verify Property Meld sequencing behavior before making competitive claims in sales.
@@ -91,6 +92,7 @@ This file is the running handoff record for future sessions. Read it before star
 - Added Stage 1 setup guide at `docs/stage-1-local-setup.md`.
 - Added helper scripts:
   - `scripts/check-stage-1.ps1`
+  - `scripts/import-postgres-credential.ps1`
   - `scripts/openai-model-check.ps1`
   - `scripts/telegram-getme-check.ps1`
 - Verified:
@@ -99,6 +101,7 @@ This file is the running handoff record for future sessions. Read it before star
   - n8n health and editor HTTP checks return 200 at `http://localhost:5678`.
   - Postgres is reachable on `127.0.0.1:5432`.
   - `make_ready_demo` role can run `SELECT 1` against the `make_ready_demo` database after the neutral naming correction.
+  - n8n credential `Make-Ready Postgres` imported with credential type `postgres`.
   - Placeholder board returns 200 at `http://localhost:8080`.
   - `cloudflared` is installed: version 2026.7.2.
   - n8n public settings report community nodes disabled.

@@ -49,7 +49,7 @@ Then open `http://localhost:8080`.
 
 ## n8n Credentials
 
-Create these credentials manually in n8n. Do not hardcode secrets in workflow JSON.
+Do not hardcode secrets in workflow JSON. The Postgres credential can be created locally by script; Telegram and OpenAI are still manual because they require external tokens.
 
 ### `Make-Ready Postgres`
 
@@ -68,14 +68,19 @@ SELECT 1;
 
 n8n itself uses a separate `n8n` database and role created during Postgres first boot. Do not reuse the n8n database credential for demo state.
 
-### `Make-Ready OpenAI HTTP`
+Create or confirm this credential with:
 
-Use an HTTP header credential:
+```powershell
+.\scripts\import-postgres-credential.ps1
+```
 
-- Header name: `Authorization`
-- Header value: `Bearer <OPENAI_API_KEY>`
+### `Make-Ready OpenAI`
 
-Model calls must use HTTP Request nodes against the OpenAI Responses API when strict schema control or raw fallback handling matters.
+Use n8n's OpenAI API credential type:
+
+- API key: `<OPENAI_API_KEY>`
+
+The workflows still use HTTP Request nodes for model calls that need strict JSON schema control, exact model IDs, raw error handling, and fallback branches. The HTTP Request nodes should reference this OpenAI API credential through n8n's predefined credential authentication, rather than using the built-in OpenAI/LangChain action nodes for the workflow logic.
 
 ### Telegram Bot Credentials
 
