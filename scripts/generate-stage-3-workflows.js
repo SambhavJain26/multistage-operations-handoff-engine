@@ -137,8 +137,8 @@ const boardQuery = `WITH metrics AS (
 ), active_stage AS (
   SELECT DISTINCT ON (turn_id) *
   FROM turn_stage
-  WHERE status = 'active'
-  ORDER BY turn_id, seq
+  WHERE status IN ('active', 'awaiting_approval')
+  ORDER BY turn_id, CASE WHEN status = 'active' THEN 0 ELSE 1 END, seq
 ), latest_event AS (
   SELECT DISTINCT ON (turn_id)
     turn_id,
@@ -164,6 +164,7 @@ SELECT
   ast.seq AS current_seq,
   ast.stage_code AS current_stage_code,
   ast.stage_name AS current_stage_name,
+  ast.status AS current_stage_status,
   ast.sla_hours AS current_sla_hours,
   ast.activated_at AS current_activated_at,
   v.name AS current_vendor_name,
@@ -197,7 +198,7 @@ LEFT JOIN latest_event le ON le.turn_id = t.id
 CROSS JOIN metrics
 WHERE t.status = 'active'
 GROUP BY
-  t.id, ast.id, ast.seq, ast.stage_code, ast.stage_name, ast.sla_hours, ast.activated_at, v.id, v.name, v.trade,
+  t.id, ast.id, ast.seq, ast.stage_code, ast.stage_name, ast.status, ast.sla_hours, ast.activated_at, v.id, v.name, v.trade,
   le.turn_id, le.event_type, le.actor_type, le.channel, le.raw_text, le.created_at,
   metrics.vendor_reply_rate, metrics.auto_handled_rate
 ORDER BY t.unit_label;`;
@@ -269,6 +270,7 @@ const turns = rows.map(row => {
       seq: Number(row.current_seq),
       stage_code: row.current_stage_code,
       stage_name: row.current_stage_name,
+      status: row.current_stage_status,
       sla_hours: Number(row.current_sla_hours || 0),
       activated_at: row.current_activated_at,
       assigned_vendor: row.current_vendor_name || 'Unassigned'
@@ -321,7 +323,12 @@ const guardQuery = `WITH input AS (
     '{{ String($json.override_token || "").replace(/'/g, "''") }}'::text AS override_token,
     '{{ String($json.override_reason || "").replace(/'/g, "''") }}'::text AS override_reason,
     '{{ String($json.telegram_callback_query_id || "").replace(/'/g, "''") }}'::text AS telegram_callback_query_id,
-    '{{ String($json.telegram_chat_id || "").replace(/'/g, "''") }}'::text AS telegram_chat_id
+    '{{ String($json.telegram_chat_id || "").replace(/'/g, "''") }}'::text AS telegram_chat_id,
+    '{{ String($json.raw_text || (($json.envelope || {}).text) || "").replace(/'/g, "''") }}'::text AS raw_text,
+    '{{ JSON.stringify($json.envelope || {}).replace(/'/g, "''") }}'::jsonb AS envelope,
+    '{{ JSON.stringify($json.classification || {}).replace(/'/g, "''") }}'::jsonb AS classification,
+    '{{ JSON.stringify($json.match || {}).replace(/'/g, "''") }}'::jsonb AS match,
+    '{{ JSON.stringify($json.vendor || {}).replace(/'/g, "''") }}'::jsonb AS vendor_context
 ), target AS (
   SELECT
     ts.id,
@@ -357,6 +364,11 @@ SELECT
   input.override_reason,
   input.telegram_callback_query_id,
   input.telegram_chat_id,
+  input.raw_text,
+  input.envelope,
+  input.classification,
+  input.match,
+  input.vendor_context,
   target.id AS stage_id,
   target.turn_id,
   target.seq,

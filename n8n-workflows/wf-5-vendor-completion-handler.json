@@ -1,0 +1,187 @@
+{
+  "id": "wf5-vendor-completion-handler",
+  "name": "WF-5 Vendor Completion Handler",
+  "active": false,
+  "nodes": [
+    {
+      "id": "trigger",
+      "name": "Receive Completion Candidate",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "inputSource": "passthrough"
+      }
+    },
+    {
+      "id": "normalize-completion-candidate",
+      "name": "Normalize Completion Candidate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        260,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const selected = $json.match && $json.match.selected ? $json.match.selected : {};\nconst envelope = $json.envelope || {};\nreturn [{ json: {\n  ...$json,\n  stage_id: Number(selected.stage_id || $json.stage_id || 0),\n  actor_id: String(envelope.sender_ref || $json.actor_id || 'vendor'),\n  channel: String(envelope.channel || $json.channel || 'generic')\n} }];"
+      }
+    },
+    {
+      "id": "call-sequence-guard",
+      "name": "Call Sequence Guard",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [
+        520,
+        0
+      ],
+      "parameters": {
+        "source": "database",
+        "workflowId": "wf3-sequence-guard",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      }
+    },
+    {
+      "id": "guard-passed",
+      "name": "Guard Passed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        780,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "guard-passed-condition",
+              "leftValue": "={{ $json.allowed }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "complete-and-queue-next",
+      "name": "Complete Stage And Queue Next",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1040,
+        -120
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH input AS (\n  SELECT\n    {{ Number($json.match && $json.match.selected ? $json.match.selected.stage_id : $json.stage_id || 0) }}::int AS stage_id,\n    '{{ String(($json.envelope || {}).sender_ref || $json.actor_id || \"vendor\").replace(/'/g, \"''\") }}'::text AS actor_id,\n    '{{ String(($json.envelope || {}).channel || $json.channel || \"generic\").replace(/'/g, \"''\") }}'::text AS channel,\n    '{{ String(($json.envelope || {}).text || $json.raw_text || \"\").replace(/'/g, \"''\") }}'::text AS raw_text,\n    '{{ JSON.stringify($json.classification || {}).replace(/'/g, \"''\") }}'::jsonb AS classification,\n    '{{ JSON.stringify($json.match || {}).replace(/'/g, \"''\") }}'::jsonb AS match,\n    '{{ JSON.stringify($json.vendor || {}).replace(/'/g, \"''\") }}'::jsonb AS vendor_context\n), requested AS (\n  SELECT ts.*, t.unit_label, t.property_address\n  FROM turn_stage ts\n  JOIN \"turn\" t ON t.id = ts.turn_id\n  JOIN input i ON i.stage_id = ts.id\n  FOR UPDATE OF ts\n), mark_complete AS (\n  UPDATE turn_stage ts\n  SET status = 'complete',\n      completed_at = now(),\n      completed_via = 'vendor_reply',\n      completed_by = input.actor_id\n  FROM input, requested\n  WHERE ts.id = requested.id\n    AND ts.status = 'active'\n  RETURNING ts.id, ts.turn_id, ts.seq, ts.stage_code, ts.stage_name, ts.completed_at\n), next_candidate AS (\n  SELECT ns.*, v.name AS vendor_name, v.trade AS vendor_trade, v.telegram_chat_id, v.phone_e164, r.unit_label, r.property_address\n  FROM mark_complete mc\n  JOIN requested r ON r.id = mc.id\n  JOIN turn_stage ns ON ns.turn_id = mc.turn_id\n  LEFT JOIN vendor v ON v.id = ns.vendor_id\n  WHERE ns.status = 'pending'\n    AND ns.seq = (\n      SELECT min(candidate.seq)\n      FROM turn_stage candidate\n      WHERE candidate.turn_id = mc.turn_id\n        AND candidate.status = 'pending'\n        AND candidate.seq > mc.seq\n    )\n), activate_inhouse AS (\n  UPDATE turn_stage ts\n  SET status = 'active',\n      activated_at = COALESCE(ts.activated_at, now())\n  FROM next_candidate nc\n  WHERE ts.id = nc.id\n    AND COALESCE(nc.vendor_trade, 'inspect') = 'inspect'\n  RETURNING ts.id, ts.stage_name, ts.stage_code\n), await_vendor AS (\n  UPDATE turn_stage ts\n  SET status = 'awaiting_approval',\n      activated_at = COALESCE(ts.activated_at, now())\n  FROM next_candidate nc\n  WHERE ts.id = nc.id\n    AND COALESCE(nc.vendor_trade, 'inspect') <> 'inspect'\n  RETURNING ts.id, ts.turn_id, ts.seq, ts.stage_code, ts.stage_name, ts.vendor_id\n), draft_source AS (\n  SELECT\n    av.id AS stage_id,\n    av.turn_id,\n    av.vendor_id,\n    nc.vendor_name,\n    nc.telegram_chat_id,\n    nc.phone_e164,\n    nc.unit_label,\n    nc.property_address,\n    av.stage_name,\n    ('Hi ' || COALESCE(nc.vendor_name, 'there') || ', ' || nc.unit_label || ' at ' || nc.property_address || ' is ready for ' || av.stage_name || '. Please reply when it is complete. - Cedar Ridge') AS deterministic_text\n  FROM await_vendor av\n  JOIN next_candidate nc ON nc.id = av.id\n), inserted_queue AS (\n  INSERT INTO outbound_queue (\n    turn_id,\n    stage_id,\n    source_stage_id,\n    vendor_id,\n    channel,\n    draft_text,\n    approved_text,\n    deterministic_text,\n    status,\n    draft_model,\n    draft_fallback_used,\n    approval_context\n  )\n  SELECT\n    ds.turn_id,\n    ds.stage_id,\n    (SELECT id FROM mark_complete LIMIT 1),\n    ds.vendor_id,\n    'telegram',\n    left(ds.deterministic_text, 320),\n    left(ds.deterministic_text, 320),\n    left(ds.deterministic_text, 320),\n    'awaiting_approval',\n    'gpt-5.6-luna',\n    true,\n    jsonb_build_object('vendor_name', ds.vendor_name, 'sender_ref', COALESCE(ds.telegram_chat_id, ds.phone_e164), 'fallback', 'deterministic_template')\n  FROM draft_source ds\n  WHERE NOT EXISTS (\n    SELECT 1 FROM outbound_queue oq\n    WHERE oq.stage_id = ds.stage_id\n      AND oq.vendor_id = ds.vendor_id\n      AND oq.status IN ('awaiting_approval', 'editing')\n  )\n  RETURNING id, stage_id, vendor_id, draft_text, approved_text\n), write_complete AS (\n  INSERT INTO event_log (turn_id, stage_id, actor_type, actor_id, channel, event_type, raw_text, parsed_json)\n  SELECT\n    mc.turn_id,\n    mc.id,\n    'vendor',\n    input.actor_id,\n    input.channel,\n    'stage_complete',\n    input.raw_text,\n    jsonb_build_object('classification', input.classification, 'match', input.match, 'stage_state_mutated', true)\n  FROM mark_complete mc\n  CROSS JOIN input\n  RETURNING id\n), write_draft AS (\n  INSERT INTO event_log (turn_id, stage_id, actor_type, actor_id, channel, event_type, raw_text, parsed_json)\n  SELECT\n    ds.turn_id,\n    ds.stage_id,\n    'system',\n    'stage-5',\n    'system',\n    'msg_drafted',\n    ds.deterministic_text,\n    jsonb_build_object('queue_id', iq.id, 'source_stage_id', (SELECT id FROM mark_complete LIMIT 1), 'draft_fallback_used', true)\n  FROM draft_source ds\n  JOIN inserted_queue iq ON iq.stage_id = ds.stage_id\n  RETURNING id\n), write_await AS (\n  INSERT INTO event_log (turn_id, stage_id, actor_type, actor_id, channel, event_type, raw_text, parsed_json)\n  SELECT\n    av.turn_id,\n    av.id,\n    'system',\n    'stage-5',\n    'system',\n    'stage_awaiting_approval',\n    'next stage awaiting manager approval',\n    jsonb_build_object('queue_id', (SELECT id FROM inserted_queue LIMIT 1))\n  FROM await_vendor av\n  RETURNING id\n)\nSELECT\n  true AS accepted,\n  CASE\n    WHEN (SELECT count(*) FROM mark_complete) = 0 THEN 'already_handled_or_not_active'\n    WHEN (SELECT count(*) FROM inserted_queue) > 0 THEN 'completed_awaiting_approval'\n    WHEN (SELECT count(*) FROM activate_inhouse) > 0 THEN 'completed_next_inhouse_active'\n    ELSE 'completed_no_next_stage'\n  END AS outcome,\n  true AS stage_state_mutated,\n  requested.turn_id,\n  requested.unit_label,\n  requested.property_address,\n  requested.id AS completed_stage_id,\n  requested.stage_code AS completed_stage_code,\n  requested.stage_name AS completed_stage_name,\n  (SELECT row_to_json(inserted_queue) FROM inserted_queue LIMIT 1) AS outbound_queue,\n  (SELECT row_to_json(next_candidate) FROM next_candidate LIMIT 1) AS next_stage,\n  'http://localhost:8080'::text AS cors_origin\nFROM requested;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "cred_make_ready_pg",
+          "name": "Make-Ready Postgres"
+        }
+      }
+    },
+    {
+      "id": "log-vendor-guard-block",
+      "name": "Log Vendor Guard Block",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1040,
+        120
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH input AS (\n  SELECT\n    {{ Number($json.stage_id || 0) }}::int AS stage_id,\n    {{ Number($json.turn_id || 0) }}::int AS turn_id,\n    '{{ String($json.actor_id || \"vendor\").replace(/'/g, \"''\") }}'::text AS actor_id,\n    '{{ String($json.channel || \"generic\").replace(/'/g, \"''\") }}'::text AS channel,\n    '{{ String($json.reason || \"Sequence guard blocked the completion.\").replace(/'/g, \"''\") }}'::text AS reason,\n    '{{ JSON.stringify($json.blocked_by || []).replace(/'/g, \"''\") }}'::jsonb AS blocked_by,\n    '{{ String($json.override_token || \"\").replace(/'/g, \"''\") }}'::text AS override_token\n), inserted AS (\n  INSERT INTO event_log (turn_id, stage_id, actor_type, actor_id, channel, event_type, raw_text, parsed_json)\n  SELECT NULLIF(turn_id, 0), NULLIF(stage_id, 0), 'vendor', actor_id, channel, 'guard_blocked', reason,\n    jsonb_build_object('blocked_by', blocked_by, 'override_token', override_token)\n  FROM input\n  RETURNING id\n)\nSELECT\n  true AS accepted,\n  'guard_blocked'::text AS outcome,\n  false AS stage_state_mutated,\n  input.reason,\n  input.override_token,\n  inserted.id AS event_id,\n  'http://localhost:8080'::text AS cors_origin\nFROM input\nCROSS JOIN inserted;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "cred_make_ready_pg",
+          "name": "Make-Ready Postgres"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Receive Completion Candidate": {
+      "main": [
+        [
+          {
+            "node": "Normalize Completion Candidate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Completion Candidate": {
+      "main": [
+        [
+          {
+            "node": "Call Sequence Guard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Sequence Guard": {
+      "main": [
+        [
+          {
+            "node": "Guard Passed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guard Passed?": {
+      "main": [
+        [
+          {
+            "node": "Complete Stage And Queue Next",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Vendor Guard Block",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "pinData": {},
+  "versionId": "wf5-vendor-completion-handler-v1",
+  "triggerCount": 0,
+  "tags": []
+}

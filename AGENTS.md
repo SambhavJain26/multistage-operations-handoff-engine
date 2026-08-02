@@ -98,6 +98,7 @@ Known n8n gotchas to account for:
 - Repeated live-model rehearsal can expose small variance. Prefer deterministic post-model boundaries and document every boundary in `progress-notes.md`.
 - One-off `n8n execute` commands can collide with the running task broker. Prefer isolated `docker compose run --rm --no-deps n8n execute ...` or stop the service before CLI execution, then restart it.
 - In PowerShell, piping JSON into native commands can introduce a UTF-8 BOM. If `n8n import:workflow` fails with an unexpected token at the start, verify the file is clean and import through Bash or another BOM-safe path.
+- Reset applies migrations in lexical order before fixture cleanup. If a later stage has already written rows with expanded enum/check values, older migrations must not temporarily narrow those constraints during re-application.
 
 ## Testing And Verification
 

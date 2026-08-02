@@ -27,7 +27,7 @@
       ],
       "parameters": {
         "operation": "executeQuery",
-        "query": "WITH input AS (\n  SELECT\n    '{{ String($json.channel || \"generic\").replace(/'/g, \"''\") }}'::text AS channel,\n    '{{ String($json.sender_ref || \"\").replace(/'/g, \"''\") }}'::text AS sender_ref,\n    '{{ String($json.text || \"\").replace(/'/g, \"''\") }}'::text AS text,\n    '{{ JSON.stringify($json.media || null).replace(/'/g, \"''\") }}'::jsonb AS media,\n    '{{ String($json.received_at || new Date().toISOString()).replace(/'/g, \"''\") }}'::timestamptz AS received_at\n)\nSELECT\n  input.channel,\n  input.sender_ref,\n  input.text,\n  input.media,\n  input.received_at,\n  v.id AS vendor_id,\n  v.name AS vendor_name,\n  v.trade AS vendor_trade,\n  (v.id IS NOT NULL) AS known_vendor,\n  EXISTS (\n    SELECT 1\n    FROM event_log e\n    WHERE e.actor_type = 'vendor'\n      AND e.actor_id = input.sender_ref\n      AND e.channel = input.channel\n      AND e.raw_text = input.text\n      AND e.event_type IN ('vendor_inbound', 'manager_match_needed', 'duplicate_inbound')\n      AND e.created_at > now() - interval '60 seconds'\n  ) AS duplicate_like\nFROM input\nLEFT JOIN vendor v\n  ON v.active = true\n AND (v.telegram_chat_id = input.sender_ref OR v.phone_e164 = input.sender_ref)\nORDER BY v.id\nLIMIT 1;",
+        "query": "WITH input AS (\n  SELECT\n    '{{ String($json.channel || \"generic\").replace(/'/g, \"''\") }}'::text AS channel,\n    '{{ String($json.sender_ref || \"\").replace(/'/g, \"''\") }}'::text AS sender_ref,\n    '{{ String($json.text || \"\").replace(/'/g, \"''\") }}'::text AS text,\n    '{{ JSON.stringify($json.media || null).replace(/'/g, \"''\") }}'::jsonb AS media,\n    '{{ String($json.received_at || new Date().toISOString()).replace(/'/g, \"''\") }}'::timestamptz AS received_at\n)\nSELECT\n  input.channel,\n  input.sender_ref,\n  input.text,\n  input.media,\n  input.received_at,\n  v.id AS vendor_id,\n  v.name AS vendor_name,\n  v.trade AS vendor_trade,\n  (v.id IS NOT NULL) AS known_vendor,\n  EXISTS (\n    SELECT 1\n    FROM event_log e\n    WHERE e.actor_type = 'vendor'\n      AND e.actor_id = input.sender_ref\n      AND e.channel = input.channel\n      AND e.raw_text = input.text\n      AND e.event_type IN ('vendor_inbound', 'manager_match_needed', 'duplicate_inbound', 'stage_complete')\n      AND e.created_at > now() - interval '60 seconds'\n  ) AS duplicate_like\nFROM input\nLEFT JOIN vendor v\n  ON v.active = true\n AND (v.telegram_chat_id = input.sender_ref OR v.phone_e164 = input.sender_ref)\nORDER BY v.id\nLIMIT 1;",
         "options": {}
       },
       "credentials": {
@@ -72,13 +72,68 @@
       }
     },
     {
+      "id": "build-openai-classification-request",
+      "name": "Build OpenAI Classification Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        840,
+        -180
+      ],
+      "parameters": {
+        "jsCode": "const media = typeof $json.media === 'string' && $json.media ? JSON.parse($json.media) : $json.media || null;\nconst text = String($json.text || '');\nconst openStages = {\n  vendor_id: $json.vendor_id ? Number($json.vendor_id) : null,\n  vendor_name: $json.vendor_name || null,\n  vendor_trade: $json.vendor_trade || null\n};\nconst schema = {\n  type: 'object',\n  additionalProperties: false,\n  required: ['intent', 'unit_hint', 'stage_hint', 'eta_text', 'confidence'],\n  properties: {\n    intent: { type: 'string', enum: ['stage_complete', 'stage_started', 'delay_notice', 'question', 'not_my_unit', 'unclear'] },\n    unit_hint: { type: ['string', 'null'] },\n    stage_hint: { type: ['string', 'null'] },\n    eta_text: { type: ['string', 'null'] },\n    confidence: { type: 'number' }\n  }\n};\nreturn [{ json: {\n  channel: $json.channel || 'generic',\n  sender_ref: $json.sender_ref || '',\n  text,\n  media,\n  received_at: $json.received_at || new Date().toISOString(),\n  vendor_id: openStages.vendor_id,\n  vendor_name: openStages.vendor_name,\n  vendor_trade: openStages.vendor_trade,\n  known_vendor: Boolean($json.known_vendor),\n  duplicate_like: Boolean($json.duplicate_like),\n  openai_request: {\n    model: 'gpt-5.6-luna',\n    temperature: 0,\n    max_output_tokens: 150,\n    input: [\n      { role: 'system', content: 'You classify short text messages sent by trade contractors about vacant rental unit work. Return only the strict JSON object. Never assess damage, tenant responsibility, deposits, wear and tear, or cost; if raised, intent is question.' },\n      { role: 'user', content: 'Vendor text: ' + text + '\\\\nVendor trade: ' + ($json.vendor_trade || '') }\n    ],\n    text: { format: { type: 'json_schema', name: 'vendor_reply', schema, strict: true } }\n  }\n} }];"
+      }
+    },
+    {
+      "id": "classify-vendor-message-openai",
+      "name": "Classify Vendor Message With OpenAI",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1120,
+        -180
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/responses",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.openai_request) }}",
+        "options": {
+          "timeout": 12000
+        }
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "cred_make_ready_openai",
+          "name": "Make-Ready OpenAI"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "id": "parse-classification-or-fallback",
+      "name": "Parse Classification Or Fallback",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1400,
+        -180
+      ],
+      "parameters": {
+        "jsCode": "const source = $('Build OpenAI Classification Request').first().json;\nconst raw = $json || {};\nfunction deterministic(text) {\n  const lower = String(text || '').toLowerCase();\n  if (/deposit|tenant charge|tenant\\s+trashing|wear and tear|wear\\s+and\\s+tear/.test(lower)) {\n    return { intent: 'question', unit_hint: null, stage_hint: null, eta_text: null, confidence: 0.9 };\n  }\n  if (/\\?|water|lockbox|access|gate|key|code/.test(lower)) {\n    return { intent: 'question', unit_hint: null, stage_hint: null, eta_text: null, confidence: 0.78 };\n  }\n  if (/can't|cant|cannot|won't|wont|late|thursday|tomorrow|delay|need one more|not until/.test(lower)) {\n    return { intent: 'delay_notice', unit_hint: null, stage_hint: null, eta_text: String(text || ''), confidence: 0.76 };\n  }\n  if (/wrong unit|not my|not ours|not mine/.test(lower)) {\n    return { intent: 'not_my_unit', unit_hint: null, stage_hint: null, eta_text: null, confidence: 0.82 };\n  }\n  if (/started|on the way|materials arrived|patched|working on/.test(lower)) {\n    return { intent: 'stage_started', unit_hint: null, stage_hint: null, eta_text: null, confidence: 0.72 };\n  }\n  if (/done|finished|finishd|finshed|complete|completed|all set|cleaned|painted/.test(lower)) {\n    return { intent: 'stage_complete', unit_hint: null, stage_hint: null, eta_text: null, confidence: 0.84 };\n  }\n  return { intent: 'unclear', unit_hint: null, stage_hint: null, eta_text: null, confidence: 0.35 };\n}\nlet parsed = null;\ntry {\n  const text = raw.output_text || (Array.isArray(raw.output) && raw.output[0] && raw.output[0].content && raw.output[0].content[0] && raw.output[0].content[0].text);\n  if (text) parsed = JSON.parse(text);\n} catch (error) {\n  parsed = null;\n}\nconst fallback = deterministic(source.text);\nconst classification = parsed && parsed.intent\n  ? { status: 'openai', model: 'gpt-5.6-luna', ...parsed }\n  : { status: 'fallback_deterministic', model: 'gpt-5.6-luna', ...fallback };\nreturn [{ json: {\n  channel: source.channel,\n  sender_ref: source.sender_ref,\n  text: source.text,\n  media: source.media,\n  received_at: source.received_at,\n  vendor_id: source.vendor_id,\n  vendor_name: source.vendor_name,\n  vendor_trade: source.vendor_trade,\n  known_vendor: source.known_vendor,\n  duplicate_like: source.duplicate_like,\n  classification\n} }];"
+      }
+    },
+    {
       "id": "call-unit-matcher",
       "name": "Call Unit Matcher",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1,
       "position": [
-        840,
-        -140
+        1680,
+        -180
       ],
       "parameters": {
         "source": "database",
@@ -89,29 +144,67 @@
       }
     },
     {
-      "id": "prepare-known-event",
-      "name": "Prepare Known Event",
+      "id": "prepare-known-route",
+      "name": "Prepare Known Route",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1120,
-        -140
+        1960,
+        -180
       ],
       "parameters": {
-        "jsCode": "const envelope = $json.envelope || {};\nconst match = $json.match || { needs_manager: true, candidates: [], selected: null, score: 0 };\nconst mediaOnly = envelope.media && !String(envelope.text || '').trim();\nlet eventType = 'vendor_inbound';\nlet outcome = 'matched_logged';\nlet shouldNotify = false;\nif ($json.duplicate_like) {\n  eventType = 'duplicate_inbound';\n  outcome = 'duplicate_like';\n  shouldNotify = true;\n} else if (mediaOnly) {\n  eventType = 'manager_match_needed';\n  outcome = 'media_needs_manager';\n  shouldNotify = true;\n} else if (match.needs_manager) {\n  eventType = 'manager_match_needed';\n  outcome = 'manager_match_needed';\n  shouldNotify = true;\n}\nconst vendorName = $json.vendor && $json.vendor.name ? $json.vendor.name : 'Known vendor';\nconst candidateText = (match.candidates || []).map(candidate => candidate.unit_label + ' ' + candidate.stage_name + ' (' + candidate.score + ')').join(', ');\nconst notice = outcome === 'duplicate_like'\n  ? 'Duplicate-like vendor message from ' + vendorName + ': \"' + envelope.text + '\"'\n  : 'Vendor message needs manager match: ' + vendorName + ': \"' + envelope.text + '\"' + (candidateText ? ' Candidates: ' + candidateText : '');\nreturn [{ json: {\n  accepted: true,\n  outcome,\n  event_type: eventType,\n  envelope,\n  vendor: $json.vendor,\n  match,\n  classification: $json.classification || { status: 'deferred_stage_5', intent: null, confidence: null },\n  duplicate_like: Boolean($json.duplicate_like),\n  needs_manager: Boolean(shouldNotify),\n  should_notify_manager: Boolean(shouldNotify),\n  manager_chat_id: 'stage4-manager-chat-id-missing',\n  manager_notice_text: notice,\n  cors_origin: 'http://localhost:8080'\n} }];"
+        "jsCode": "const envelope = $json.envelope || {\n  channel: $json.channel || 'generic',\n  sender_ref: $json.sender_ref || '',\n  text: $json.text || '',\n  media: $json.media || null,\n  received_at: $json.received_at || new Date().toISOString()\n};\nconst match = $json.match || { needs_manager: true, candidates: [], selected: null, score: 0 };\nconst classification = $('Parse Classification Or Fallback').first().json.classification || { status: 'fallback_missing', intent: 'unclear', confidence: 0 };\nconst vendor = {\n  known: true,\n  id: $json.vendor && $json.vendor.id ? $json.vendor.id : $('Parse Classification Or Fallback').first().json.vendor_id,\n  name: $json.vendor && $json.vendor.name ? $json.vendor.name : $('Parse Classification Or Fallback').first().json.vendor_name,\n  trade: $json.vendor && $json.vendor.trade ? $json.vendor.trade : $('Parse Classification Or Fallback').first().json.vendor_trade\n};\nconst mediaOnly = envelope.media && !String(envelope.text || '').trim();\nlet eventType = 'vendor_inbound';\nlet outcome = 'logged_no_action';\nlet shouldNotify = false;\nlet shouldComplete = false;\nif ($json.duplicate_like) {\n  eventType = 'duplicate_inbound';\n  outcome = 'duplicate_like';\n  shouldNotify = true;\n} else if (mediaOnly) {\n  eventType = 'manager_match_needed';\n  outcome = 'media_needs_manager';\n  shouldNotify = true;\n} else if (!classification || classification.confidence < 0.6 || classification.intent === 'unclear') {\n  eventType = 'manager_match_needed';\n  outcome = 'low_confidence';\n  shouldNotify = true;\n} else if (match.needs_manager) {\n  eventType = 'manager_match_needed';\n  outcome = 'manager_match_needed';\n  shouldNotify = true;\n} else if (match.selected && vendor.id && match.selected.assigned_vendor_id && Number(match.selected.assigned_vendor_id) !== Number(vendor.id)) {\n  eventType = 'manager_match_needed';\n  outcome = 'stage_vendor_mismatch';\n  shouldNotify = true;\n} else if (classification.intent === 'stage_complete') {\n  outcome = 'completion_requested';\n  shouldComplete = true;\n} else {\n  outcome = classification.intent || 'logged_no_action';\n  shouldNotify = true;\n}\nconst candidateText = (match.candidates || []).map(candidate => candidate.unit_label + ' ' + candidate.stage_name + ' (' + candidate.score + ')').join(', ');\nconst notice = outcome === 'duplicate_like'\n  ? 'Duplicate-like vendor message from ' + (vendor.name || 'Known vendor') + ': \"' + envelope.text + '\"'\n  : 'Vendor message needs manager review: ' + (vendor.name || 'Known vendor') + ': \"' + envelope.text + '\"' + (candidateText ? ' Candidates: ' + candidateText : '');\nreturn [{ json: {\n  accepted: true,\n  outcome,\n  event_type: eventType,\n  envelope,\n  vendor,\n  match,\n  classification,\n  duplicate_like: Boolean($json.duplicate_like),\n  needs_manager: Boolean(shouldNotify),\n  should_notify_manager: Boolean(shouldNotify),\n  should_complete: Boolean(shouldComplete),\n  manager_chat_id: 'stage5-manager-chat-id-missing',\n  manager_notice_text: notice,\n  cors_origin: 'http://localhost:8080'\n} }];"
       }
     },
     {
-      "id": "prepare-unknown-event",
-      "name": "Prepare Unknown Event",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
+      "id": "should-complete-stage",
+      "name": "Should Complete Stage?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
       "position": [
-        840,
-        140
+        2240,
+        -180
       ],
       "parameters": {
-        "jsCode": "const media = typeof $json.media === 'string' && $json.media ? JSON.parse($json.media) : $json.media || null;\nconst envelope = {\n  channel: $json.channel || 'generic',\n  sender_ref: $json.sender_ref || '',\n  text: $json.text || '',\n  media,\n  received_at: $json.received_at || new Date().toISOString()\n};\nconst classification = { status: 'deferred_stage_5', intent: null, confidence: null };\nreturn [{ json: {\n  accepted: true,\n  outcome: 'unknown_sender',\n  event_type: 'unknown_sender',\n  envelope,\n  vendor: { known: false },\n  match: null,\n  classification,\n  duplicate_like: Boolean($json.duplicate_like),\n  needs_manager: true,\n  should_notify_manager: true,\n  manager_chat_id: 'stage4-manager-chat-id-missing',\n  manager_notice_text: 'Unknown vendor message from ' + envelope.sender_ref + ': \"' + envelope.text + '\"',\n  cors_origin: 'http://localhost:8080'\n} }];"
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "should-complete-stage-condition",
+              "leftValue": "={{ $json.should_complete }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "call-vendor-completion-handler",
+      "name": "Call Vendor Completion Handler",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [
+        2520,
+        -300
+      ],
+      "parameters": {
+        "source": "database",
+        "workflowId": "wf5-vendor-completion-handler",
+        "options": {
+          "waitForSubWorkflow": true
+        }
       }
     },
     {
@@ -120,12 +213,12 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        1400,
-        0
+        2520,
+        -60
       ],
       "parameters": {
         "operation": "executeQuery",
-        "query": "WITH input AS (\n  SELECT\n    '{{ String($json.event_type || \"vendor_inbound\").replace(/'/g, \"''\") }}'::text AS event_type,\n    '{{ String($json.outcome || \"matched_logged\").replace(/'/g, \"''\") }}'::text AS outcome,\n    '{{ JSON.stringify($json.envelope || {}).replace(/'/g, \"''\") }}'::jsonb AS envelope,\n    '{{ JSON.stringify($json.vendor || {}).replace(/'/g, \"''\") }}'::jsonb AS vendor,\n    '{{ JSON.stringify($json.match || null).replace(/'/g, \"''\") }}'::jsonb AS match,\n    '{{ JSON.stringify($json.classification || { status: \"deferred_stage_5\" }).replace(/'/g, \"''\") }}'::jsonb AS classification,\n    {{ $json.duplicate_like ? 'true' : 'false' }}::boolean AS duplicate_like,\n    {{ $json.needs_manager ? 'true' : 'false' }}::boolean AS needs_manager,\n    {{ $json.should_notify_manager ? 'true' : 'false' }}::boolean AS should_notify_manager,\n    '{{ String($json.manager_chat_id || \"\").replace(/'/g, \"''\") }}'::text AS manager_chat_id,\n    '{{ String($json.manager_notice_text || \"\").replace(/'/g, \"''\") }}'::text AS manager_notice_text,\n    '{{ String(($json.envelope || {}).channel || \"generic\").replace(/'/g, \"''\") }}'::text AS channel,\n    '{{ String(($json.envelope || {}).sender_ref || \"\").replace(/'/g, \"''\") }}'::text AS sender_ref,\n    '{{ String(($json.envelope || {}).text || \"\").replace(/'/g, \"''\") }}'::text AS raw_text,\n    {{ Number($json.match && $json.match.selected ? $json.match.selected.turn_id : 0) }}::int AS turn_id,\n    {{ Number($json.match && $json.match.selected ? $json.match.selected.stage_id : 0) }}::int AS stage_id\n), inserted AS (\n  INSERT INTO event_log (turn_id, stage_id, actor_type, actor_id, channel, event_type, raw_text, parsed_json)\n  SELECT\n    NULLIF(turn_id, 0),\n    NULLIF(stage_id, 0),\n    'vendor',\n    sender_ref,\n    channel,\n    event_type,\n    raw_text,\n    jsonb_build_object(\n      'envelope', envelope,\n      'vendor', vendor,\n      'match', match,\n      'classification', classification,\n      'duplicate_like', duplicate_like,\n      'needs_manager', needs_manager,\n      'stage_state_mutated', false\n    )\n  FROM input\n  RETURNING id\n)\nSELECT\n  true AS accepted,\n  inserted.id AS event_id,\n  input.outcome,\n  input.event_type,\n  input.envelope,\n  input.vendor,\n  input.match,\n  input.classification,\n  input.duplicate_like,\n  input.needs_manager,\n  (input.should_notify_manager AND input.manager_chat_id <> '' AND input.manager_chat_id <> 'stage4-manager-chat-id-missing') AS should_notify_manager,\n  NULLIF(input.manager_chat_id, 'stage4-manager-chat-id-missing') AS manager_chat_id,\n  input.manager_notice_text,\n  false AS stage_state_mutated,\n  'http://localhost:8080'::text AS cors_origin\nFROM input\nCROSS JOIN inserted;",
+        "query": "WITH input AS (\n  SELECT\n    '{{ String($json.event_type || \"vendor_inbound\").replace(/'/g, \"''\") }}'::text AS event_type,\n    '{{ String($json.outcome || \"logged_no_action\").replace(/'/g, \"''\") }}'::text AS outcome,\n    '{{ JSON.stringify($json.envelope || {}).replace(/'/g, \"''\") }}'::jsonb AS envelope,\n    '{{ JSON.stringify($json.vendor || {}).replace(/'/g, \"''\") }}'::jsonb AS vendor,\n    '{{ JSON.stringify($json.match || null).replace(/'/g, \"''\") }}'::jsonb AS match,\n    '{{ JSON.stringify($json.classification || null).replace(/'/g, \"''\") }}'::jsonb AS classification,\n    {{ $json.duplicate_like ? 'true' : 'false' }}::boolean AS duplicate_like,\n    {{ $json.needs_manager ? 'true' : 'false' }}::boolean AS needs_manager,\n    {{ $json.should_notify_manager ? 'true' : 'false' }}::boolean AS should_notify_manager,\n    '{{ String($json.manager_chat_id || \"\").replace(/'/g, \"''\") }}'::text AS manager_chat_id,\n    '{{ String($json.manager_notice_text || \"\").replace(/'/g, \"''\") }}'::text AS manager_notice_text,\n    '{{ String(($json.envelope || {}).channel || \"generic\").replace(/'/g, \"''\") }}'::text AS channel,\n    '{{ String(($json.envelope || {}).sender_ref || \"\").replace(/'/g, \"''\") }}'::text AS sender_ref,\n    '{{ String(($json.envelope || {}).text || \"\").replace(/'/g, \"''\") }}'::text AS raw_text,\n    {{ Number($json.match && $json.match.selected ? $json.match.selected.turn_id : 0) }}::int AS turn_id,\n    {{ Number($json.match && $json.match.selected ? $json.match.selected.stage_id : 0) }}::int AS stage_id\n), inserted AS (\n  INSERT INTO event_log (turn_id, stage_id, actor_type, actor_id, channel, event_type, raw_text, parsed_json)\n  SELECT\n    NULLIF(turn_id, 0),\n    NULLIF(stage_id, 0),\n    'vendor',\n    sender_ref,\n    channel,\n    event_type,\n    raw_text,\n    jsonb_build_object(\n      'envelope', envelope,\n      'vendor', vendor,\n      'match', match,\n      'classification', classification,\n      'duplicate_like', duplicate_like,\n      'needs_manager', needs_manager,\n      'stage_state_mutated', false\n    )\n  FROM input\n  RETURNING id\n)\nSELECT\n  true AS accepted,\n  inserted.id AS event_id,\n  input.outcome,\n  input.event_type,\n  input.envelope,\n  input.vendor,\n  input.match,\n  input.classification,\n  input.duplicate_like,\n  input.needs_manager,\n  (input.should_notify_manager AND input.manager_chat_id <> '' AND input.manager_chat_id <> 'stage5-manager-chat-id-missing') AS should_notify_manager,\n  NULLIF(input.manager_chat_id, 'stage5-manager-chat-id-missing') AS manager_chat_id,\n  input.manager_notice_text,\n  false AS stage_state_mutated,\n  'http://localhost:8080'::text AS cors_origin\nFROM input\nCROSS JOIN inserted;",
         "options": {}
       },
       "credentials": {
@@ -141,8 +234,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        1680,
-        0
+        2800,
+        -60
       ],
       "parameters": {
         "conditions": {
@@ -175,8 +268,8 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        1960,
-        -120
+        3080,
+        -180
       ],
       "parameters": {
         "resource": "message",
@@ -201,11 +294,11 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2240,
-        -120
+        3360,
+        -180
       ],
       "parameters": {
-        "jsCode": "const source = $('Log Vendor Router Event').first().json;\nreturn [{ json: source }];"
+        "jsCode": "return [$('Log Vendor Router Event').first()];"
       }
     },
     {
@@ -214,11 +307,24 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1960,
-        120
+        3080,
+        60
       ],
       "parameters": {
         "jsCode": "return items;"
+      }
+    },
+    {
+      "id": "prepare-unknown-event",
+      "name": "Prepare Unknown Event",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        840,
+        180
+      ],
+      "parameters": {
+        "jsCode": "const media = typeof $json.media === 'string' && $json.media ? JSON.parse($json.media) : $json.media || null;\nconst envelope = { channel: $json.channel || 'generic', sender_ref: $json.sender_ref || '', text: $json.text || '', media, received_at: $json.received_at || new Date().toISOString() };\nreturn [{ json: {\n  accepted: true,\n  outcome: 'unknown_sender',\n  event_type: 'unknown_sender',\n  envelope,\n  vendor: { known: false },\n  match: null,\n  classification: { status: 'not_run_unknown_sender', intent: null, confidence: null },\n  duplicate_like: Boolean($json.duplicate_like),\n  needs_manager: true,\n  should_notify_manager: true,\n  manager_chat_id: 'stage5-manager-chat-id-missing',\n  manager_notice_text: 'Unknown vendor message from ' + envelope.sender_ref + ': \"' + envelope.text + '\"',\n  cors_origin: 'http://localhost:8080'\n} }];"
       }
     }
   ],
@@ -249,7 +355,7 @@
       "main": [
         [
           {
-            "node": "Call Unit Matcher",
+            "node": "Build OpenAI Classification Request",
             "type": "main",
             "index": 0
           }
@@ -263,19 +369,70 @@
         ]
       ]
     },
-    "Call Unit Matcher": {
+    "Build OpenAI Classification Request": {
       "main": [
         [
           {
-            "node": "Prepare Known Event",
+            "node": "Classify Vendor Message With OpenAI",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Prepare Known Event": {
+    "Classify Vendor Message With OpenAI": {
       "main": [
+        [
+          {
+            "node": "Parse Classification Or Fallback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Classification Or Fallback": {
+      "main": [
+        [
+          {
+            "node": "Call Unit Matcher",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Unit Matcher": {
+      "main": [
+        [
+          {
+            "node": "Prepare Known Route",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Known Route": {
+      "main": [
+        [
+          {
+            "node": "Should Complete Stage?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Should Complete Stage?": {
+      "main": [
+        [
+          {
+            "node": "Call Vendor Completion Handler",
+            "type": "main",
+            "index": 0
+          }
+        ],
         [
           {
             "node": "Log Vendor Router Event",

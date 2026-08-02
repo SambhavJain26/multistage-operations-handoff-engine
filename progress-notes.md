@@ -4,7 +4,7 @@ This file is the running handoff record for future sessions. Read it before star
 
 ## Current Status
 
-- Stage 4 is complete.
+- Stage 5 is complete.
 - Local runtime, credentials, schema, stage template, and fixture seed data have been verified.
 - `build-plan.md` created with eight staged sessions.
 - Git repository initialized on `main`; remote target is private GitHub repo `make-ready-sequencing`.
@@ -24,7 +24,7 @@ This file is the running handoff record for future sessions. Read it before star
 | 2 | Data Model, Stage Template, And Fixtures | Complete | Schema, stage template, Cedar Ridge fixture seed, reset/load scripts, prospect CSV example, Telegram chat-ID helper, and Stage 2 verification checks added. |
 | 3 | Visibility Board And Manual Control | Complete | Board API, static board, reusable guard, guarded manual completion, manager digest send, and Telegram callback completion are implemented and verified locally. |
 | 4 | Intake, Channel Normalization, And Matching | Complete | Manager intake form, deterministic unit matcher, generic `/vendor-in`, vendor Telegram ingest export, shared router/logger, duplicate handling, and manager notices are implemented. Vendor replies log only and do not mutate stages. |
-| 5 | Vendor Completion Loop With Human Approval | Not started | Must preserve manager approval for all outbound vendor messages. |
+| 5 | Vendor Completion Loop With Human Approval | Complete | Vendor completion, manager approval queue, Send/Edit/Hold/Cancel helpers, fallback classification/drafting, and Stage 5 verification are implemented. Live Telegram Send remains optional and requires a fresh tunnel/chat IDs. |
 | 6 | Stall Detection, Digest, Simulator, And Photos | Not started | Absence detector and demo companion surfaces. |
 | 7 | Full Fixture Testing And Demo Hardening | Not started | F01-F20, fallback behavior, rehearsal, recording, export/rebuild. |
 | 8 | Production Pilot Readiness | Not started | Client-owned VPS, Twilio/10DLC, consent, STOP handling, backups, contract exclusions. |
@@ -282,3 +282,57 @@ This file is the running handoff record for future sessions. Read it before star
   - Sent the same text through generic `/webhook/vendor-in` with the placeholder Rivera sender; the stored event matched Telegram on event type, raw text, vendor, classification, selected unit/stage, score, and non-mutation. It differed only by `channel`, `sender_ref`, and received timestamp.
   - Confirmed 12B Paint stayed active and outbound queue count stayed zero.
   - Cleaned up by importing Stage 4 without `-ActivateTelegram`, restoring local `.env` to localhost `WEBHOOK_URL` and blank `VENDOR_TELEGRAM_CHAT_ID`, recreating n8n, stopping the temporary tunnel container, and resetting fixtures. Post-cleanup, `wf4-vendor-telegram-ingest` is inactive, non-Telegram Stage 4 workflows are active, Rivera fixture sender mapping is restored, and verification event rows are gone.
+
+## Stage 5 Implementation Notes
+
+- Added Stage 5 migration `db/postgres/migrations/003-stage-5-approval-loop.sql`.
+  - Adds `awaiting_approval` and `cancelled` stage states.
+  - Expands `outbound_queue` with source stage, approved text, deterministic text, draft fallback metadata, decision metadata, and approval context.
+  - Adds Stage 5 event types for draft, edit, send, hold, skip, snooze, cancellation, and approval-pending state.
+- Made `db/postgres/migrations/002-stage-4-event-log.sql` forward-compatible with Stage 5 event/channel values so repeated resets do not temporarily narrow constraints while later-stage rows still exist.
+- Updated Stage 3 generator/export:
+  - Board API now treats `active` and `awaiting_approval` as visible current stages.
+  - Sequence guard carries opaque vendor-router context through to Stage 5 completion while still evaluating only deterministic sequence rules.
+- Updated `board/index.html` to show `awaiting_approval` stage dots and a clear "manager approval pending" note.
+- Added Stage 5 workflow exports:
+  - `wf-5-vendor-completion-handler.json`
+  - `wf-5-manager-action-core.json`
+  - `wf-5-manager-action-api.json`
+- Added `scripts/generate-stage-5-workflows.js`.
+  - Overwrites `wf-4-vendor-router.json` with Stage 5 classification/routing behavior.
+  - Overwrites `wf-3-manager-router.json` with callback parsing for Stage 5 manager actions while preserving the single manager Telegram Trigger design.
+  - Uses HTTP Request node shape for OpenAI Responses API classification, with deterministic fallback classification when the OpenAI call fails or returns an unusable shape.
+  - Reuses `wf4-unit-matcher` and `wf3-sequence-guard`; no duplicate matcher or guard was added.
+- Added import and verification helpers:
+  - `scripts/import-stage-5-workflows.ps1`
+  - `scripts/check-stage-5.ps1`
+  - `db/postgres/verify-stage-5.sql`
+- Stage 5 behavior implemented:
+  - `stage_complete` vendor messages can complete only the matched active stage when it is assigned to that vendor.
+  - The completed stage is marked `completed_via='vendor_reply'`.
+  - The next external-vendor stage moves to `awaiting_approval`, not `active`.
+  - A deterministic draft is inserted into `outbound_queue` as `awaiting_approval`; the draft row records model/fallback metadata.
+  - Duplicate completions within 60 seconds log `duplicate_inbound` and do not create a second draft.
+  - Send/Edit/Hold actions are available through the manager action core and local `/manager-action` verification webhook.
+  - Send marks the queue `sent` and activates the awaiting stage. In local non-Telegram verification this records `delivery_mode='local_state_only'`; live Telegram delivery still requires optional tunnel/chat-ID verification.
+  - Edit updates the draft text and keeps it awaiting approval.
+  - Hold records `held` and sends nothing.
+  - Cancel marks the turn cancelled, closes pending/active/awaiting stages, cancels open queue rows, and removes the turn from the active board.
+  - Vendor messages from the wrong assigned vendor route to manager review instead of mutating the active stage.
+- Verified:
+  - `node scripts/generate-stage-3-workflows.js`, `node scripts/generate-stage-4-workflows.js`, and `node scripts/generate-stage-5-workflows.js` regenerate parseable exports.
+  - `scripts/import-stage-5-workflows.ps1` imports and publishes the non-Telegram Stage 5 workflow set.
+  - `scripts/check-stage-3.ps1` passes with the Stage 5 board/guard changes.
+  - `scripts/import-stage-4-workflows.ps1` followed by `scripts/check-stage-4.ps1` passes, confirming the Stage 4 non-mutation baseline still works when Stage 4 is imported.
+  - `scripts/import-stage-5-workflows.ps1` followed by `scripts/check-stage-5.ps1` passes:
+    - F01 completes 12B Paint, creates exactly one awaiting approval draft for 12B Flooring, and logs no send before manager Send.
+    - The board shows 12B Flooring as `awaiting_approval`.
+    - Duplicate F01 creates no second draft.
+    - Edit stores revised draft text and still requires approval.
+    - Send marks the queue sent and activates Flooring.
+    - Hold records held with no send.
+    - Cleaner message `14a cleaned` is blocked as a stage/vendor mismatch and does not mutate 14A Repairs.
+    - Low-confidence fallback routes to manager review.
+    - Existing sequence guard still blocks 14A Deep Clean while Repairs is open.
+    - Cancel removes 55 Birch from the active board.
+  - Final local DB state was reset to the opening fixture state after checks.

@@ -35,12 +35,12 @@
         0
       ],
       "parameters": {
-        "jsCode": "const callback = $json.callback_query;\nif (!callback) {\n  return [{ json: { handled: false, action: 'ignored', reason: 'No callback query.' } }];\n}\nconst data = String(callback.data || '');\nconst chatId = callback.message && callback.message.chat ? callback.message.chat.id : '';\nconst fromId = callback.from ? callback.from.id : 'manager-telegram';\nif (!data.startsWith('DONE:')) {\n  return [{ json: {\n    handled: false,\n    action: 'noop',\n    telegram_callback_query_id: callback.id,\n    telegram_chat_id: chatId,\n    reason: 'No action taken.'\n  } }];\n}\nreturn [{ json: {\n  handled: true,\n  action: 'done',\n  stage_id: Number(data.slice(5)),\n  actor_id: String(fromId),\n  channel: 'digest',\n  telegram_callback_query_id: callback.id,\n  telegram_chat_id: chatId\n} }];"
+        "jsCode": "const callback = $json.callback_query;\nif (!callback) return [{ json: { handled: false, action: 'ignored', reason: 'No callback query.' } }];\nconst data = String(callback.data || '');\nconst chatId = callback.message && callback.message.chat ? callback.message.chat.id : '';\nconst fromId = callback.from ? callback.from.id : 'manager-telegram';\nconst parts = data.split(':');\nconst action = parts[0] || 'NOOP';\nif (action === 'DONE') {\n  return [{ json: { handled: true, route: 'complete', action: 'DONE', stage_id: Number(parts[1] || 0), actor_id: String(fromId), channel: 'digest', telegram_callback_query_id: callback.id, telegram_chat_id: chatId } }];\n}\nif (['SEND', 'HOLD', 'EDIT'].includes(action)) {\n  return [{ json: { handled: true, route: 'action', action, queue_id: Number(parts[1] || 0), actor_id: String(fromId), channel: 'telegram', telegram_callback_query_id: callback.id, telegram_chat_id: chatId } }];\n}\nif (['SKIP', 'SNOOZE'].includes(action)) {\n  return [{ json: { handled: true, route: 'action', action, stage_id: Number(parts[1] || 0), actor_id: String(fromId), channel: 'telegram', telegram_callback_query_id: callback.id, telegram_chat_id: chatId } }];\n}\nif (action === 'CANCEL') {\n  return [{ json: { handled: true, route: 'action', action, turn_id: Number(parts[1] || 0), actor_id: String(fromId), channel: 'telegram', telegram_callback_query_id: callback.id, telegram_chat_id: chatId } }];\n}\nreturn [{ json: { handled: false, action: 'noop', telegram_callback_query_id: callback.id, telegram_chat_id: chatId, reason: 'No action taken.' } }];"
       }
     },
     {
-      "id": "callback-is-done",
-      "name": "Callback Is Done?",
+      "id": "callback-handled",
+      "name": "Callback Handled?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
@@ -57,7 +57,7 @@
           },
           "conditions": [
             {
-              "id": "callback-is-done-condition",
+              "id": "callback-handled-condition",
               "leftValue": "={{ $json.handled }}",
               "rightValue": true,
               "operator": {
@@ -73,17 +73,128 @@
       }
     },
     {
-      "id": "call-core-from-digest",
+      "id": "route-done-callback",
+      "name": "Route Done Callback",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        -180
+      ],
+      "parameters": {
+        "jsCode": "return [{ json: { route_done: $json.route === 'complete', ...$json } }];"
+      }
+    },
+    {
+      "id": "is-done-callback",
+      "name": "Is Done Callback?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        960,
+        -180
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "is-done-callback-condition",
+              "leftValue": "={{ $json.route_done }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "call-completion-core-from-digest",
       "name": "Call Completion Core From Digest",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1,
       "position": [
-        720,
-        -120
+        1240,
+        -300
       ],
       "parameters": {
         "source": "database",
         "workflowId": "wf3-stage-complete-core",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      }
+    },
+    {
+      "id": "route-action-callback",
+      "name": "Route Action Callback",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1240,
+        -80
+      ],
+      "parameters": {
+        "jsCode": "return [{ json: { route_action: $json.route === 'action', ...$json } }];"
+      }
+    },
+    {
+      "id": "is-action-callback",
+      "name": "Is Action Callback?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1520,
+        -80
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "is-action-callback-condition",
+              "leftValue": "={{ $json.route_action }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "call-manager-action-core",
+      "name": "Call Manager Action Core",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [
+        1800,
+        -180
+      ],
+      "parameters": {
+        "source": "database",
+        "workflowId": "wf5-manager-action-core",
         "options": {
           "waitForSubWorkflow": true
         }
@@ -95,15 +206,15 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        960,
-        -120
+        2080,
+        -180
       ],
       "parameters": {
         "resource": "callback",
         "operation": "answerQuery",
         "queryId": "={{ $json.telegram_callback_query_id }}",
         "additionalFields": {
-          "text": "={{ $json.manager_response_text || $json.reason || $json.message || \"Done\" }}",
+          "text": "={{ $json.outcome || $json.manager_response_text || $json.reason || $json.message || \"Done\" }}",
           "show_alert": false
         }
       },
@@ -121,7 +232,7 @@
       "typeVersion": 1.2,
       "position": [
         720,
-        120
+        160
       ],
       "parameters": {
         "resource": "callback",
@@ -156,18 +267,18 @@
       "main": [
         [
           {
-            "node": "Callback Is Done?",
+            "node": "Callback Handled?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Callback Is Done?": {
+    "Callback Handled?": {
       "main": [
         [
           {
-            "node": "Call Completion Core From Digest",
+            "node": "Route Done Callback",
             "type": "main",
             "index": 0
           }
@@ -181,7 +292,76 @@
         ]
       ]
     },
+    "Route Done Callback": {
+      "main": [
+        [
+          {
+            "node": "Is Done Callback?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Done Callback?": {
+      "main": [
+        [
+          {
+            "node": "Call Completion Core From Digest",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Route Action Callback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "Call Completion Core From Digest": {
+      "main": [
+        [
+          {
+            "node": "Answer Manager Callback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Action Callback": {
+      "main": [
+        [
+          {
+            "node": "Is Action Callback?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Action Callback?": {
+      "main": [
+        [
+          {
+            "node": "Call Manager Action Core",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Answer Ignored Callback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Manager Action Core": {
       "main": [
         [
           {

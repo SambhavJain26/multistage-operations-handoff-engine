@@ -4,7 +4,7 @@ SET LOCAL client_min_messages = warning;
 ALTER TABLE event_log DROP CONSTRAINT IF EXISTS event_log_channel_check;
 ALTER TABLE event_log
   ADD CONSTRAINT event_log_channel_check
-  CHECK (channel IN ('telegram', 'generic', 'board', 'digest', 'seed', 'import', 'form'));
+  CHECK (channel IN ('telegram', 'generic', 'board', 'digest', 'seed', 'import', 'form', 'system'));
 
 ALTER TABLE event_log DROP CONSTRAINT IF EXISTS event_log_event_type_check;
 ALTER TABLE event_log
@@ -27,7 +27,16 @@ ALTER TABLE event_log
       'turn_intake',
       'vendor_inbound',
       'manager_match_needed',
-      'duplicate_inbound'
+      'duplicate_inbound',
+      'classification_fallback',
+      'draft_fallback',
+      'stage_awaiting_approval',
+      'stage_skipped',
+      'stage_snoozed',
+      'turn_cancelled',
+      'msg_edit_requested',
+      'msg_edited',
+      'msg_rejected'
     )
   );
 
