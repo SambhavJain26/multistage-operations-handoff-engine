@@ -70,7 +70,8 @@ ALTER TABLE event_log
       'stage_awaiting_approval',
       'stage_skipped',
       'stage_snoozed',
-      'turn_cancelled'
+      'turn_cancelled',
+      'workflow_error'
     )
   );
 

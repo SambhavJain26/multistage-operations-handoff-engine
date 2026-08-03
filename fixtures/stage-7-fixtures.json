@@ -1,0 +1,174 @@
+{
+  "suite": "stage-7-f01-f20",
+  "description": "Full make-ready sequencing demo hardening fixtures. Live Telegram fixtures require real user messages because bot webhooks cannot impersonate vendor users.",
+  "defaults": {
+    "reset_between_groups": true,
+    "report_dir": "data/stage-7-reports",
+    "cost_usd_limit": 0.05
+  },
+  "fixtures": [
+    {
+      "id": "F01",
+      "message": "done with 12b",
+      "channel": "telegram",
+      "sender": "Rivera Painting",
+      "setup": "opening_reset",
+      "manual_prompt": "From the Rivera vendor Telegram account, send: done with 12b <run_id>",
+      "expected": "12B Paint completes via vendor_reply; 12B Flooring is awaiting manager approval; exactly one approval queue exists."
+    },
+    {
+      "id": "F02",
+      "message": "finished the one on maple",
+      "channel": "telegram",
+      "sender": "Rivera Painting",
+      "setup": "opening_reset",
+      "manual_prompt": "From the Rivera vendor Telegram account, send: finished the one on maple <run_id>",
+      "expected": "Multiple Maple candidates are logged; manager review is required; no stage state changes."
+    },
+    {
+      "id": "F03",
+      "message": "all set at oak, unit 7",
+      "channel": "generic",
+      "sender": "Statewide Flooring",
+      "setup": "opening_reset",
+      "expected": "Message resolves to 7 Oak, not 3 Oak."
+    },
+    {
+      "id": "F04",
+      "message": "done",
+      "channel": "generic",
+      "sender": "Rivera Painting",
+      "setup": "opening_reset",
+      "expected": "Bare message scores below automatic action threshold and asks the manager to choose the unit."
+    },
+    {
+      "id": "F05",
+      "message": "12b cleaned, then 14a cleaned",
+      "channel": "telegram",
+      "sender": "Maria's Cleaning Co",
+      "setup": "deep_clean_guard_setup",
+      "manual_prompt": "From the Maria vendor Telegram account, send both messages with the same <run_id>: 12b cleaned <run_id>, then 14a cleaned <run_id>",
+      "expected": "12B Deep Clean is allowed; 14A Deep Clean is blocked because Repairs is still open."
+    },
+    {
+      "id": "F06",
+      "message": "cant get there till thursday, sorry",
+      "channel": "generic",
+      "sender": "Dale Hutchins",
+      "setup": "opening_reset",
+      "expected": "Intent is delay_notice; manager review is logged; no stage state changes."
+    },
+    {
+      "id": "F07",
+      "message": "photo with no caption",
+      "channel": "generic",
+      "sender": "Rivera Painting",
+      "setup": "opening_reset",
+      "expected": "Photo-only media is stored with needs_manager status; no stage state changes."
+    },
+    {
+      "id": "F08",
+      "message": "is the water back on at 12b?",
+      "channel": "generic",
+      "sender": "Rivera Painting",
+      "setup": "opening_reset",
+      "expected": "Question is forwarded/logged for manager review; no stage state changes."
+    },
+    {
+      "id": "F09",
+      "message": "finshed unit 12b",
+      "channel": "generic",
+      "sender": "Rivera Painting",
+      "setup": "opening_reset",
+      "expected": "Typo still classifies as completion and matches 12B."
+    },
+    {
+      "id": "F10",
+      "message": "done with 12b sent twice",
+      "channel": "telegram",
+      "sender": "Rivera Painting",
+      "setup": "opening_reset",
+      "manual_prompt": "From the Rivera vendor Telegram account, send the same done with 12b <run_id> message twice within 30 seconds.",
+      "expected": "First message advances once; second logs duplicate_inbound; no second draft or approval card."
+    },
+    {
+      "id": "F11",
+      "message": "message from unknown chat ID",
+      "channel": "generic",
+      "sender": "unknown",
+      "setup": "opening_reset",
+      "expected": "Unknown sender is logged and manager-notified without disclosing match candidates or replying to sender."
+    },
+    {
+      "id": "F12",
+      "message": "manager skip then cleaner done",
+      "channel": "telegram",
+      "sender": "Maria's Cleaning Co",
+      "setup": "flooring_skipped_deep_clean_active",
+      "manual_prompt": "From the Maria vendor Telegram account, send: 12b cleaned <run_id>",
+      "expected": "Skipped Flooring counts as satisfied; 12B Deep Clean completes."
+    },
+    {
+      "id": "F13",
+      "message": "manager cancels 55 Birch",
+      "channel": "manager-action",
+      "setup": "opening_reset",
+      "expected": "55 Birch is cancelled, drops from board, and has no future orphan alerts."
+    },
+    {
+      "id": "F14",
+      "message": "painter reports done on 12B and 12A within a minute",
+      "channel": "generic",
+      "sender": "Rivera Painting",
+      "setup": "two_paint_units_active",
+      "expected": "Two separate stage completions and two separate approval rows are created for the correct units."
+    },
+    {
+      "id": "F15",
+      "message": "voice note",
+      "channel": "telegram",
+      "sender": "Rivera Painting",
+      "setup": "opening_reset",
+      "manual_prompt": "From the Rivera vendor Telegram account, send a voice note with no text.",
+      "expected": "Unsupported media is stored and manager review is logged; no stage state changes."
+    },
+    {
+      "id": "F16",
+      "message": "done with 12b at 02:00 client time",
+      "channel": "generic",
+      "sender": "Rivera Painting",
+      "setup": "opening_reset",
+      "expected": "Stage update happens immediately; manager alert behavior is held outside business hours where applicable."
+    },
+    {
+      "id": "F17",
+      "message": "the tenant trashed this place, that carpet is coming out of their deposit",
+      "channel": "generic",
+      "sender": "Rivera Painting",
+      "setup": "opening_reset",
+      "expected": "Intent routes as question/manager review; no damage assessment, deposit language, or tenant liability classification is generated."
+    },
+    {
+      "id": "F18",
+      "message": "done with 12b via generic webhook",
+      "channel": "generic",
+      "sender": "Rivera Painting",
+      "setup": "opening_reset",
+      "expected": "Generic webhook result matches Telegram happy path except channel, sender_ref, and timestamp."
+    },
+    {
+      "id": "F19",
+      "message": "manager marks Paint done on 12B from board",
+      "channel": "board",
+      "setup": "opening_reset",
+      "expected": "12B Paint completes via manual; board advances; vendor reply rate drops accordingly."
+    },
+    {
+      "id": "F20",
+      "message": "manager marks Deep Clean done on 14A from digest while Repairs is open",
+      "channel": "digest",
+      "setup": "opening_reset",
+      "expected": "Sequence guard blocks with the Repairs-open reason and records guard_blocked."
+    }
+  ]
+}

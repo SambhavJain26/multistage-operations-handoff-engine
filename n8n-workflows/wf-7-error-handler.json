@@ -1,0 +1,186 @@
+{
+  "id": "wf7-error-handler",
+  "name": "WF-7 Builder Error Handler",
+  "active": true,
+  "nodes": [
+    {
+      "id": "error-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "normalize-error-payload",
+      "name": "Normalize Error Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        280,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const execution = $json.execution || {};\nconst trigger = $json.trigger || {};\nconst workflow = $json.workflow || {};\nconst error = execution.error || trigger.error || {};\nlet message = String(error.message || error.description || '');\nif (!message) {\n  try { message = JSON.stringify(error); } catch { message = 'Unknown workflow error'; }\n}\nif (!message || message === '{}') message = 'Unknown workflow error';\nconst lastNode = String(execution.lastNodeExecuted || '');\nconst workflowName = String(workflow.name || workflow.id || 'Unknown workflow');\nconst executionUrl = String(execution.url || '');\nconst shortMessage = message.slice(0, 280);\nconst notice = [\n  'Make-ready demo workflow error',\n  workflowName,\n  lastNode ? 'Node: ' + lastNode : null,\n  shortMessage,\n  executionUrl || null\n].filter(Boolean).join('\\n');\nreturn [{ json: {\n  workflow_id: String(workflow.id || ''),\n  workflow_name: workflowName,\n  execution_id: String(execution.id || ''),\n  execution_url: executionUrl,\n  last_node: lastNode,\n  mode: String(execution.mode || trigger.mode || ''),\n  error_message: message.slice(0, 1000),\n  builder_chat_id: 'stage7-builder-chat-id-missing',\n  builder_notice_text: notice,\n  error_payload: { workflow, execution, trigger }\n} }];"
+      }
+    },
+    {
+      "id": "log-workflow-error",
+      "name": "Log Workflow Error",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        560,
+        0
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH input AS (\n  SELECT\n    '{{ String($json.workflow_id || \"\").replace(/'/g, \"''\") }}'::text AS workflow_id,\n    '{{ String($json.workflow_name || \"\").replace(/'/g, \"''\") }}'::text AS workflow_name,\n    '{{ String($json.execution_id || \"\").replace(/'/g, \"''\") }}'::text AS execution_id,\n    '{{ String($json.execution_url || \"\").replace(/'/g, \"''\") }}'::text AS execution_url,\n    '{{ String($json.last_node || \"\").replace(/'/g, \"''\") }}'::text AS last_node,\n    '{{ String($json.mode || \"\").replace(/'/g, \"''\") }}'::text AS mode,\n    '{{ String($json.error_message || \"Unknown workflow error\").replace(/'/g, \"''\") }}'::text AS error_message,\n    '{{ String($json.builder_chat_id || \"\").replace(/'/g, \"''\") }}'::text AS builder_chat_id,\n    '{{ String($json.builder_notice_text || \"Make-ready demo workflow error\").replace(/'/g, \"''\") }}'::text AS builder_notice_text,\n    '{{ JSON.stringify($json.error_payload || {}).replace(/'/g, \"''\") }}'::jsonb AS error_payload\n), inserted AS (\n  INSERT INTO event_log (actor_type, actor_id, channel, event_type, raw_text, parsed_json)\n  SELECT\n    'system',\n    'wf7-error-handler',\n    'system',\n    'workflow_error',\n    error_message,\n    jsonb_build_object(\n      'workflow_id', workflow_id,\n      'workflow_name', workflow_name,\n      'execution_id', execution_id,\n      'execution_url', execution_url,\n      'last_node', last_node,\n      'mode', mode,\n      'error_payload', error_payload\n    )\n  FROM input\n  RETURNING id\n)\nSELECT\n  inserted.id AS event_id,\n  input.workflow_id,\n  input.workflow_name,\n  input.execution_id,\n  input.execution_url,\n  input.last_node,\n  input.mode,\n  input.error_message,\n  input.builder_notice_text,\n  NULLIF(input.builder_chat_id, 'stage7-builder-chat-id-missing') AS builder_chat_id,\n  (input.builder_chat_id <> '' AND input.builder_chat_id <> 'stage7-builder-chat-id-missing') AS should_notify_builder\nFROM input\nCROSS JOIN inserted;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "cred_make_ready_pg",
+          "name": "Make-Ready Postgres"
+        }
+      }
+    },
+    {
+      "id": "builder-chat-configured",
+      "name": "Builder Chat Configured?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        840,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "builder-chat-configured-condition",
+              "leftValue": "={{ $json.should_notify_builder }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "send-builder-error-alert",
+      "name": "Send Builder Error Alert",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1120,
+        -120
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $json.builder_chat_id }}",
+        "text": "={{ $json.builder_notice_text }}",
+        "additionalFields": {
+          "disable_web_page_preview": true,
+          "appendAttribution": false
+        }
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "jASZWMlrfp3v2tWH",
+          "name": "Make-Ready Manager Telegram Bot"
+        }
+      }
+    },
+    {
+      "id": "return-error-log-summary",
+      "name": "Return Error Log Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        120
+      ],
+      "parameters": {
+        "jsCode": "return items;"
+      }
+    }
+  ],
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Normalize Error Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Error Payload": {
+      "main": [
+        [
+          {
+            "node": "Log Workflow Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Workflow Error": {
+      "main": [
+        [
+          {
+            "node": "Builder Chat Configured?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Builder Chat Configured?": {
+      "main": [
+        [
+          {
+            "node": "Send Builder Error Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return Error Log Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "pinData": {},
+  "versionId": "wf7-error-handler-v1",
+  "triggerCount": 0,
+  "tags": []
+}

@@ -305,7 +305,8 @@
     }
   },
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "errorWorkflow": "wf7-error-handler"
   },
   "staticData": null,
   "pinData": {},

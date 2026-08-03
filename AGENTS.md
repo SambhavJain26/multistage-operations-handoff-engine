@@ -97,6 +97,8 @@ Known n8n gotchas to account for:
 - AI structured output may be wrapped; downstream code should handle wrapped and direct JSON shapes.
 - Board and detail pages are demo visualizations by default. Show model outputs, guard outcomes, and event details in plain language first; keep raw JSON behind collapsed technical audit controls.
 - Repeated live-model rehearsal can expose small variance. Prefer deterministic post-model boundaries and document every boundary in `progress-notes.md`.
+- Error Workflow verification should use durable signals such as `event_log` rows or execution records, not only webhook HTTP status. In local n8n 2.29, a Webhook workflow that throws before a Respond node can still return HTTP 200 with an empty body while the Error Workflow fires correctly.
+- Stage 7 live fixture rehearsal requires distinct Telegram sender chat IDs per vendor identity. Do not reuse the manager/prospect chat as a vendor sender or builder alert target.
 - One-off `n8n execute` commands can collide with the running task broker. Prefer isolated `docker compose run --rm --no-deps n8n execute ...` or stop the service before CLI execution, then restart it.
 - In PowerShell, piping JSON into native commands can introduce a UTF-8 BOM. If `n8n import:workflow` fails with an unexpected token at the start, verify the file is clean and import through Bash or another BOM-safe path.
 - Reset applies migrations in lexical order before fixture cleanup. If a later stage has already written rows with expanded enum/check values, older migrations must not temporarily narrow those constraints during re-application.

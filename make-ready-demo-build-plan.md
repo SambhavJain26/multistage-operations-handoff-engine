@@ -234,7 +234,7 @@ Stated plainly, per your instruction:
 
 ## 2. The demo in one paragraph
 
-You share your screen showing a board of six units currently in turn, each a card with a stage and a number of days sitting at that stage, sorted worst-first. One card is red: Unit 12B, at Paint, four days, $212 of rent burned while nothing happened. You let that sit, then say "your version of this screen doesn't exist — that's the whole pitch." You hand the prospect your phone, already in a Telegram chat, and ask them to type "done with 12b" as if they were the painter. Within a couple of seconds the board card turns from red to green, and *their own phone* buzzes with a message: the painter finished 12B, the next stage is Deep Clean, here's the message drafted to Maria's Cleaning in the client's own voice, and two buttons — Send, or Hold. They press Send. The cleaner's confirmation appears on the board. Then you try to break it: you mark Deep Clean complete on a different unit where drywall repairs are still open, and the system refuses — "Repairs is still open on 14A. Cleaning before repairs means cleaning twice," which is the $180 rework nobody logs as a failure. Finally a stall alert fires on its own for a unit that's been at Trash-out too long, on the prospect's phone, unprompted, while you're talking. You close by doing their arithmetic in front of them with their own rent number, and the ask is smaller than they expect: nothing installed, no vendor contacted, no software touched — just their last three turns on paper, and their own board back before you next speak.
+You share your screen showing a board of six units currently in turn, each a card with a stage and a number of days sitting at that stage, sorted worst-first. One card is red: Unit 12B, at Paint, four days, $212 of rent burned while nothing happened. You let that sit, then say "your version of this screen doesn't exist — that's the whole pitch." You hand the prospect your phone, already in a Telegram chat, and ask them to type "done with 12b" as if they were the painter. Within a couple of seconds the board card turns from red to green, and *their own phone* buzzes with a message: the painter finished 12B, the next stage is Flooring unless the manager skips it, here's the message drafted to Statewide Flooring in the client's own voice, and two buttons — Send, or Hold. They press Send. The flooring handoff appears on the board. Then you try to break it: you mark Deep Clean complete on a different unit where drywall repairs are still open, and the system refuses — "Repairs is still open on 14A. Cleaning before repairs means cleaning twice," which is the $180 rework nobody logs as a failure. Finally a stall alert fires on its own for a unit that's been at Trash-out too long, on the prospect's phone, unprompted, while you're talking. You close by doing their arithmetic in front of them with their own rent number, and the ask is smaller than they expect: nothing installed, no vendor contacted, no software touched — just their last three turns on paper, and their own board back before you next speak.
 
 ---
 
@@ -949,18 +949,18 @@ Their own phone (you added them as the manager during discovery, or you're sendi
 12B Maple — Paint complete (Rivera Painting)
 4d 2h at this stage · $212 vacancy cost
 
-Next: Deep Clean — Maria's Cleaning Co
+Next: Flooring — Statewide Flooring
 
 Draft:
-"Maria - 12B at 418 Maple is ready for
-final clean, painting's done. - Cedar Ridge"
+"Statewide - 12B at 418 Maple is ready for
+flooring. Painting's done. - Cedar Ridge"
 
 [ Send ]  [ Edit ]  [ Hold ]
 ```
 
 > "Nothing has gone out yet. It never does. It writes the message in your voice and waits for you. Press Send."
 
-They press it. The cleaner's confirmation lands on the board.
+They press it. The flooring handoff lands on the board. If you skip Flooring for this rehearsal, the next handoff is Deep Clean instead.
 
 > "That's the handoff that normally takes two days."
 

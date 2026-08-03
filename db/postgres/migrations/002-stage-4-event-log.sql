@@ -44,7 +44,8 @@ ALTER TABLE event_log
       'turn_cancelled',
       'msg_edit_requested',
       'msg_edited',
-      'msg_rejected'
+      'msg_rejected',
+      'workflow_error'
     )
   );
 
