@@ -1,6 +1,6 @@
 {
   "id": "wf7-error-handler",
-  "name": "WF-7 Builder Error Handler",
+  "name": "Builder Error Handler",
   "active": true,
   "nodes": [
     {

@@ -1,6 +1,6 @@
 {
   "id": "wf3-board-api",
-  "name": "WF-3 Board API",
+  "name": "Board API",
   "active": true,
   "nodes": [
     {

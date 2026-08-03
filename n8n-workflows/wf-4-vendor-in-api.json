@@ -1,6 +1,6 @@
 {
   "id": "wf4-vendor-in-api",
-  "name": "WF-4 Vendor In API",
+  "name": "Vendor Inbound API",
   "active": false,
   "nodes": [
     {

@@ -1,6 +1,6 @@
 {
   "id": "wf7-error-smoke",
-  "name": "WF-7 Error Smoke",
+  "name": "Error Smoke",
   "active": true,
   "nodes": [
     {

@@ -1,6 +1,6 @@
 {
   "id": "wf6-stall-watchdog",
-  "name": "WF-6 Stall Watchdog",
+  "name": "Stall Watchdog",
   "active": true,
   "nodes": [
     {

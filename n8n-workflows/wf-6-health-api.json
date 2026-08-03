@@ -1,6 +1,6 @@
 {
   "id": "wf6-health-api",
-  "name": "WF-6 Health API",
+  "name": "Health API",
   "active": true,
   "nodes": [
     {

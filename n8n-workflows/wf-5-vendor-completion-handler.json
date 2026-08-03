@@ -1,6 +1,6 @@
 {
   "id": "wf5-vendor-completion-handler",
-  "name": "WF-5 Vendor Completion Handler",
+  "name": "Vendor Completion Handler",
   "active": false,
   "nodes": [
     {

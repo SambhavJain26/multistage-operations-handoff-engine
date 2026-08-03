@@ -1,6 +1,6 @@
 {
   "id": "wf4-vendor-telegram-ingest",
-  "name": "WF-4 Vendor Telegram Ingest",
+  "name": "Vendor Telegram Ingest",
   "active": false,
   "nodes": [
     {

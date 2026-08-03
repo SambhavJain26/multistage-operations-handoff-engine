@@ -1,6 +1,6 @@
 {
   "id": "wf3-sequence-guard",
-  "name": "WF-3 Sequence Guard",
+  "name": "Sequence Guard",
   "active": false,
   "nodes": [
     {

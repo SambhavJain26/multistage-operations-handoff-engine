@@ -1,6 +1,6 @@
 {
   "id": "wf3-manager-router",
-  "name": "WF-3 Manager Router",
+  "name": "Manager Telegram Router",
   "active": false,
   "nodes": [
     {

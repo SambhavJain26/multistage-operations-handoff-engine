@@ -1,6 +1,6 @@
 {
   "id": "wf4-vendor-router",
-  "name": "WF-4 Vendor Router",
+  "name": "Vendor Message Router",
   "active": false,
   "nodes": [
     {

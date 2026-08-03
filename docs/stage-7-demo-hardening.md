@@ -4,16 +4,22 @@ Stage 7 turns the local Stage 3-6 build into a rehearsable demo package. It does
 
 ## Import
 
-Local static/error-handler import:
+Clean demo import. This keeps only the runtime workflows visible in n8n and omits the local-only error-smoke workflow:
 
 ```powershell
 .\scripts\import-stage-7-workflows.ps1
 ```
 
-Live Telegram fixture import:
+Hardening import with the error-smoke workflow included:
 
 ```powershell
-.\scripts\import-stage-7-workflows.ps1 -ActivateTelegram
+.\scripts\import-stage-7-workflows.ps1 -IncludeErrorSmoke
+```
+
+Live Telegram fixture import for a full hardening run:
+
+```powershell
+.\scripts\import-stage-7-workflows.ps1 -ActivateTelegram -IncludeErrorSmoke
 ```
 
 Live import requires:
@@ -31,6 +37,7 @@ Live import requires:
 Static wiring and error-handler smoke:
 
 ```powershell
+.\scripts\import-stage-7-workflows.ps1 -IncludeErrorSmoke
 .\scripts\check-stage-7.ps1
 ```
 
@@ -52,15 +59,16 @@ Before accepting Stage 7, run the existing gates, then finish with a fresh Stage
 .\scripts\check-stage-5.ps1
 .\scripts\import-stage-6-workflows.ps1
 .\scripts\check-stage-6.ps1
-.\scripts\import-stage-7-workflows.ps1 -ActivateTelegram
+.\scripts\import-stage-7-workflows.ps1 -ActivateTelegram -IncludeErrorSmoke
 .\scripts\check-stage-7.ps1 -RequireTelegram
+.\scripts\import-stage-7-workflows.ps1 -ActivateTelegram
 ```
 
 Do not run the Stage 4-isolated checker as a final gate after the fully composed Stage 7 import. Stage 4 expects `/vendor-in` to stop at `matched_logged`; Stage 7 correctly continues the same input into Stage 5 completion and manager approval.
 
 ## Failure Handling
 
-Stage 7 adds `WF-7 Builder Error Handler` and links all Stage 3-7 demo workflows to it through `settings.errorWorkflow`.
+Stage 7 adds `Builder Error Handler` and links all Stage 3-7 demo workflows to it through `settings.errorWorkflow`.
 
 Behavior:
 
@@ -68,7 +76,7 @@ Behavior:
 - A concise Telegram alert is sent only to `BUILDER_TELEGRAM_CHAT_ID` when configured.
 - Manager/prospect chats do not receive infrastructure errors.
 
-The error-smoke webhook is local-only demo infrastructure:
+The error-smoke webhook is local-only hardening infrastructure. It is imported only with `-IncludeErrorSmoke`:
 
 ```text
 POST http://localhost:5678/webhook/stage-7-error-smoke?token=<BOARD_DEMO_TOKEN>
@@ -111,4 +119,4 @@ A fresh local rebuild needs:
 - `.\scripts\reset-demo.ps1`.
 - `.\scripts\import-stage-7-workflows.ps1` or `.\scripts\import-stage-7-workflows.ps1 -ActivateTelegram`.
 
-For live Telegram, set a fresh tunnel URL in `.env`, recreate n8n, import with `-ActivateTelegram`, then run `check-stage-7.ps1 -RequireTelegram`.
+For live Telegram, set a fresh tunnel URL in `.env`, recreate n8n, import with `-ActivateTelegram -IncludeErrorSmoke`, then run `check-stage-7.ps1 -RequireTelegram`. After the hardening run, re-run `.\scripts\import-stage-7-workflows.ps1 -ActivateTelegram` to remove the local-only smoke workflow from the visible n8n list.

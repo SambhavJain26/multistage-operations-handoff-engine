@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
   [switch]$ActivateTelegram,
+  [switch]$IncludeErrorSmoke,
   [switch]$NoRestart,
   [string]$ClassifyModelOverride
 )
@@ -146,9 +147,11 @@ $importNames = @(
   "wf-6-health-api.json",
   "wf-6-stall-watchdog.json",
   "wf-6-weekly-digest.json",
-  "wf-7-error-handler.json",
-  "wf-7-error-smoke.json"
+  "wf-7-error-handler.json"
 )
+if ($IncludeErrorSmoke) {
+  $importNames += "wf-7-error-smoke.json"
+}
 
 foreach ($name in $importNames) {
   Get-Content -Raw -LiteralPath (Join-Path $workflowDir $name) | ConvertFrom-Json | Out-Null
@@ -160,8 +163,11 @@ Get-ChildItem -LiteralPath $tmpImportDir -Force | Remove-Item -Recurse -Force
 foreach ($name in $importNames) {
   $workflow = Get-Content -Raw -LiteralPath (Join-Path $workflowDir $name) | ConvertFrom-Json
   $workflow.active = $false
-  if ($workflow.id -in @("wf3-board-api", "wf3-stage-complete-api", "wf4-vendor-in-api", "wf5-manager-action-api", "wf6-health-api", "wf6-stall-watchdog", "wf7-error-handler", "wf7-error-smoke")) {
+  if ($workflow.id -in @("wf3-board-api", "wf3-stage-complete-api", "wf4-vendor-in-api", "wf5-manager-action-api", "wf6-health-api", "wf6-stall-watchdog", "wf7-error-handler")) {
     $workflow.active = $true
+  }
+  if ($workflow.id -eq "wf7-error-smoke") {
+    $workflow.active = [bool]$IncludeErrorSmoke
   }
   if ($workflow.id -in @("wf3-manager-router", "wf4-vendor-telegram-ingest", "wf3-daily-digest", "wf6-weekly-digest")) {
     $workflow.active = [bool]$ActivateTelegram
@@ -207,9 +213,11 @@ $publishedWorkflowIds = @(
   "wf5-manager-action-api",
   "wf6-health-core",
   "wf6-health-api",
-  "wf6-stall-watchdog",
-  "wf7-error-smoke"
+  "wf6-stall-watchdog"
 )
+if ($IncludeErrorSmoke) {
+  $publishedWorkflowIds += "wf7-error-smoke"
+}
 
 if ($ActivateTelegram) {
   $publishedWorkflowIds += "wf3-manager-router"
@@ -228,6 +236,16 @@ foreach ($workflowId in $publishedWorkflowIds) {
   if ($LASTEXITCODE -ne 0) {
     throw "Could not publish workflow $workflowId."
   }
+}
+
+if (-not $IncludeErrorSmoke) {
+  docker exec make-ready-n8n n8n unpublish:workflow --id=wf7-error-smoke | Out-Null
+  $deleteSmokeSql = @"
+DELETE FROM workflow_published_version WHERE "workflowId" = 'wf7-error-smoke';
+DELETE FROM workflow_publication_outbox WHERE "workflowId" = 'wf7-error-smoke';
+DELETE FROM workflow_entity WHERE id = 'wf7-error-smoke';
+"@
+  $deleteSmokeSql | docker exec -i make-ready-postgres psql -q -U n8n -d n8n -v ON_ERROR_STOP=1 | Out-Null
 }
 
 if ($ActivateTelegram) {
@@ -253,10 +271,14 @@ if (-not $NoRestart) {
   }
 }
 
+$expectedLinkedCount = 18
+if ($IncludeErrorSmoke) {
+  $expectedLinkedCount = 19
+}
 $linkedCount = [int](Invoke-N8nPsqlScalar "SELECT count(*) FROM workflow_entity WHERE id <> 'wf7-error-handler' AND id LIKE 'wf%' AND settings->>'errorWorkflow' = 'wf7-error-handler';")
-if ($linkedCount -lt 19) {
+if ($linkedCount -lt $expectedLinkedCount) {
   throw "Expected Stage 3-7 workflows to link wf7-error-handler; found only $linkedCount linked workflow(s)."
 }
 
 docker exec make-ready-n8n n8n list:workflow
-Write-Host "Stage 7 workflows imported. Telegram workflows active: $([bool]$ActivateTelegram). Classification model: $classifyModel."
+Write-Host "Stage 7 workflows imported. Telegram workflows active: $([bool]$ActivateTelegram). Error smoke included: $([bool]$IncludeErrorSmoke). Classification model: $classifyModel."

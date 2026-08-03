@@ -37,6 +37,29 @@ const managedWorkflowFiles = [
   "wf-7-error-smoke.json",
 ];
 
+const demoWorkflowNames = {
+  "wf3-sequence-guard": "Sequence Guard",
+  "wf3-stage-complete-core": "Stage Complete Core",
+  "wf3-board-api": "Board API",
+  "wf3-stage-complete-api": "Stage Complete API",
+  "wf3-daily-digest": "Manager Daily Digest",
+  "wf3-manager-router": "Manager Telegram Router",
+  "wf4-turn-intake": "Turn Intake Form",
+  "wf4-unit-matcher": "Unit Matcher",
+  "wf4-vendor-router": "Vendor Message Router",
+  "wf4-vendor-in-api": "Vendor Inbound API",
+  "wf4-vendor-telegram-ingest": "Vendor Telegram Ingest",
+  "wf5-vendor-completion-handler": "Vendor Completion Handler",
+  "wf5-manager-action-core": "Manager Action Core",
+  "wf5-manager-action-api": "Manager Action API",
+  "wf6-health-core": "Health Core",
+  "wf6-health-api": "Health API",
+  "wf6-stall-watchdog": "Stall Watchdog",
+  "wf6-weekly-digest": "Weekly Metrics Digest",
+  "wf7-error-handler": "Builder Error Handler",
+  "wf7-error-smoke": "Error Smoke",
+};
+
 function runGenerator(script) {
   const result = spawnSync(process.execPath, [path.join(__dirname, script)], { stdio: "inherit" });
   if (result.status !== 0) {
@@ -312,9 +335,20 @@ function applyErrorWorkflowSettings() {
   }
 }
 
+function applyDemoWorkflowDisplayNames() {
+  for (const file of [...managedWorkflowFiles, "wf-7-error-handler.json"]) {
+    const workflow = load(file);
+    if (demoWorkflowNames[workflow.id]) {
+      workflow.name = demoWorkflowNames[workflow.id];
+    }
+    save(file, workflow);
+  }
+}
+
 for (const script of stageGenerators) {
   runGenerator(script);
 }
 writeErrorHandler();
 writeErrorSmoke();
 applyErrorWorkflowSettings();
+applyDemoWorkflowDisplayNames();

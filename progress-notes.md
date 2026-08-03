@@ -6,6 +6,7 @@ This file is the running handoff record for future sessions. Read it before star
 
 - Stage 8 production pilot readiness pack is implemented.
 - Stage 7 is complete for implementation and live fixture verification.
+- Local n8n demo workflow display names have been cleaned up: visible names no longer include stage/WF numbers, internal workflow IDs remain stable, and the local-only Stage 7 error-smoke workflow is omitted from the normal demo-visible n8n list.
 - Live Telegram F01-F20 verification passed on 2026-08-03 with one manager bot, one vendor bot, separate private Telegram groups per fixture vendor identity, and a separate builder alert group. The local report is ignored at `data/stage-7-reports/stage7-live-patch7-20260803-105747.json`.
 - Local runtime, credentials, schema, stage template, and fixture seed data have been verified.
 - `build-plan.md` created with eight staged sessions.
@@ -473,6 +474,11 @@ This file is the running handoff record for future sessions. Read it before star
   - `scripts/generate-stage-6-workflows.js` now preserves `telegram_callback_query_id` through `wf5-manager-action-core` so `wf3-manager-router` can acknowledge callback buttons after manager actions without a false builder workflow alert.
   - F06, F08, and F17 checker assertions key off `classification.intent` plus `stage_state_mutated=false`. A safe `manager_match_needed` outcome is expected when intent is known but unit/stage confidence remains below the automatic action threshold.
   - F14 setup clears the 12A active stage before activating 12A Paint to avoid the `uniq_one_active_stage_per_turn` partial unique constraint.
+- Post-Stage 8 local demo cleanup:
+  - `scripts/generate-stage-7-workflows.js` now rewrites visible workflow names to prospect-friendly labels such as `Board API`, `Vendor Telegram Ingest`, and `Builder Error Handler`; stable IDs such as `wf3-board-api` are preserved because webhooks and Execute Sub-workflow nodes depend on them.
+  - `scripts/import-stage-7-workflows.ps1` now omits `wf7-error-smoke` by default so the n8n editor shows only the 19 runtime workflows. Use `-IncludeErrorSmoke` for Stage 7 hardening checks, then rerun the import without that switch before a demo.
+  - The current local n8n instance was updated in place and restarted; `n8n list:workflow` shows 19 workflows with no `WF-3`/`WF-7` display prefixes and no visible `Error Smoke` workflow.
+  - `make-ready-stage7-tunnel` is a temporary Cloudflare Tunnel sidecar from live Telegram verification. It should remain separate from the n8n container while live Telegram webhooks are active and can be stopped/removed when Telegram testing is done.
 - Verification after the fixes:
   - `node scripts/generate-stage-7-workflows.js`
   - `scripts/import-stage-7-workflows.ps1 -ActivateTelegram`

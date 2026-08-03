@@ -1,6 +1,6 @@
 {
   "id": "wf5-manager-action-api",
-  "name": "WF-5 Manager Action API",
+  "name": "Manager Action API",
   "active": true,
   "nodes": [
     {
