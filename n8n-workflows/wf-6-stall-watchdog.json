@@ -1,0 +1,250 @@
+{
+  "id": "wf6-stall-watchdog",
+  "name": "WF-6 Stall Watchdog",
+  "active": true,
+  "nodes": [
+    {
+      "id": "webhook-watchdog",
+      "name": "POST Stall Watchdog Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        -120
+      ],
+      "webhookId": "wf6-stall-watchdog",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "stall-watchdog",
+        "authentication": "none",
+        "responseMode": "lastNode",
+        "options": {
+          "allowedOrigins": "http://localhost:8080"
+        }
+      }
+    },
+    {
+      "id": "schedule-watchdog",
+      "name": "Schedule Stall Watchdog",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        120
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "normalize-watchdog-run",
+      "name": "Normalize Watchdog Run",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        280,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const query = $json.query || {};\nconst body = $json.body || {};\nreturn [{ json: {\n  now_override: String(body.now_override || query.now_override || ''),\n  force_hour: Number(body.force_hour ?? query.force_hour ?? -1),\n  manager_chat_id: 'stage5-manager-chat-id-missing',\n  cors_origin: 'http://localhost:8080'\n} }];"
+      }
+    },
+    {
+      "id": "find-and-log-stalls",
+      "name": "Find And Log Stalls",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        560,
+        0
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH input AS (\n  SELECT\n    COALESCE(NULLIF('{{ String($json.now_override || \"\").replace(/'/g, \"''\") }}', '')::timestamptz, now()) AS current_ts,\n    {{ Number($json.force_hour ?? -1) }}::int AS force_hour,\n    '{{ String($json.manager_chat_id || \"\").replace(/'/g, \"''\") }}'::text AS manager_chat_id\n), business AS (\n  SELECT\n    input.*,\n    CASE\n      WHEN input.force_hour BETWEEN 0 AND 23 THEN input.force_hour\n      ELSE EXTRACT(HOUR FROM input.current_ts AT TIME ZONE 'America/Phoenix')::int\n    END AS local_hour\n  FROM input\n), candidates AS (\n  SELECT\n    ts.id AS stage_id,\n    ts.turn_id,\n    ts.stage_name,\n    ts.sla_hours,\n    ts.activated_at,\n    t.unit_label,\n    t.property_address,\n    t.rent_monthly,\n    v.name AS vendor_name,\n    round(extract(epoch FROM ((SELECT current_ts FROM input) - ts.activated_at)) / 3600, 1) AS hours_at_stage,\n    round((t.rent_monthly / 30) * greatest(0, (date((SELECT current_ts FROM input)) - t.moveout_date)))::int AS dollars_burned\n  FROM turn_stage ts\n  JOIN \"turn\" t ON t.id = ts.turn_id\n  JOIN vendor v ON v.id = ts.vendor_id\n  WHERE t.status = 'active'\n    AND ts.status = 'active'\n    AND v.trade <> 'inspect'\n    AND ts.sla_hours > 0\n    AND ts.alerted_at IS NULL\n    AND (ts.snooze_until IS NULL OR ts.snooze_until <= (SELECT current_ts FROM input))\n    AND ts.activated_at + (ts.sla_hours || ' hours')::interval <= (SELECT current_ts FROM input)\n), marked AS (\n  UPDATE turn_stage ts\n  SET alerted_at = (SELECT current_ts FROM input)\n  FROM candidates c, business b\n  WHERE b.local_hour >= 8 AND b.local_hour < 18\n    AND ts.id = c.stage_id\n  RETURNING c.*\n), held AS (\n  INSERT INTO event_log (turn_id, stage_id, actor_type, actor_id, channel, event_type, raw_text, parsed_json, created_at)\n  SELECT c.turn_id, c.stage_id, 'system', 'stage-6-watchdog', 'system', 'stall_alert_held',\n    c.unit_label || ' ' || c.stage_name || ' alert held outside business hours',\n    jsonb_build_object('hours_at_stage', c.hours_at_stage, 'local_hour', (SELECT local_hour FROM business)),\n    (SELECT current_ts FROM input)\n  FROM candidates c, business b\n  WHERE NOT (b.local_hour >= 8 AND b.local_hour < 18)\n    AND NOT EXISTS (\n      SELECT 1 FROM event_log e\n      WHERE e.stage_id = c.stage_id\n        AND e.event_type = 'stall_alert_held'\n        AND e.created_at >= c.activated_at\n    )\n  RETURNING id\n), alert_events AS (\n  INSERT INTO event_log (turn_id, stage_id, actor_type, actor_id, channel, event_type, raw_text, parsed_json, created_at)\n  SELECT m.turn_id, m.stage_id, 'system', 'stage-6-watchdog', 'system', 'stall_alert',\n    m.unit_label || ' ' || m.stage_name || ' is stalled',\n    jsonb_build_object('hours_at_stage', m.hours_at_stage, 'sla_hours', m.sla_hours, 'dollars_burned', m.dollars_burned, 'vendor_name', m.vendor_name),\n    (SELECT current_ts FROM input)\n  FROM marked m\n  RETURNING id\n), lines AS (\n  SELECT string_agg(unit_label || ' - ' || stage_name || ' - ' || hours_at_stage || 'h at stage - $' || dollars_burned || ' burned', E'\\n' ORDER BY hours_at_stage DESC) AS text\n  FROM marked\n)\nSELECT\n  (SELECT count(*) FROM candidates)::int AS candidate_count,\n  (SELECT count(*) FROM marked)::int AS alert_count,\n  (SELECT count(*) FROM held)::int AS held_count,\n  (SELECT local_hour FROM business)::int AS local_hour,\n  ((SELECT count(*) FROM marked) > 0) AS alerted,\n  ((SELECT count(*) FROM held) > 0) AS held,\n  NULLIF((SELECT manager_chat_id FROM input), 'stage5-manager-chat-id-missing') AS manager_chat_id,\n  ((SELECT count(*) FROM marked) > 0 AND (SELECT manager_chat_id FROM input) <> '' AND (SELECT manager_chat_id FROM input) <> 'stage5-manager-chat-id-missing') AS should_notify_manager,\n  COALESCE('Stall alert\\n' || (SELECT text FROM lines), 'No stall alerts.') AS manager_notice_text,\n  'http://localhost:8080'::text AS cors_origin;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "cred_make_ready_pg",
+          "name": "Make-Ready Postgres"
+        }
+      }
+    },
+    {
+      "id": "notify-manager-about-stalls",
+      "name": "Notify Manager About Stalls?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        840,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "notify-manager-about-stalls-condition",
+              "leftValue": "={{ $json.should_notify_manager }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "send-stall-alert",
+      "name": "Send Stall Alert",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1120,
+        -120
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $json.manager_chat_id }}",
+        "text": "={{ $json.manager_notice_text }}",
+        "additionalFields": {
+          "disable_web_page_preview": true,
+          "appendAttribution": false
+        }
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "jASZWMlrfp3v2tWH",
+          "name": "Make-Ready Manager Telegram Bot"
+        }
+      }
+    },
+    {
+      "id": "return-after-stall-alert",
+      "name": "Return After Stall Alert",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1400,
+        -120
+      ],
+      "parameters": {
+        "jsCode": "return [$('Find And Log Stalls').first()];"
+      }
+    },
+    {
+      "id": "return-watchdog-summary",
+      "name": "Return Watchdog Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        120
+      ],
+      "parameters": {
+        "jsCode": "return items;"
+      }
+    }
+  ],
+  "connections": {
+    "POST Stall Watchdog Webhook": {
+      "main": [
+        [
+          {
+            "node": "Normalize Watchdog Run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Stall Watchdog": {
+      "main": [
+        [
+          {
+            "node": "Normalize Watchdog Run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Watchdog Run": {
+      "main": [
+        [
+          {
+            "node": "Find And Log Stalls",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find And Log Stalls": {
+      "main": [
+        [
+          {
+            "node": "Notify Manager About Stalls?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Manager About Stalls?": {
+      "main": [
+        [
+          {
+            "node": "Send Stall Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return Watchdog Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Stall Alert": {
+      "main": [
+        [
+          {
+            "node": "Return After Stall Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "pinData": {},
+  "versionId": "wf6-stall-watchdog-v1",
+  "triggerCount": 0,
+  "tags": []
+}

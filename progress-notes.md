@@ -4,7 +4,7 @@ This file is the running handoff record for future sessions. Read it before star
 
 ## Current Status
 
-- Stage 5 is complete.
+- Stage 6 is complete.
 - Local runtime, credentials, schema, stage template, and fixture seed data have been verified.
 - `build-plan.md` created with eight staged sessions.
 - Git repository initialized on `main`; remote target is private GitHub repo `make-ready-sequencing`.
@@ -25,7 +25,7 @@ This file is the running handoff record for future sessions. Read it before star
 | 3 | Visibility Board And Manual Control | Complete | Board API, static board, reusable guard, guarded manual completion, manager digest send, and Telegram callback completion are implemented and verified locally. |
 | 4 | Intake, Channel Normalization, And Matching | Complete | Manager intake form, deterministic unit matcher, generic `/vendor-in`, vendor Telegram ingest export, shared router/logger, duplicate handling, and manager notices are implemented. Vendor replies log only and do not mutate stages. |
 | 5 | Vendor Completion Loop With Human Approval | Complete | Vendor completion, manager approval queue, Send/Edit/Hold/Cancel helpers, fallback classification/drafting, and Stage 5 verification are implemented. Live Telegram Send remains optional and requires a fresh tunnel/chat IDs. |
-| 6 | Stall Detection, Digest, Simulator, And Photos | Not started | Absence detector and demo companion surfaces. |
+| 6 | Stall Detection, Digest, Simulator, And Photos | Complete | Stall watchdog, Chase approval drafts, health metrics, simulator, photo/unsupported media handling, and board thumbnails/history are implemented and verified locally. |
 | 7 | Full Fixture Testing And Demo Hardening | Not started | F01-F20, fallback behavior, rehearsal, recording, export/rebuild. |
 | 8 | Production Pilot Readiness | Not started | Client-owned VPS, Twilio/10DLC, consent, STOP handling, backups, contract exclusions. |
 
@@ -341,3 +341,74 @@ This file is the running handoff record for future sessions. Read it before star
   - Root cause was the completion handler comparing the import-substituted manager chat ID against itself, which made the approval-card gate false when a real chat ID was configured.
   - Updated the Stage 5 generator/export so the approval card is sent when a queue row exists and the manager chat ID is not blank or the placeholder sentinel.
   - Re-ran `scripts/import-stage-5-workflows.ps1` and `scripts/check-stage-5.ps1`; local Stage 5 verification passed. Live Telegram delivery still depends on a fresh HTTPS tunnel and real chat IDs.
+
+## Stage 6 Implementation Notes
+
+- Added Stage 6 migration `db/postgres/migrations/004-stage-6-stall-media.sql`.
+  - Adds Stage 6 event types for held stall alerts, Chase drafts, weekly/health checks, photo storage/clarification, and unsupported media.
+  - Adds `media_asset` for photo-only and unsupported-media rows that cannot safely attach to a stage.
+  - Keeps `turn_stage.alerted_at`, `snooze_until`, and `evidence_photo` as the primary stage-level state.
+- Made Stage 4 and Stage 5 event-type constraints forward-compatible with Stage 6 so reset does not temporarily narrow checks while later-stage rows exist.
+- Added `scripts/generate-stage-6-workflows.js`.
+  - Regenerates from Stage 3/4/5 exports, then applies Stage 6-owned changes to the board, vendor router, manager action core/API, daily digest, manager router, health workflows, stall watchdog, and weekly digest.
+  - Preserves the existing `wf3-sequence-guard` and `wf4-unit-matcher`; no second guard or matcher was added.
+- Added workflow exports:
+  - `wf-6-stall-watchdog.json`
+  - `wf-6-health-core.json`
+  - `wf-6-health-api.json`
+  - `wf-6-weekly-digest.json`
+- Added `scripts/import-stage-6-workflows.ps1`.
+  - Imports all Stage 3-6 workflow exports.
+  - Publishes non-Telegram local workflows by default.
+  - Substitutes real Telegram chat IDs only when `-ActivateTelegram` is explicitly used, so local checks do not accidentally send manager messages when `.env` contains live chat IDs.
+- Stall watchdog behavior implemented:
+  - Checks active external-vendor stages against `sla_hours`.
+  - Ignores `awaiting_approval` stages.
+  - Respects `snooze_until`.
+  - Uses `alerted_at` to dedupe business-hours alerts.
+  - Holds outside-hours alerts with `stall_alert_held` events and leaves `alerted_at` blank so the alert remains eligible during the next 08:00-18:00 America/Phoenix window.
+  - Sends manager-only Telegram alerts only when imported with live Telegram activation.
+- Chase behavior implemented:
+  - Manager `CHASE` creates one `outbound_queue` draft in `awaiting_approval` for the current active external-vendor stage.
+  - Chase logs `chase_drafted`.
+  - No vendor send occurs before manager Send.
+- Manager and metrics surfaces implemented:
+  - Daily digest now uses worst-first board ordering and exposes Done, Skip, Snooze, Chase, Cancel, and a second Done action through callback data.
+  - Manager router handles `/health` messages when Telegram is active.
+  - Health API and manager health command use the same vendor reply rate and auto-handled rate SQL as the Board API.
+  - Weekly digest workflow records `weekly_digest` and can send metrics when Telegram activation is configured.
+- Media behavior implemented:
+  - Generic `/vendor-in` accepts media-only payloads when `media_type` is present.
+  - Vendor Telegram normalization carries photo, voice, and unsupported document metadata.
+  - Captioned photo completions store `turn_stage.evidence_photo`, add a `media_asset` row, and log `photo_stored`.
+  - Photo-only messages store a `media_asset` row with `needs_manager`, log `manager_photo_match_needed`, and do not mutate stages.
+  - Voice notes and unsupported media store `media_asset.status='unsupported'`, log `unsupported_media`, notify the manager when Telegram is configured, and do not mutate stages.
+- Updated `board/index.html`.
+  - Shows completion photo thumbnails when `evidence_photo` is present.
+  - Shows latest manager/vendor/system events in a real history panel.
+  - Keeps raw event details behind collapsed technical audit controls.
+- Added `board/sim.html`.
+  - Plain phone-style simulator for the generic `/vendor-in` path.
+  - Supports text, photo-only, and voice-note fixture buttons.
+- Added Stage 6 verification:
+  - `scripts/check-stage-6.ps1`
+  - `db/postgres/verify-stage-6.sql`
+- Verified:
+  - `node scripts/generate-stage-3-workflows.js`, `node scripts/generate-stage-4-workflows.js`, `node scripts/generate-stage-5-workflows.js`, and `node scripts/generate-stage-6-workflows.js` regenerate parseable JSON exports.
+  - `scripts/import-stage-6-workflows.ps1` imports and publishes the local Stage 6 workflow set.
+  - `scripts/check-stage-3.ps1` passes after Stage 6 changes.
+  - `scripts/import-stage-4-workflows.ps1` followed by `scripts/check-stage-4.ps1` passes.
+  - `scripts/import-stage-5-workflows.ps1` followed by `scripts/check-stage-5.ps1` passes.
+  - `scripts/import-stage-6-workflows.ps1` followed by `scripts/check-stage-6.ps1` passes:
+    - 3 Oak Trash-out logs exactly one business-hours `stall_alert`.
+    - Re-running the watchdog does not duplicate 3 Oak's alert.
+    - Snooze suppresses 3 Oak's alert.
+    - Outside-hours run logs `stall_alert_held` and does not stamp `alerted_at`; business-hours run later alerts.
+    - Chase creates one awaiting approval queue row and no `msg_sent`.
+    - Health API metrics match Board API metrics.
+    - Captioned photo completion stores `evidence_photo`, logs `photo_stored`, and exposes the photo through the Board API.
+    - Photo-only stores media for manager review and does not mutate Paint.
+    - Voice note stores unsupported media and does not crash or mutate stages.
+    - `board/sim.html` exists and posts to `/vendor-in`.
+  - Final local DB state was reset to the opening fixture state after checks.
+- Live Telegram photo/Send verification remains optional and requires a fresh HTTPS `WEBHOOK_URL`, real manager chat ID, real vendor chat ID, and `scripts/import-stage-6-workflows.ps1 -ActivateTelegram`.

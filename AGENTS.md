@@ -88,6 +88,7 @@ Known n8n gotchas to account for:
 - Imported Execute Sub-workflow nodes are most reliable with type version 1 and a plain `workflowId` string. Newer workflow-selector JSON can import but fail at runtime with "No information about the workflow to execute found."
 - Execute Sub-workflow calls that load database context must explicitly carry caller metadata, such as `actor_id`, `channel`, Telegram callback IDs, and override fields, through the load query. Otherwise downstream audit rows and callback answers can silently fall back to defaults.
 - `$env` access can be blocked inside n8n Code nodes and expressions. For local demo workflow exports, prefer import-time substitution into temporary JSON copies instead of runtime `$env` lookups.
+- Import-time substitution of real Telegram chat IDs must be gated behind the explicit Telegram activation flag. Non-Telegram local imports should leave manager/vendor chat placeholders intact so fixture checks do not accidentally send live Telegram messages when `.env` still contains real chat IDs.
 - After n8n restart, active webhook registration can lag behind container readiness; wait for webhook records or a real successful HTTP probe before verification.
 - Form Trigger submissions can produce generic keys like `field-0`; normalize before SQL or AI steps.
 - Direct scripted Form Trigger submissions must use `multipart/form-data` and the rendered field IDs such as `field-0`, not only semantic field names.

@@ -354,6 +354,23 @@
       border-top: 1px solid var(--border);
     }
 
+    .photo {
+      margin: 12px 0 0;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+      background: #0b1015;
+    }
+
+    .photo img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
     .history {
       margin-top: 16px;
       border: 1px dashed var(--border);
@@ -367,6 +384,46 @@
       display: block;
       color: var(--text);
       margin-bottom: 4px;
+    }
+
+    .history-list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .history-item {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px;
+      background: var(--panel);
+    }
+
+    .history-item span {
+      display: block;
+      color: var(--quiet);
+      font-size: 12px;
+      margin-bottom: 4px;
+    }
+
+    details {
+      margin-top: 8px;
+    }
+
+    summary {
+      cursor: pointer;
+      color: var(--blue);
+      font-size: 12px;
+    }
+
+    pre {
+      margin: 8px 0 0;
+      max-height: 180px;
+      overflow: auto;
+      white-space: pre-wrap;
+      color: var(--muted);
+      font-size: 12px;
     }
 
     .toast {
@@ -404,7 +461,8 @@
     @media (max-width: 860px) {
       header,
       .cards,
-      .metrics {
+      .metrics,
+      .history-list {
         grid-template-columns: 1fr;
       }
 
@@ -467,7 +525,8 @@
 
     <section class="history" aria-label="Turn history">
       <strong>Turn history</strong>
-      Collecting from day one. First report at 30 days.
+      <div id="history-summary">Loading latest workflow events.</div>
+      <div class="history-list" id="history-list"></div>
     </section>
   </div>
 
@@ -498,6 +557,8 @@
       metricBurn: document.querySelector("#metric-burn"),
       metricReply: document.querySelector("#metric-reply"),
       metricAuto: document.querySelector("#metric-auto"),
+      historySummary: document.querySelector("#history-summary"),
+      historyList: document.querySelector("#history-list"),
     };
 
     function money(value) {
@@ -524,6 +585,39 @@
       return `${event.event_type.replaceAll("_", " ")} via ${event.channel || "system"}${when ? ` at ${when}` : ""}${event.text ? ` - ${event.text}` : ""}`;
     }
 
+    function escapeHtml(value) {
+      return String(value ?? "").replace(/[&<>"']/g, char => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#039;"
+      }[char]));
+    }
+
+    function eventDetails(event) {
+      if (!event?.details) return "";
+      return `<details><summary>Technical audit</summary><pre>${escapeHtml(JSON.stringify(event.details, null, 2))}</pre></details>`;
+    }
+
+    function renderHistory(data) {
+      const events = data.turns.flatMap(turn => (turn.recent_events || []).map(event => ({
+        ...event,
+        unit_label: turn.unit_label,
+        property_address: turn.property_address
+      }))).sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)).slice(0, 8);
+      els.historySummary.textContent = events.length
+        ? "Latest manager, vendor, and system events across active turns."
+        : "Collecting from day one. First report at 30 days.";
+      els.historyList.innerHTML = events.map(event => `
+        <div class="history-item">
+          <span>Unit ${escapeHtml(event.unit_label)} - ${escapeHtml(event.channel || "system")}</span>
+          <div>${escapeHtml(latestText(event))}</div>
+          ${eventDetails(event)}
+        </div>
+      `).join("");
+    }
+
     function showToast(message) {
       els.toast.textContent = message;
       els.toast.classList.add("visible");
@@ -546,6 +640,7 @@
       els.metricReply.textContent = `${data.metrics.vendor_reply_rate}%`;
       els.metricAuto.textContent = `${data.metrics.auto_handled_rate}%`;
       els.turns.innerHTML = data.turns.map(renderCard).join("");
+      renderHistory(data);
       els.turns.querySelectorAll("[data-mark-stage]").forEach(button => {
         button.addEventListener("click", () => markDone(button.dataset.markStage));
       });
@@ -558,6 +653,9 @@
       const strip = turn.stages.map(stage => `<span class="stage-dot ${stage.status}" title="${stage.stage_name} - ${stage.status}">${statusSymbol(stage.status)}</span>`).join("");
       const pendingApproval = activeStage.status === "awaiting_approval"
         ? `<div class="approval-note">Manager approval pending. The next vendor has not been contacted.</div>`
+        : "";
+      const photo = turn.evidence_photo
+        ? `<div class="photo"><img src="${escapeHtml(turn.evidence_photo)}" alt="Completion photo for unit ${escapeHtml(turn.unit_label)}"></div>`
         : "";
       return `
         <article class="card ${turn.health}">
@@ -579,6 +677,7 @@
               <div class="fact"><span>Days vacant</span><strong>${turn.days_vacant}</strong></div>
               <div class="fact"><span>Rent burned</span><strong>${money(turn.dollars_burned)}</strong></div>
             </div>
+            ${photo}
             <div class="stage-strip" aria-label="Stage status strip">${strip}</div>
             <div class="manual">
               <label>

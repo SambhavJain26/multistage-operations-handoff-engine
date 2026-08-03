@@ -1,0 +1,231 @@
+{
+  "id": "wf6-weekly-digest",
+  "name": "WF-6 Weekly Metric Digest",
+  "active": false,
+  "nodes": [
+    {
+      "id": "schedule-weekly-digest",
+      "name": "Schedule Weekly Digest",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "triggerAtDay": [
+                1
+              ],
+              "triggerAtHour": 8
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "prepare-weekly-health-request",
+      "name": "Prepare Weekly Health Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        280,
+        0
+      ],
+      "parameters": {
+        "jsCode": "return [{ json: { actor_id: 'weekly-digest', channel: 'digest', manager_chat_id: 'stage3-manager-chat-id-missing' } }];"
+      }
+    },
+    {
+      "id": "call-health-core",
+      "name": "Call Health Core",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [
+        560,
+        0
+      ],
+      "parameters": {
+        "source": "database",
+        "workflowId": "wf6-health-core",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      }
+    },
+    {
+      "id": "format-weekly-digest",
+      "name": "Format Weekly Digest",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        840,
+        0
+      ],
+      "parameters": {
+        "jsCode": "return [{ json: { ...$json, manager_chat_id: 'stage3-manager-chat-id-missing', weekly_text: 'Weekly make-ready metrics\\n' + $json.health_text } }];"
+      }
+    },
+    {
+      "id": "log-weekly-digest",
+      "name": "Log Weekly Digest",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1120,
+        0
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO event_log (actor_type, actor_id, channel, event_type, raw_text, parsed_json) VALUES ('system', 'stage-6-weekly-digest', 'digest', 'weekly_digest', '{{ String($json.weekly_text || \"weekly digest\").replace(/'/g, \"''\") }}', jsonb_build_object('vendor_reply_rate', {{ Number($json.vendor_reply_rate || 0) }}, 'auto_handled_rate', {{ Number($json.auto_handled_rate || 0) }})) RETURNING true AS logged, '{{ String($json.weekly_text || \"\").replace(/'/g, \"''\") }}'::text AS weekly_text, NULLIF('{{ String($json.manager_chat_id || \"\").replace(/'/g, \"''\") }}', 'stage3-manager-chat-id-missing') AS manager_chat_id;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "cred_make_ready_pg",
+          "name": "Make-Ready Postgres"
+        }
+      }
+    },
+    {
+      "id": "weekly-manager-chat-configured",
+      "name": "Weekly Manager Chat Configured?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1400,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "weekly-manager-chat-configured-condition",
+              "leftValue": "={{ Boolean($json.manager_chat_id) }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "send-weekly-digest",
+      "name": "Send Weekly Digest",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1680,
+        -120
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $json.manager_chat_id }}",
+        "text": "={{ $json.weekly_text }}",
+        "additionalFields": {
+          "disable_web_page_preview": true,
+          "appendAttribution": false
+        }
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "jASZWMlrfp3v2tWH",
+          "name": "Make-Ready Manager Telegram Bot"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Weekly Digest": {
+      "main": [
+        [
+          {
+            "node": "Prepare Weekly Health Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Weekly Health Request": {
+      "main": [
+        [
+          {
+            "node": "Call Health Core",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Health Core": {
+      "main": [
+        [
+          {
+            "node": "Format Weekly Digest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Weekly Digest": {
+      "main": [
+        [
+          {
+            "node": "Log Weekly Digest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Weekly Digest": {
+      "main": [
+        [
+          {
+            "node": "Weekly Manager Chat Configured?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Weekly Manager Chat Configured?": {
+      "main": [
+        [
+          {
+            "node": "Send Weekly Digest",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "pinData": {},
+  "versionId": "wf6-weekly-digest-v1",
+  "triggerCount": 0,
+  "tags": []
+}

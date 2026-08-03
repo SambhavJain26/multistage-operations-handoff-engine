@@ -14,6 +14,7 @@
       ],
       "parameters": {
         "updates": [
+          "message",
           "callback_query"
         ],
         "additionalFields": {}
@@ -26,8 +27,8 @@
       }
     },
     {
-      "id": "parse-manager-callback",
-      "name": "Parse Manager Callback",
+      "id": "parse-manager-update",
+      "name": "Parse Manager Update",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -35,16 +36,16 @@
         0
       ],
       "parameters": {
-        "jsCode": "const callback = $json.callback_query;\nif (!callback) return [{ json: { handled: false, action: 'ignored', reason: 'No callback query.' } }];\nconst data = String(callback.data || '');\nconst chatId = callback.message && callback.message.chat ? callback.message.chat.id : '';\nconst fromId = callback.from ? callback.from.id : 'manager-telegram';\nconst parts = data.split(':');\nconst action = parts[0] || 'NOOP';\nif (action === 'DONE') {\n  return [{ json: { handled: true, route: 'complete', action: 'DONE', stage_id: Number(parts[1] || 0), actor_id: String(fromId), channel: 'digest', telegram_callback_query_id: callback.id, telegram_chat_id: chatId } }];\n}\nif (['SEND', 'HOLD', 'EDIT'].includes(action)) {\n  return [{ json: { handled: true, route: 'action', action, queue_id: Number(parts[1] || 0), actor_id: String(fromId), channel: 'telegram', telegram_callback_query_id: callback.id, telegram_chat_id: chatId } }];\n}\nif (['SKIP', 'SNOOZE'].includes(action)) {\n  return [{ json: { handled: true, route: 'action', action, stage_id: Number(parts[1] || 0), actor_id: String(fromId), channel: 'telegram', telegram_callback_query_id: callback.id, telegram_chat_id: chatId } }];\n}\nif (action === 'CANCEL') {\n  return [{ json: { handled: true, route: 'action', action, turn_id: Number(parts[1] || 0), actor_id: String(fromId), channel: 'telegram', telegram_callback_query_id: callback.id, telegram_chat_id: chatId } }];\n}\nreturn [{ json: { handled: false, action: 'noop', telegram_callback_query_id: callback.id, telegram_chat_id: chatId, reason: 'No action taken.' } }];"
+        "jsCode": "const callback = $json.callback_query || null;\nconst message = $json.message || $json.edited_message || null;\nif (message) {\n  const text = String(message.text || '').trim().toLowerCase();\n  const chatId = message.chat && message.chat.id ? message.chat.id : '';\n  const fromId = message.from ? message.from.id : 'manager-telegram';\n  if (text === '/health') return [{ json: { handled: true, route: 'health', actor_id: String(fromId), channel: 'telegram', telegram_chat_id: chatId } }];\n  return [{ json: { handled: false, route: 'noop', reason: 'No action taken.', telegram_chat_id: chatId } }];\n}\nif (!callback) return [{ json: { handled: false, action: 'ignored', reason: 'No callback query.' } }];\nconst data = String(callback.data || '');\nconst chatId = callback.message && callback.message.chat ? callback.message.chat.id : '';\nconst fromId = callback.from ? callback.from.id : 'manager-telegram';\nconst parts = data.split(':');\nconst action = parts[0] || 'NOOP';\nif (action === 'DONE') return [{ json: { handled: true, route: 'complete', action: 'DONE', stage_id: Number(parts[1] || 0), actor_id: String(fromId), channel: 'digest', telegram_callback_query_id: callback.id, telegram_chat_id: chatId } }];\nif (['SEND', 'HOLD', 'EDIT'].includes(action)) return [{ json: { handled: true, route: 'action', action, queue_id: Number(parts[1] || 0), actor_id: String(fromId), channel: 'telegram', telegram_callback_query_id: callback.id, telegram_chat_id: chatId } }];\nif (['SKIP', 'SNOOZE', 'CHASE'].includes(action)) return [{ json: { handled: true, route: 'action', action, stage_id: Number(parts[1] || 0), actor_id: String(fromId), channel: 'telegram', telegram_callback_query_id: callback.id, telegram_chat_id: chatId } }];\nif (action === 'CANCEL') return [{ json: { handled: true, route: 'action', action, turn_id: Number(parts[1] || 0), actor_id: String(fromId), channel: 'telegram', telegram_callback_query_id: callback.id, telegram_chat_id: chatId } }];\nreturn [{ json: { handled: false, action: 'noop', telegram_callback_query_id: callback.id, telegram_chat_id: chatId, reason: 'No action taken.' } }];"
       }
     },
     {
-      "id": "callback-handled",
-      "name": "Callback Handled?",
+      "id": "manager-update-handled",
+      "name": "Manager Update Handled?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        480,
+        500,
         0
       ],
       "parameters": {
@@ -57,7 +58,7 @@
           },
           "conditions": [
             {
-              "id": "callback-handled-condition",
+              "id": "manager-update-handled-condition",
               "leftValue": "={{ $json.handled }}",
               "rightValue": true,
               "operator": {
@@ -73,13 +74,103 @@
       }
     },
     {
+      "id": "route-health",
+      "name": "Route Health Command",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        760,
+        -260
+      ],
+      "parameters": {
+        "jsCode": "return [{ json: { route_health: $json.route === 'health', ...$json } }];"
+      }
+    },
+    {
+      "id": "is-health-command",
+      "name": "Is Health Command?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1020,
+        -260
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "is-health-command-condition",
+              "leftValue": "={{ $json.route_health }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "call-health-core",
+      "name": "Call Health Core",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [
+        1280,
+        -360
+      ],
+      "parameters": {
+        "source": "database",
+        "workflowId": "wf6-health-core",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      }
+    },
+    {
+      "id": "send-health-report",
+      "name": "Send Health Report",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1540,
+        -360
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $json.manager_chat_id }}",
+        "text": "={{ $json.health_text }}",
+        "additionalFields": {
+          "disable_web_page_preview": true,
+          "appendAttribution": false
+        }
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "jASZWMlrfp3v2tWH",
+          "name": "Make-Ready Manager Telegram Bot"
+        }
+      }
+    },
+    {
       "id": "route-done-callback",
       "name": "Route Done Callback",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        720,
-        -180
+        1280,
+        -120
       ],
       "parameters": {
         "jsCode": "return [{ json: { route_done: $json.route === 'complete', ...$json } }];"
@@ -91,8 +182,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        960,
-        -180
+        1540,
+        -120
       ],
       "parameters": {
         "conditions": {
@@ -120,13 +211,13 @@
       }
     },
     {
-      "id": "call-completion-core-from-digest",
-      "name": "Call Completion Core From Digest",
+      "id": "call-completion-core-from-manager",
+      "name": "Call Completion Core From Manager",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1,
       "position": [
-        1240,
-        -300
+        1800,
+        -220
       ],
       "parameters": {
         "source": "database",
@@ -142,8 +233,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1240,
-        -80
+        1800,
+        20
       ],
       "parameters": {
         "jsCode": "return [{ json: { route_action: $json.route === 'action', ...$json } }];"
@@ -155,8 +246,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        1520,
-        -80
+        2060,
+        20
       ],
       "parameters": {
         "conditions": {
@@ -189,8 +280,8 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1,
       "position": [
-        1800,
-        -180
+        2320,
+        -80
       ],
       "parameters": {
         "source": "database",
@@ -201,13 +292,114 @@
       }
     },
     {
+      "id": "manager-action-needs-approval-card",
+      "name": "Manager Action Needs Approval Card?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2580,
+        -80
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "manager-action-needs-approval-card-condition",
+              "leftValue": "={{ $json.should_send_manager_approval }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "send-chase-approval-card",
+      "name": "Send Chase Approval Card",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2840,
+        -200
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $json.manager_chat_id }}",
+        "text": "={{ $json.manager_approval_text }}",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "Send",
+                    "additionalFields": {
+                      "callback_data": "={{ 'SEND:' + $json.queue_id }}"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "Edit",
+                    "additionalFields": {
+                      "callback_data": "={{ 'EDIT:' + $json.queue_id }}"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "Hold",
+                    "additionalFields": {
+                      "callback_data": "={{ 'HOLD:' + $json.queue_id }}"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {
+          "disable_web_page_preview": true,
+          "appendAttribution": false
+        }
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "jASZWMlrfp3v2tWH",
+          "name": "Make-Ready Manager Telegram Bot"
+        }
+      }
+    },
+    {
       "id": "answer-callback",
       "name": "Answer Manager Callback",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        2080,
-        -180
+        2840,
+        60
       ],
       "parameters": {
         "resource": "callback",
@@ -231,8 +423,8 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        720,
-        160
+        760,
+        180
       ],
       "parameters": {
         "resource": "callback",
@@ -256,29 +448,29 @@
       "main": [
         [
           {
-            "node": "Parse Manager Callback",
+            "node": "Parse Manager Update",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Parse Manager Callback": {
+    "Parse Manager Update": {
       "main": [
         [
           {
-            "node": "Callback Handled?",
+            "node": "Manager Update Handled?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Callback Handled?": {
+    "Manager Update Handled?": {
       "main": [
         [
           {
-            "node": "Route Done Callback",
+            "node": "Route Health Command",
             "type": "main",
             "index": 0
           }
@@ -286,6 +478,46 @@
         [
           {
             "node": "Answer Ignored Callback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Health Command": {
+      "main": [
+        [
+          {
+            "node": "Is Health Command?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Health Command?": {
+      "main": [
+        [
+          {
+            "node": "Call Health Core",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Route Done Callback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Health Core": {
+      "main": [
+        [
+          {
+            "node": "Send Health Report",
             "type": "main",
             "index": 0
           }
@@ -307,7 +539,7 @@
       "main": [
         [
           {
-            "node": "Call Completion Core From Digest",
+            "node": "Call Completion Core From Manager",
             "type": "main",
             "index": 0
           }
@@ -321,7 +553,7 @@
         ]
       ]
     },
-    "Call Completion Core From Digest": {
+    "Call Completion Core From Manager": {
       "main": [
         [
           {
@@ -362,6 +594,35 @@
       ]
     },
     "Call Manager Action Core": {
+      "main": [
+        [
+          {
+            "node": "Manager Action Needs Approval Card?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manager Action Needs Approval Card?": {
+      "main": [
+        [
+          {
+            "node": "Send Chase Approval Card",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Answer Manager Callback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Chase Approval Card": {
       "main": [
         [
           {

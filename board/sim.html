@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vendor Message Simulator</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0c1117;
+      --panel: #151c24;
+      --bubble-in: #1f2b36;
+      --bubble-out: #28533d;
+      --border: #2c3845;
+      --text: #eef3f8;
+      --muted: #a9b6c3;
+      --blue: #6ab7ff;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: var(--bg);
+    }
+
+    .phone {
+      width: min(430px, calc(100vw - 24px));
+      height: min(760px, calc(100vh - 24px));
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--panel);
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      overflow: hidden;
+      box-shadow: 0 18px 50px rgba(0, 0, 0, 0.32);
+    }
+
+    header {
+      padding: 14px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 18px;
+      letter-spacing: 0;
+    }
+
+    .sub {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .thread {
+      overflow: auto;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .bubble {
+      max-width: 86%;
+      border-radius: 8px;
+      padding: 10px 12px;
+      line-height: 1.35;
+      font-size: 15px;
+    }
+
+    .out {
+      align-self: flex-end;
+      background: var(--bubble-out);
+    }
+
+    .in {
+      align-self: flex-start;
+      background: var(--bubble-in);
+      color: var(--muted);
+    }
+
+    form {
+      display: grid;
+      gap: 8px;
+      padding: 12px;
+      border-top: 1px solid var(--border);
+      background: #101720;
+    }
+
+    select,
+    input,
+    button {
+      min-height: 44px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: #0f161d;
+      color: var(--text);
+      font: inherit;
+      padding: 0 10px;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+    }
+
+    button {
+      background: #214b6d;
+      border-color: rgba(106, 183, 255, 0.52);
+      cursor: pointer;
+      font-weight: 700;
+      padding: 0 16px;
+    }
+
+    button:disabled {
+      cursor: wait;
+      opacity: 0.65;
+    }
+
+    .tools {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .tools button {
+      background: #1c2833;
+      font-size: 13px;
+      padding: 0 8px;
+    }
+  </style>
+</head>
+<body>
+  <main class="phone">
+    <header>
+      <h1>Vendor simulator</h1>
+      <div class="sub">Generic inbound path, same router as Telegram.</div>
+    </header>
+
+    <section class="thread" id="thread" aria-live="polite">
+      <div class="bubble in">Send a vendor-style update. Nothing goes to a vendor from this page.</div>
+    </section>
+
+    <form id="form">
+      <select id="sender" aria-label="Sender">
+        <option value="placeholder_rivera_painting">Rivera Painting</option>
+        <option value="placeholder_marias_cleaning">Maria's Cleaning Co</option>
+        <option value="placeholder_quickhaul_junk">QuickHaul Junk Removal</option>
+      </select>
+      <div class="tools">
+        <button type="button" data-fill="done with 12b">Done 12B</button>
+        <button type="button" data-photo="photo">Photo only</button>
+        <button type="button" data-photo="voice">Voice note</button>
+      </div>
+      <div class="row">
+        <input id="text" autocomplete="off" placeholder="Message">
+        <button id="send" type="submit">Send</button>
+      </div>
+    </form>
+  </main>
+
+  <script>
+    const API_BASE = "http://localhost:5678/webhook";
+    const DEFAULT_TOKEN = "local-stage-4-vendor-in-token";
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get("token") || localStorage.getItem("make_ready_vendor_token") || DEFAULT_TOKEN;
+    if (params.get("token")) localStorage.setItem("make_ready_vendor_token", token);
+
+    const form = document.querySelector("#form");
+    const sender = document.querySelector("#sender");
+    const text = document.querySelector("#text");
+    const send = document.querySelector("#send");
+    const thread = document.querySelector("#thread");
+    let pendingMedia = null;
+
+    function addBubble(kind, value) {
+      const bubble = document.createElement("div");
+      bubble.className = `bubble ${kind}`;
+      bubble.textContent = value;
+      thread.appendChild(bubble);
+      thread.scrollTop = thread.scrollHeight;
+    }
+
+    document.querySelectorAll("[data-fill]").forEach(button => {
+      button.addEventListener("click", () => {
+        pendingMedia = null;
+        text.value = button.dataset.fill;
+        text.focus();
+      });
+    });
+
+    document.querySelectorAll("[data-photo]").forEach(button => {
+      button.addEventListener("click", () => {
+        pendingMedia = button.dataset.photo;
+        text.value = "";
+        form.requestSubmit();
+      });
+    });
+
+    form.addEventListener("submit", async event => {
+      event.preventDefault();
+      const body = {
+        sender_ref: sender.value,
+        text: text.value.trim(),
+      };
+      if (pendingMedia === "photo") {
+        body.media_type = "photo";
+        body.media_file_id = "sim-photo-" + Date.now();
+        body.media_url = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 360'%3E%3Crect width='640' height='360' fill='%23131b23'/%3E%3Cpath d='M80 285h480L410 130l-92 98-58-62z' fill='%236ab7ff'/%3E%3Ccircle cx='198' cy='118' r='38' fill='%23f0ad3d'/%3E%3C/svg%3E";
+      }
+      if (pendingMedia === "voice") {
+        body.media_type = "voice";
+        body.media_file_id = "sim-voice-" + Date.now();
+      }
+      const shown = body.text || (pendingMedia === "photo" ? "[photo]" : "[voice note]");
+      addBubble("out", shown);
+      send.disabled = true;
+      try {
+        const response = await fetch(`${API_BASE}/vendor-in?token=${encodeURIComponent(token)}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        const payload = await response.json();
+        addBubble("in", `${payload.outcome || response.status}${payload.event_type ? " / " + payload.event_type : ""}`);
+      } catch (error) {
+        addBubble("in", `Send failed: ${error.message}`);
+      } finally {
+        pendingMedia = null;
+        text.value = "";
+        send.disabled = false;
+        text.focus();
+      }
+    });
+  </script>
+</body>
+</html>

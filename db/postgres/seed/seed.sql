@@ -29,6 +29,17 @@ WHERE turn_id IN (SELECT id FROM "turn" WHERE is_fixture = TRUE)
       WHERE t.is_fixture = TRUE
    );
 
+DELETE FROM media_asset
+WHERE turn_id IN (SELECT id FROM "turn" WHERE is_fixture = TRUE)
+   OR stage_id IN (
+      SELECT ts.id
+      FROM turn_stage ts
+      JOIN "turn" t ON t.id = ts.turn_id
+      WHERE t.is_fixture = TRUE
+   )
+   OR sender_ref LIKE 'placeholder\_%' ESCAPE '\'
+   OR sender_ref = 'mystery_vendor';
+
 DELETE FROM "turn" WHERE is_fixture = TRUE;
 DELETE FROM vendor WHERE is_fixture = TRUE;
 

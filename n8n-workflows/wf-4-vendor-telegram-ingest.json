@@ -35,7 +35,7 @@
         0
       ],
       "parameters": {
-        "jsCode": "const message = $json.message || $json.edited_message || {};\nconst from = message.from || {};\nconst chat = message.chat || {};\nconst photos = Array.isArray(message.photo) ? message.photo : [];\nconst photo = photos.length ? photos[photos.length - 1] : null;\nconst text = String(message.text || message.caption || '').trim();\nconst senderRef = String(chat.id || from.id || '').trim();\nreturn [{ json: {\n  channel: 'telegram',\n  sender_ref: senderRef,\n  text,\n  media: photo ? { type: 'photo', file_id: photo.file_id || null } : null,\n  received_at: message.date ? new Date(Number(message.date) * 1000).toISOString() : new Date().toISOString()\n} }];"
+        "jsCode": "const message = $json.message || $json.edited_message || {};\nconst from = message.from || {};\nconst chat = message.chat || {};\nconst photos = Array.isArray(message.photo) ? message.photo : [];\nconst photo = photos.length ? photos[photos.length - 1] : null;\nconst voice = message.voice || null;\nconst document = message.document || null;\nlet media = null;\nif (photo) media = { type: 'photo', file_id: photo.file_id || null };\nelse if (voice) media = { type: 'voice', file_id: voice.file_id || null, duration: voice.duration || null };\nelse if (document) media = { type: 'unsupported', file_id: document.file_id || null, mime_type: document.mime_type || null };\nconst text = String(message.text || message.caption || '').trim();\nconst senderRef = String(chat.id || from.id || '').trim();\nreturn [{ json: {\n  channel: 'telegram',\n  sender_ref: senderRef,\n  text,\n  media,\n  received_at: message.date ? new Date(Number(message.date) * 1000).toISOString() : new Date().toISOString()\n} }];"
       }
     },
     {
