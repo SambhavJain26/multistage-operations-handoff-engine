@@ -129,6 +129,59 @@ function telegramSendNode(id, name, x, y, textExpression) {
   };
 }
 
+function telegramApprovalNode(id, name, x, y) {
+  return {
+    id,
+    name,
+    type: "n8n-nodes-base.telegram",
+    typeVersion: 1.2,
+    position: [x, y],
+    parameters: {
+      resource: "message",
+      operation: "sendMessage",
+      chatId: "={{ $json.manager_chat_id }}",
+      text: "={{ $json.manager_approval_text }}",
+      replyMarkup: "inlineKeyboard",
+      inlineKeyboard: {
+        rows: [
+          {
+            row: {
+              buttons: [
+                {
+                  text: "Send",
+                  additionalFields: { callback_data: "={{ 'SEND:' + $json.queue_id }}" },
+                },
+              ],
+            },
+          },
+          {
+            row: {
+              buttons: [
+                {
+                  text: "Edit",
+                  additionalFields: { callback_data: "={{ 'EDIT:' + $json.queue_id }}" },
+                },
+              ],
+            },
+          },
+          {
+            row: {
+              buttons: [
+                {
+                  text: "Hold",
+                  additionalFields: { callback_data: "={{ 'HOLD:' + $json.queue_id }}" },
+                },
+              ],
+            },
+          },
+        ],
+      },
+      additionalFields: { disable_web_page_preview: true, appendAttribution: false },
+    },
+    credentials: { telegramApi: managerTgCred },
+  };
+}
+
 function httpOpenAiNode(id, name, x, y) {
   return {
     id,
@@ -625,6 +678,24 @@ return [{ json: {
   channel: String(envelope.channel || $json.channel || 'generic')
 } }];`;
 
+const formatCompletionNotificationCode = `const q = typeof $json.outbound_queue === 'string' && $json.outbound_queue ? JSON.parse($json.outbound_queue) : $json.outbound_queue;
+const next = typeof $json.next_stage === 'string' && $json.next_stage ? JSON.parse($json.next_stage) : $json.next_stage;
+const queueId = q && q.id ? Number(q.id) : 0;
+const draft = q && (q.approved_text || q.draft_text) ? (q.approved_text || q.draft_text) : '';
+const approvalText = queueId
+  ? $json.unit_label + ' - ' + $json.completed_stage_name + ' completed by vendor.\\nNext: ' + (next ? next.stage_name : 'None') + '.\\n\\nDraft to approve:\\n' + draft + '\\n\\nNothing has gone out yet.'
+  : $json.unit_label + ' - ' + $json.completed_stage_name + ' completed by vendor.';
+const managerChatId = 'stage5-manager-chat-id-missing';
+return [{ json: {
+  ...$json,
+  outbound_queue: q || null,
+  next_stage: next || null,
+  queue_id: queueId,
+  manager_chat_id: managerChatId,
+  should_send_manager_approval: queueId > 0 && managerChatId !== '' && !managerChatId.includes('missing'),
+  manager_approval_text: approvalText
+} }];`;
+
 const managerActionQuery = `WITH input AS (
   SELECT
     upper('{{ String($json.action || "").replace(/'/g, "''") }}')::text AS action,
@@ -827,6 +898,11 @@ workflowFiles.push([
       executeNode("call-sequence-guard", "Call Sequence Guard", 520, 0, "wf3-sequence-guard"),
       ifNode("guard-passed", "Guard Passed?", 780, 0, "={{ $json.allowed }}"),
       pgNode("complete-and-queue-next", "Complete Stage And Queue Next", 1040, -120, completionQuery),
+      codeNode("format-completion-notification", "Format Completion Notification", 1300, -120, formatCompletionNotificationCode),
+      ifNode("send-manager-approval", "Send Manager Approval?", 1560, -120, "={{ $json.should_send_manager_approval }}"),
+      telegramApprovalNode("send-manager-approval-card", "Send Manager Approval Card", 1820, -240),
+      codeNode("return-after-approval-card", "Return After Approval Card", 2080, -240, "return [$('Format Completion Notification').first()];"),
+      codeNode("return-completion-without-approval-card", "Return Completion Without Approval Card", 1820, 0, "return items;"),
       pgNode("log-vendor-guard-block", "Log Vendor Guard Block", 1040, 120, blockLogQuery),
     ],
     {
@@ -839,6 +915,15 @@ workflowFiles.push([
           [{ node: "Log Vendor Guard Block", type: "main", index: 0 }],
         ],
       },
+      "Complete Stage And Queue Next": { main: [[{ node: "Format Completion Notification", type: "main", index: 0 }]] },
+      "Format Completion Notification": { main: [[{ node: "Send Manager Approval?", type: "main", index: 0 }]] },
+      "Send Manager Approval?": {
+        main: [
+          [{ node: "Send Manager Approval Card", type: "main", index: 0 }],
+          [{ node: "Return Completion Without Approval Card", type: "main", index: 0 }],
+        ],
+      },
+      "Send Manager Approval Card": { main: [[{ node: "Return After Approval Card", type: "main", index: 0 }]] },
     },
     false,
   ),

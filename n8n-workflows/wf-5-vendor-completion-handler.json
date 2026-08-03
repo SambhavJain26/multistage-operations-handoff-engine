@@ -102,6 +102,146 @@
       }
     },
     {
+      "id": "format-completion-notification",
+      "name": "Format Completion Notification",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1300,
+        -120
+      ],
+      "parameters": {
+        "jsCode": "const q = typeof $json.outbound_queue === 'string' && $json.outbound_queue ? JSON.parse($json.outbound_queue) : $json.outbound_queue;\nconst next = typeof $json.next_stage === 'string' && $json.next_stage ? JSON.parse($json.next_stage) : $json.next_stage;\nconst queueId = q && q.id ? Number(q.id) : 0;\nconst draft = q && (q.approved_text || q.draft_text) ? (q.approved_text || q.draft_text) : '';\nconst approvalText = queueId\n  ? $json.unit_label + ' - ' + $json.completed_stage_name + ' completed by vendor.\\nNext: ' + (next ? next.stage_name : 'None') + '.\\n\\nDraft to approve:\\n' + draft + '\\n\\nNothing has gone out yet.'\n  : $json.unit_label + ' - ' + $json.completed_stage_name + ' completed by vendor.';\nconst managerChatId = 'stage5-manager-chat-id-missing';\nreturn [{ json: {\n  ...$json,\n  outbound_queue: q || null,\n  next_stage: next || null,\n  queue_id: queueId,\n  manager_chat_id: managerChatId,\n  should_send_manager_approval: queueId > 0 && managerChatId !== '' && !managerChatId.includes('missing'),\n  manager_approval_text: approvalText\n} }];"
+      }
+    },
+    {
+      "id": "send-manager-approval",
+      "name": "Send Manager Approval?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1560,
+        -120
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "send-manager-approval-condition",
+              "leftValue": "={{ $json.should_send_manager_approval }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "send-manager-approval-card",
+      "name": "Send Manager Approval Card",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1820,
+        -240
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $json.manager_chat_id }}",
+        "text": "={{ $json.manager_approval_text }}",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "Send",
+                    "additionalFields": {
+                      "callback_data": "={{ 'SEND:' + $json.queue_id }}"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "Edit",
+                    "additionalFields": {
+                      "callback_data": "={{ 'EDIT:' + $json.queue_id }}"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "Hold",
+                    "additionalFields": {
+                      "callback_data": "={{ 'HOLD:' + $json.queue_id }}"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {
+          "disable_web_page_preview": true,
+          "appendAttribution": false
+        }
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "jASZWMlrfp3v2tWH",
+          "name": "Make-Ready Manager Telegram Bot"
+        }
+      }
+    },
+    {
+      "id": "return-after-approval-card",
+      "name": "Return After Approval Card",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2080,
+        -240
+      ],
+      "parameters": {
+        "jsCode": "return [$('Format Completion Notification').first()];"
+      }
+    },
+    {
+      "id": "return-completion-without-approval-card",
+      "name": "Return Completion Without Approval Card",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1820,
+        0
+      ],
+      "parameters": {
+        "jsCode": "return items;"
+      }
+    },
+    {
       "id": "log-vendor-guard-block",
       "name": "Log Vendor Guard Block",
       "type": "n8n-nodes-base.postgres",
@@ -169,6 +309,57 @@
         [
           {
             "node": "Log Vendor Guard Block",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Complete Stage And Queue Next": {
+      "main": [
+        [
+          {
+            "node": "Format Completion Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Completion Notification": {
+      "main": [
+        [
+          {
+            "node": "Send Manager Approval?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Manager Approval?": {
+      "main": [
+        [
+          {
+            "node": "Send Manager Approval Card",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return Completion Without Approval Card",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Manager Approval Card": {
+      "main": [
+        [
+          {
+            "node": "Return After Approval Card",
             "type": "main",
             "index": 0
           }

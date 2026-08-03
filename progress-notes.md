@@ -336,3 +336,8 @@ This file is the running handoff record for future sessions. Read it before star
     - Existing sequence guard still blocks 14A Deep Clean while Repairs is open.
     - Cancel removes 55 Birch from the active board.
   - Final local DB state was reset to the opening fixture state after checks.
+- Post-Stage 5 live Telegram fix:
+  - During a live Telegram F01 rehearsal, 12B Paint completed and 12B Flooring moved to `awaiting_approval`, but the manager approval card was not delivered.
+  - Root cause was the completion handler comparing the import-substituted manager chat ID against itself, which made the approval-card gate false when a real chat ID was configured.
+  - Updated the Stage 5 generator/export so the approval card is sent when a queue row exists and the manager chat ID is not blank or the placeholder sentinel.
+  - Re-ran `scripts/import-stage-5-workflows.ps1` and `scripts/check-stage-5.ps1`; local Stage 5 verification passed. Live Telegram delivery still depends on a fresh HTTPS tunnel and real chat IDs.
