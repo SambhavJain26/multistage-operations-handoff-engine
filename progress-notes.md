@@ -4,6 +4,7 @@ This file is the running handoff record for future sessions. Read it before star
 
 ## Current Status
 
+- Stage 8 production pilot readiness pack is implemented.
 - Stage 7 is complete for implementation and live fixture verification.
 - Live Telegram F01-F20 verification passed on 2026-08-03 with one manager bot, one vendor bot, separate private Telegram groups per fixture vendor identity, and a separate builder alert group. The local report is ignored at `data/stage-7-reports/stage7-live-patch7-20260803-105747.json`.
 - Local runtime, credentials, schema, stage template, and fixture seed data have been verified.
@@ -28,7 +29,7 @@ This file is the running handoff record for future sessions. Read it before star
 | 5 | Vendor Completion Loop With Human Approval | Complete | Vendor completion, manager approval queue, Send/Edit/Hold/Cancel helpers, fallback classification/drafting, and Stage 5 verification are implemented. Live Telegram Send remains optional and requires a fresh tunnel/chat IDs. |
 | 6 | Stall Detection, Digest, Simulator, And Photos | Complete | Stall watchdog, Chase approval drafts, health metrics, simulator, photo/unsupported media handling, and board thumbnails/history are implemented and verified locally. |
 | 7 | Full Fixture Testing And Demo Hardening | Complete | Error workflow, fixture runner/report, config, docs, static checks, and guided live F01-F20 Telegram/generic/manager fixture run are complete. |
-| 8 | Production Pilot Readiness | Not started | Client-owned VPS, Twilio/10DLC, consent, STOP handling, backups, contract exclusions. |
+| 8 | Production Pilot Readiness | Complete | Client-owned VPS/Caddy templates, production env contract, readiness checks, backup/restore/monitoring/SMS readiness docs, manager runbook, contract exclusions, and success metrics are implemented. |
 
 ## Decisions Locked For Now
 
@@ -60,7 +61,7 @@ This file is the running handoff record for future sessions. Read it before star
 ## Open Questions / Validation Items
 
 - Vendor Telegram trigger remains inactive by default. Optional Stage 4 live Telegram verification has been completed once locally; repeat it only with a fresh HTTPS tunnel, container-recreated `WEBHOOK_URL`, and local-only `VENDOR_TELEGRAM_CHAT_ID`.
-- Confirm the domain/VPS provider only before Stage 8 production/pilot readiness.
+- Confirm the domain/VPS provider only when a named pilot client exists.
 - Verify Property Meld sequencing behavior before making competitive claims in sales.
 - Check whether the prospect is in a metro where managed make-ready providers like Lula materially change the objection.
 - Verify state-specific SMS laws before production SMS for any real client.
@@ -486,3 +487,29 @@ This file is the running handoff record for future sessions. Read it before star
   - `scripts/check-stage-7.ps1` passed in non-interactive static/error-handler mode
   - `scripts/check-stage-4.ps1` was not used as a Stage 7 gate after full import because it is a Stage 4-isolated checker: it expects `/vendor-in` to stop at `matched_logged`, while the composed Stage 7 runtime correctly continues to Stage 5 completion/approval behavior.
   - Final local fixture state was reset clean and the four live vendor group mappings were reapplied.
+
+## Stage 8 Implementation Notes
+
+- Added inert production readiness templates:
+  - `.env.production.example` is committed as a placeholder contract and explicitly unignored in `.gitignore`.
+  - `docker-compose.production.yml` adds a production-shaped Caddy/Postgres/n8n stack with explicit non-`latest` image tags.
+  - `Caddyfile.production` reverse-proxies `n8n.<client-domain>` and serves the static board at `board.<client-domain>` behind Caddy basic auth.
+- Added `scripts/check-stage-8-production-readiness.ps1`.
+  - Validates production env placeholders are replaced, required secrets are long enough, `WEBHOOK_URL` is HTTPS and matches `N8N_HOST`, board origin matches `BOARD_HOST`, SMS remains disabled, retention defaults are sane, images are pinned, and required Caddy directives are present.
+  - Runs `docker compose --env-file <env> -f docker-compose.production.yml config` unless `-SkipComposeConfig` is passed.
+- Added Stage 8 docs:
+  - `docs/stage-8-production-pilot-readiness.md`
+  - `docs/stage-8-manager-runbook.md`
+  - `docs/stage-8-contract-exclusions.md`
+  - `docs/stage-8-success-metrics.md`
+- Production posture locked:
+  - Readiness pack only; no VPS/domain was provisioned.
+  - SMS design only; `SMS_ENABLED=false` is enforced by the check script.
+  - First pilot auth is reverse-proxy/basic-auth in front of the static board plus existing n8n auth; custom app accounts remain deferred.
+  - Client-owned single-client instance remains the only production delivery model.
+- Verification completed:
+  - PowerShell parser check passed for `scripts/check-stage-8-production-readiness.ps1`.
+  - `scripts/check-stage-8-production-readiness.ps1 -EnvFile .env.production.example -SkipComposeConfig` fails as expected on placeholder/default values.
+  - A generated ignored dummy env under `data/stage-8-check/dummy.env` passes `scripts/check-stage-8-production-readiness.ps1`, including `docker compose config`.
+  - A generated ignored Compose copy with `caddy:latest` fails as expected on the pinned-image check.
+- No real client data, tunnel URL, chat ID, Twilio credential, API key, database dump, or `.env.production` file was committed.

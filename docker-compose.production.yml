@@ -1,0 +1,90 @@
+services:
+  caddy:
+    image: caddy:2.8.4-alpine
+    container_name: make-ready-caddy
+    restart: unless-stopped
+    depends_on:
+      - n8n
+    environment:
+      CADDY_ACME_EMAIL: ${CADDY_ACME_EMAIL:?Set CADDY_ACME_EMAIL}
+      N8N_HOST: ${N8N_HOST:?Set N8N_HOST}
+      BOARD_HOST: ${BOARD_HOST:?Set BOARD_HOST}
+      BOARD_AUTH_USER: ${BOARD_AUTH_USER:?Set BOARD_AUTH_USER}
+      BOARD_AUTH_PASSWORD_HASH: ${BOARD_AUTH_PASSWORD_HASH:?Set BOARD_AUTH_PASSWORD_HASH}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile.production:/etc/caddy/Caddyfile:ro
+      - ./board:/srv/board:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+  postgres:
+    image: postgres:16.4-alpine
+    container_name: make-ready-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+      N8N_DB_PASSWORD: ${N8N_DB_PASSWORD:?Set N8N_DB_PASSWORD}
+      MAKE_READY_DB: ${MAKE_READY_DB:-make_ready_demo}
+      MAKE_READY_DB_USER: ${MAKE_READY_DB_USER:-make_ready_demo}
+      MAKE_READY_DB_PASSWORD: ${MAKE_READY_DB_PASSWORD:?Set MAKE_READY_DB_PASSWORD}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./db/postgres:/docker-entrypoint-initdb.d:ro
+      - ./data/backups:/backups
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  n8n:
+    image: n8nio/n8n:2.29.10
+    container_name: make-ready-n8n
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      GENERIC_TIMEZONE: ${GENERIC_TIMEZONE:?Set GENERIC_TIMEZONE}
+      TZ: ${GENERIC_TIMEZONE:?Set GENERIC_TIMEZONE}
+      WEBHOOK_URL: ${WEBHOOK_URL:?Set WEBHOOK_URL}
+      N8N_HOST: ${N8N_HOST:?Set N8N_HOST}
+      N8N_PORT: 5678
+      N8N_PROTOCOL: https
+      N8N_EDITOR_BASE_URL: https://${N8N_HOST:?Set N8N_HOST}
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:?Set N8N_ENCRYPTION_KEY}
+      N8N_SECURE_COOKIE: "true"
+      N8N_BASIC_AUTH_ACTIVE: "true"
+      N8N_BASIC_AUTH_USER: ${N8N_BASIC_AUTH_USER:?Set N8N_BASIC_AUTH_USER}
+      N8N_BASIC_AUTH_PASSWORD: ${N8N_BASIC_AUTH_PASSWORD:?Set N8N_BASIC_AUTH_PASSWORD}
+      N8N_COMMUNITY_PACKAGES_ENABLED: "false"
+      N8N_DEFAULT_BINARY_DATA_MODE: filesystem
+      N8N_STORAGE_PATH: /data
+      N8N_USER_FOLDER: /home/node/.n8n
+      BOARD_DEMO_TOKEN: ${BOARD_DEMO_TOKEN:?Set BOARD_DEMO_TOKEN}
+      BOARD_ALLOWED_ORIGIN: ${BOARD_ALLOWED_ORIGIN:?Set BOARD_ALLOWED_ORIGIN}
+      MANAGER_TELEGRAM_CHAT_ID: ${MANAGER_TELEGRAM_CHAT_ID:-}
+      BUILDER_TELEGRAM_CHAT_ID: ${BUILDER_TELEGRAM_CHAT_ID:-}
+      VENDOR_IN_DEMO_TOKEN: ${VENDOR_IN_DEMO_TOKEN:?Set VENDOR_IN_DEMO_TOKEN}
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_PORT: 5432
+      DB_POSTGRESDB_DATABASE: n8n
+      DB_POSTGRESDB_USER: n8n
+      DB_POSTGRESDB_PASSWORD: ${N8N_DB_PASSWORD:?Set N8N_DB_PASSWORD}
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./board:/home/node/board:ro
+      - ./n8n-workflows:/home/node/workflows:ro
+      - ./data:/data
+
+volumes:
+  caddy_data:
+  caddy_config:
+  n8n_data:
+  pg_data:
