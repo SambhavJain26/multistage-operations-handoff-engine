@@ -225,8 +225,8 @@ SELECT
   input.mode,
   input.error_message,
   input.builder_notice_text,
-  NULLIF(input.builder_chat_id, 'stage7-builder-chat-id-missing') AS builder_chat_id,
-  (input.builder_chat_id <> '' AND input.builder_chat_id <> 'stage7-builder-chat-id-missing') AS should_notify_builder
+  CASE WHEN input.builder_chat_id LIKE 'stage7-%-missing' THEN NULL ELSE NULLIF(input.builder_chat_id, '') END AS builder_chat_id,
+  (input.builder_chat_id <> '' AND input.builder_chat_id NOT LIKE 'stage7-%-missing') AS should_notify_builder
 FROM input
 CROSS JOIN inserted;`;
 

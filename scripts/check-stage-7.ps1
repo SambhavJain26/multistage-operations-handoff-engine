@@ -63,6 +63,36 @@ function Invoke-AppPsql {
   }
 }
 
+function Get-LiveFixtureChatMap {
+  $rivera = Get-EnvFileValue "RIVERA_TELEGRAM_CHAT_ID" (Get-EnvFileValue "VENDOR_TELEGRAM_CHAT_ID" "")
+  return @{
+    RIVERA_TELEGRAM_CHAT_ID = $rivera
+    MARIAS_TELEGRAM_CHAT_ID = Get-EnvFileValue "MARIAS_TELEGRAM_CHAT_ID" ""
+    DALE_TELEGRAM_CHAT_ID = Get-EnvFileValue "DALE_TELEGRAM_CHAT_ID" ""
+    STATEWIDE_TELEGRAM_CHAT_ID = Get-EnvFileValue "STATEWIDE_TELEGRAM_CHAT_ID" ""
+  }
+}
+
+function Apply-LiveFixtureChatMap {
+  $chatMap = Get-LiveFixtureChatMap
+  if ([string]::IsNullOrWhiteSpace($chatMap.RIVERA_TELEGRAM_CHAT_ID) -or
+      [string]::IsNullOrWhiteSpace($chatMap.MARIAS_TELEGRAM_CHAT_ID) -or
+      [string]::IsNullOrWhiteSpace($chatMap.DALE_TELEGRAM_CHAT_ID) -or
+      [string]::IsNullOrWhiteSpace($chatMap.STATEWIDE_TELEGRAM_CHAT_ID)) {
+    return
+  }
+  Invoke-AppPsql @"
+UPDATE vendor SET telegram_chat_id = $(ConvertTo-SqlLiteral $chatMap.RIVERA_TELEGRAM_CHAT_ID)
+WHERE name = 'Rivera Painting' AND trade = 'paint' AND is_fixture = true;
+UPDATE vendor SET telegram_chat_id = $(ConvertTo-SqlLiteral $chatMap.MARIAS_TELEGRAM_CHAT_ID)
+WHERE name = 'Maria''s Cleaning Co' AND trade = 'clean' AND is_fixture = true;
+UPDATE vendor SET telegram_chat_id = $(ConvertTo-SqlLiteral $chatMap.DALE_TELEGRAM_CHAT_ID)
+WHERE name = 'Dale Hutchins' AND trade = 'repairs' AND is_fixture = true;
+UPDATE vendor SET telegram_chat_id = $(ConvertTo-SqlLiteral $chatMap.STATEWIDE_TELEGRAM_CHAT_ID)
+WHERE name = 'Statewide Flooring' AND trade = 'flooring' AND is_fixture = true;
+"@
+}
+
 function Invoke-N8nPsqlScalar {
   param([string]$Sql)
   $result = $Sql | docker exec -i make-ready-postgres psql -q -U n8n -d n8n -tA
@@ -137,6 +167,9 @@ function Add-Result {
 
 function Reset-Fixtures {
   & (Join-Path $scriptDir "reset-demo.ps1") | Out-Host
+  if ($RequireTelegram) {
+    Apply-LiveFixtureChatMap
+  }
 }
 
 function Wait-ForSql {
@@ -221,6 +254,18 @@ WHERE t.id = ts.turn_id
 
 function Setup-TwoPaintUnits {
   Invoke-AppPsql @"
+UPDATE turn_stage ts
+SET status = 'pending',
+  activated_at = NULL,
+  completed_at = NULL,
+  completed_via = NULL,
+  completed_by = NULL
+FROM "turn" t
+WHERE t.id = ts.turn_id
+  AND t.unit_label = '12A'
+  AND t.property_address = '418 Maple St'
+  AND t.is_fixture = true;
+
 UPDATE turn_stage ts
 SET status = CASE
     WHEN ts.seq < 6 THEN 'complete'
@@ -357,7 +402,9 @@ Add-Result "F05" "pass" "12B clean allowed; 14A clean blocked by Repairs guard."
 
 Reset-Fixtures
 $f06 = Send-GenericVendorMessage "placeholder_dale_hutchins" "cant get there till thursday, sorry F06 $runId"
-Assert-Equal $f06.Json.outcome "delay_notice" "F06 should route as delay_notice."
+Assert-Equal $f06.Json.classification.intent "delay_notice" "F06 should classify as delay_notice."
+Assert-Equal $f06.Json.outcome "manager_match_needed" "F06 should ask the manager to match the delayed work."
+Assert-Equal $f06.Json.stage_state_mutated $false "F06 must not mutate stage state."
 Add-Result "F06" "pass" "Delay notice logged without mutation."
 
 Reset-Fixtures
@@ -367,7 +414,8 @@ Add-Result "F07" "pass" "Photo-only stored for manager review."
 
 Reset-Fixtures
 $f08 = Send-GenericVendorMessage "placeholder_rivera_painting" "is the water back on at 12b? F08 $runId"
-Assert-Equal $f08.Json.outcome "question" "F08 should route as question."
+Assert-Equal $f08.Json.classification.intent "question" "F08 should classify as question."
+Assert-Equal $f08.Json.stage_state_mutated $false "F08 must not mutate stage state."
 Add-Result "F08" "pass" "Question forwarded without stage change."
 
 Reset-Fixtures
@@ -425,7 +473,8 @@ Add-Result "F16" "pass" "Completion was immediate; watchdog alert path held outs
 
 Reset-Fixtures
 $f17 = Send-GenericVendorMessage "placeholder_rivera_painting" "the tenant trashed this place, that carpet is coming out of their deposit F17 $runId"
-Assert-Equal $f17.Json.outcome "question" "F17 should route as question."
+Assert-Equal $f17.Json.classification.intent "question" "F17 should classify as question."
+Assert-Equal $f17.Json.stage_state_mutated $false "F17 must not mutate stage state."
 Assert-True ($f17.BodyText -notmatch "charge|liability|deduct|wear") "F17 response should not generate deposit assessment language."
 Add-Result "F17" "pass" "Deposit/damage message routed to manager without assessment language."
 

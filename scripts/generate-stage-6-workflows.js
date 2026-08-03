@@ -714,7 +714,8 @@ const managerActionQuery = `WITH input AS (
     '{{ String($json.actor_id || "manager").replace(/'/g, "''") }}'::text AS actor_id,
     '{{ String($json.channel || "board").replace(/'/g, "''") }}'::text AS channel,
     '{{ String($json.edited_text || "").replace(/'/g, "''") }}'::text AS edited_text,
-    '{{ String($json.telegram_chat_id || "").replace(/'/g, "''") }}'::text AS telegram_chat_id
+    '{{ String($json.telegram_chat_id || "").replace(/'/g, "''") }}'::text AS telegram_chat_id,
+    '{{ String($json.telegram_callback_query_id || "").replace(/'/g, "''") }}'::text AS telegram_callback_query_id
 ), queue_row AS (
   SELECT oq.*, v.name AS vendor_name, v.telegram_chat_id, v.phone_e164
   FROM outbound_queue oq
@@ -852,6 +853,7 @@ SELECT
   (SELECT row_to_json(activate_sent_stage) FROM activate_sent_stage LIMIT 1) AS activated_stage,
   CASE WHEN (SELECT count(*) FROM chase_queue) > 0 THEN (SELECT 'Manager approval required before sending.\\n\\nDraft to approve:\\n' || approved_text FROM chase_queue LIMIT 1) ELSE NULL END AS manager_approval_text,
   NULLIF(input.telegram_chat_id, '') AS manager_chat_id,
+  NULLIF(input.telegram_callback_query_id, '') AS telegram_callback_query_id,
   ((SELECT count(*) FROM chase_queue) > 0 AND input.telegram_chat_id <> '') AS should_send_manager_approval,
   'local_state_only'::text AS delivery_mode,
   'http://localhost:8080'::text AS cors_origin

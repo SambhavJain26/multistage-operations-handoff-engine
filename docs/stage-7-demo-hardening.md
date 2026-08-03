@@ -42,7 +42,7 @@ Full guided live run:
 
 The live checker prompts for inbound Telegram messages because Telegram Bot API webhooks cannot impersonate vendor users. The script verifies results in Postgres and writes a timestamped report under ignored `data/stage-7-reports/`.
 
-Before accepting Stage 7, run the existing gates after Stage 7 import:
+Before accepting Stage 7, run the existing gates, then finish with a fresh Stage 7 import/check:
 
 ```powershell
 .\scripts\check-stage-3.ps1
@@ -55,6 +55,8 @@ Before accepting Stage 7, run the existing gates after Stage 7 import:
 .\scripts\import-stage-7-workflows.ps1 -ActivateTelegram
 .\scripts\check-stage-7.ps1 -RequireTelegram
 ```
+
+Do not run the Stage 4-isolated checker as a final gate after the fully composed Stage 7 import. Stage 4 expects `/vendor-in` to stop at `matched_logged`; Stage 7 correctly continues the same input into Stage 5 completion and manager approval.
 
 ## Failure Handling
 
@@ -82,6 +84,7 @@ Run three timed rehearsals from reset. Target under five minutes without rushing
 - Open `http://localhost:8080/board/index.html` or the static server URL used locally.
 - Open the Rivera vendor Telegram chat before the call.
 - Keep the manager phone/chat visible for Send/Edit/Hold approval.
+- Approval cards appear in the Telegram chat configured by `MANAGER_TELEGRAM_CHAT_ID`; if that ID is a direct user chat, the card is not in the manager group.
 - Keep `board/sim.html` ready for the channel-independence beat.
 - Say the scope limitations out loud: no PMS, no SMS in demo, no autonomous sends, no photo inspection, no deposit assessment.
 - If Telegram fails, do not debug live; pivot to board/manual guard controls.

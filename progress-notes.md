@@ -4,8 +4,8 @@ This file is the running handoff record for future sessions. Read it before star
 
 ## Current Status
 
-- Stage 6 is complete.
-- Stage 7 implementation assets are added and static/error-handler verification passes. Full live Telegram F01-F20 rehearsal, timed demo rehearsals, and offline recording remain pending because distinct live vendor/builder chat IDs were not configured in this session.
+- Stage 7 is complete for implementation and live fixture verification.
+- Live Telegram F01-F20 verification passed on 2026-08-03 with one manager bot, one vendor bot, separate private Telegram groups per fixture vendor identity, and a separate builder alert group. The local report is ignored at `data/stage-7-reports/stage7-live-patch7-20260803-105747.json`.
 - Local runtime, credentials, schema, stage template, and fixture seed data have been verified.
 - `build-plan.md` created with eight staged sessions.
 - Git repository initialized on `main`; remote target is private GitHub repo `make-ready-sequencing`.
@@ -27,7 +27,7 @@ This file is the running handoff record for future sessions. Read it before star
 | 4 | Intake, Channel Normalization, And Matching | Complete | Manager intake form, deterministic unit matcher, generic `/vendor-in`, vendor Telegram ingest export, shared router/logger, duplicate handling, and manager notices are implemented. Vendor replies log only and do not mutate stages. |
 | 5 | Vendor Completion Loop With Human Approval | Complete | Vendor completion, manager approval queue, Send/Edit/Hold/Cancel helpers, fallback classification/drafting, and Stage 5 verification are implemented. Live Telegram Send remains optional and requires a fresh tunnel/chat IDs. |
 | 6 | Stall Detection, Digest, Simulator, And Photos | Complete | Stall watchdog, Chase approval drafts, health metrics, simulator, photo/unsupported media handling, and board thumbnails/history are implemented and verified locally. |
-| 7 | Full Fixture Testing And Demo Hardening | Implemented, live verification pending | Error workflow, fixture runner/report, config, docs, and static checks added. F01-F20 live Telegram run, timed rehearsal, and offline recording still pending. |
+| 7 | Full Fixture Testing And Demo Hardening | Complete | Error workflow, fixture runner/report, config, docs, static checks, and guided live F01-F20 Telegram/generic/manager fixture run are complete. |
 | 8 | Production Pilot Readiness | Not started | Client-owned VPS, Twilio/10DLC, consent, STOP handling, backups, contract exclusions. |
 
 ## Decisions Locked For Now
@@ -460,6 +460,29 @@ This file is the running handoff record for future sessions. Read it before star
   - Final `scripts/import-stage-7-workflows.ps1` then `scripts/check-stage-7.ps1`
 - Runtime gotcha found:
   - In local n8n 2.29.10, `wf-7-error-smoke` can return HTTP 200 with an empty body even though its Code node throws. The Error Workflow still fires and inserts exactly one `workflow_error` row per smoke call, so Stage 7 verification keys off `event_log`, not HTTP status.
-- Live verification not completed in this session:
-  - `.env` did not contain distinct `BUILDER_TELEGRAM_CHAT_ID`, `RIVERA_TELEGRAM_CHAT_ID`, `MARIAS_TELEGRAM_CHAT_ID`, `DALE_TELEGRAM_CHAT_ID`, and `STATEWIDE_TELEGRAM_CHAT_ID`.
-  - Full `scripts/check-stage-7.ps1 -RequireTelegram`, three timed demo rehearsals, screen-share validation, and offline recording remain pending.
+- Live verification completed on 2026-08-03:
+  - A fresh Cloudflare Tunnel was started for local n8n and `scripts/import-stage-7-workflows.ps1 -ActivateTelegram` completed with Telegram workflows active.
+  - `.env` was populated locally with manager, builder, Rivera, Maria, Dale, and Statewide chat IDs. The file remains ignored and was not committed.
+  - F01-F20 passed in a guided live run. Live Telegram coverage included F01, F02, F05, F10, F12, F15, manager Send callback, and builder error alert delivery. Generic webhook coverage included F03, F04, F06-F09, F11, F13-F14, and F16-F20.
+  - Local ignored report: `data/stage-7-reports/stage7-live-patch7-20260803-105747.json`.
+  - Best-effort model cost recorded as `$0.00` because exercised branches used deterministic fallback or did not expose response usage in the checked outputs.
+- Stage 7 hardening fixes found during live verification:
+  - `scripts/check-stage-7.ps1` now reapplies live fixture vendor chat mappings after each reset when `-RequireTelegram` is used. `reset-demo.ps1` reseeds placeholder chat IDs, so live fixture runs must restore the real group IDs after every reset.
+  - `scripts/generate-stage-7-workflows.js` now treats only `stage7-%-missing` as a missing builder chat placeholder. Import-time substitution of the real `BUILDER_TELEGRAM_CHAT_ID` must not also make the SQL `NULLIF()` guard suppress builder alerts.
+  - `scripts/generate-stage-6-workflows.js` now preserves `telegram_callback_query_id` through `wf5-manager-action-core` so `wf3-manager-router` can acknowledge callback buttons after manager actions without a false builder workflow alert.
+  - F06, F08, and F17 checker assertions key off `classification.intent` plus `stage_state_mutated=false`. A safe `manager_match_needed` outcome is expected when intent is known but unit/stage confidence remains below the automatic action threshold.
+  - F14 setup clears the 12A active stage before activating 12A Paint to avoid the `uniq_one_active_stage_per_turn` partial unique constraint.
+- Verification after the fixes:
+  - `node scripts/generate-stage-7-workflows.js`
+  - `scripts/import-stage-7-workflows.ps1 -ActivateTelegram`
+  - `docker compose config`
+  - all workflow JSON exports parse with `ConvertFrom-Json`
+  - `fixtures/stage-7-fixtures.json` contains 20 fixtures
+  - n8n has 19 non-error workflows linked to `wf7-error-handler`
+  - required static webhooks are registered for board, vendor-in, manager-action, and error-smoke
+  - `scripts/check-stage-3.ps1` passed
+  - `scripts/check-stage-5.ps1` passed
+  - `scripts/check-stage-6.ps1` passed
+  - `scripts/check-stage-7.ps1` passed in non-interactive static/error-handler mode
+  - `scripts/check-stage-4.ps1` was not used as a Stage 7 gate after full import because it is a Stage 4-isolated checker: it expects `/vendor-in` to stop at `matched_logged`, while the composed Stage 7 runtime correctly continues to Stage 5 completion/approval behavior.
+  - Final local fixture state was reset clean and the four live vendor group mappings were reapplied.
