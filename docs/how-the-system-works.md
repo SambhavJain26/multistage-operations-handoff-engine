@@ -1,219 +1,242 @@
-# How The System Works
+# How The Make-Ready Automation Works
 
-This is a reference document for the builder, not for editing code. Its purpose is one
-thing: at every point, know which workflow, and where useful which node, is responsible for
-a given piece of data or a given decision. If the board shows something and the question is
-"what put that there," the answer is in this file.
+This document is for prospects and clients. It explains what the system does, what services are involved, and what stays under human control.
 
-Scope: the runtime that runs day to day, Stages 3 through 7 (visibility board,
-intake and matching, vendor completion loop, stall detection, and hardening). Stage 8
-production/pilot material (VPS, Caddy, backup, SMS design) is a separate track and is only
-pointed to at the end.
+It avoids implementation details. No schemas. No variables. No code paths.
 
-## The One-Paragraph Version
+## The Short Version
 
-A vendor's text message, or a manager's tap on the board, both resolve to the same place: a
-Postgres database of turns and stages. Nothing advances a stage without passing through one
-shared guard that checks whether the prerequisite stages are actually done. Nothing leaves
-for a vendor without a manager pressing Send on a drafted message. The system knows what a
-vendor said. It does not know that the work is actually finished, and it is not built to.
+The automation tracks vacant units through the make-ready sequence: notice, inspection, trash-out, repairs, paint, flooring, deep clean, QA, and relist.
 
-## The Workflows
+It watches for two things:
 
-| Workflow (n8n name) | ID | What it owns | What starts it |
-|---|---|---|---|
-| Sequence Guard | `wf3-sequence-guard` | The one deterministic rule set for whether a stage is allowed to complete | Called by other workflows (Execute Workflow), never triggered directly |
-| Stage Complete Core | `wf3-stage-complete-core` | Applying a completion after the guard passes, activating the next pending stage, logging the event | Called by Stage Complete API and by the manager's Telegram `DONE` callback |
-| Stage Complete API | `wf3-stage-complete-api` | The authenticated `POST /webhook/stage/complete` entry point | Webhook, hit by the board's "Mark done" control |
-| Board API | `wf3-board-api` | The read model behind the board: sorted turns, health color, dollars burned, latest event | Webhook, polled by `board/index.html` every 10 seconds |
-| Manager Daily Digest | `wf3-daily-digest` | The 7am worst-first summary with Done/Skip/Snooze/Chase/Cancel buttons | Schedule Trigger (daily 7:00) and a manual trigger for testing |
-| Manager Telegram Router | `wf3-manager-router` | Parses every manager message and every button press from one Telegram trigger: `/health`, `DONE:`, `SEND:`/`HOLD:`/`EDIT:`, `SKIP:`/`SNOOZE:`/`CHASE:`, `CANCEL:` | Telegram Trigger on the manager bot (message + callback_query) |
-| Turn Intake Form | `wf4-turn-intake` | Creating a new turn and its 11 stage rows from a manager form submission | Form Trigger |
-| Unit Matcher | `wf4-unit-matcher` | Scoring inbound text against active stages to find the unit it refers to | Called by the Vendor Message Router |
-| Vendor Inbound API | `wf4-vendor-in-api` | The authenticated generic `POST /webhook/vendor-in` entry point | Webhook, used by SMS-equivalent testing and `board/sim.html` |
-| Vendor Message Router | `wf4-vendor-router` | Vendor lookup, OpenAI classification with deterministic fallback, calling the matcher, deciding what happens next | Called by both inbound channels |
-| Vendor Telegram Ingest | `wf4-vendor-telegram-ingest` | Normalizing Telegram vendor messages, photos, and voice notes into the shared envelope shape | Telegram Trigger on the vendor bot |
-| Manager Action API | `wf5-manager-action-api` | The authenticated `POST /webhook/manager-action` entry point | Webhook, used by the board's approval controls |
-| Manager Action Core | `wf5-manager-action-core` | Applying Send, Hold, Edit, Skip, Snooze, Cancel, and Chase as one set of state changes | Called by Manager Action API and by the Telegram router |
-| Vendor Completion Handler | `wf5-vendor-completion-handler` | Re-checking the guard, marking a stage complete, storing an evidence photo if present, drafting the next vendor's message, sending the approval card | Called by the Vendor Message Router when a message is classified as a completion |
-| Health API | `wf6-health-api` | The authenticated `GET /webhook/health` endpoint | Webhook |
-| Health Core | `wf6-health-core` | Computing vendor reply rate, auto-handled rate, active turns, dollars burning, and stalled-stage count | Called by Health API, the manager's `/health` command, and the weekly digest |
-| Stall Watchdog | `wf6-stall-watchdog` | Finding stages past their SLA, deduping alerts, holding alerts outside business hours | Schedule Trigger (every 15 minutes) and a `POST /webhook/stall-watchdog` for manual/demo runs |
-| Weekly Metrics Digest | `wf6-weekly-digest` | The Monday 8am metrics summary to the manager | Schedule Trigger (weekly) |
-| Builder Error Handler | `wf7-error-handler` | Catching any workflow failure, logging it, alerting the builder (never the manager or a vendor) | n8n's Error Trigger, set as `settings.errorWorkflow` on every other workflow |
+- **A stage finished.** A vendor reports that work is done, or a manager marks it done.
+- **A stage is stuck.** A unit has been sitting too long at the same step.
 
-A 20th file, `wf7-error-smoke`, exists in `n8n-workflows/`. It is a local-only diagnostic
-that intentionally throws so the error path can be exercised. It is left out of the normal
-import so it never appears in the n8n editor's demo-visible workflow list.
+When a vendor says a stage is done, the system checks the unit, checks the vendor, checks the sequence, and then updates the board only if the action is safe.
 
-## The Main Path, In Execution Order
+When the next vendor needs to be contacted, the system drafts the message. The manager decides whether to Send, Edit, or Hold.
 
-**A turn starts.** `Turn Intake Form` runs `Normalize Intake Submission`, then
-`Insert Intake Turn And Stages`, a single query that creates the turn row and all 11 stage
-rows in one pass, with `NOTICE` active and everything else pending.
+Nothing goes to a vendor without a manager pressing Send.
 
-**A vendor replies.** Whichever channel it arrives on, Telegram or the generic webhook, the
-first job is normalizing to the same envelope shape and handing off to one router.
+## What The Client Sees
 
-- Telegram: `VendorTelegramTrigger` reads photo, voice, or document fields, runs
-  `Normalize Vendor Telegram Message`, then `Call Vendor Router From Telegram`.
-- Generic: `POST Vendor In Webhook` runs `Normalize Vendor In Request`, checks
-  `Vendor In Authorized?` and `Vendor In Valid?`, then `Unwrap Vendor Envelope` before
-  `Call Vendor Router`.
+The manager sees a live board of units in turn.
 
-**The router decides what the message means.** Inside `Vendor Message Router`:
-`Load Vendor Context` looks the sender up by `telegram_chat_id`/`phone_e164`. `Known Vendor?`
-branches: unknown senders go straight to `Prepare Unknown Event` and get logged with no reply
-and no candidate disclosure. Known senders go through `Build OpenAI Classification Request`,
-`Classify Vendor Message With OpenAI` (a direct HTTP call to the Responses API with a strict
-JSON schema, model `gpt-5.6-luna`), and `Parse Classification Or Fallback`, which falls back
-to a regex classifier if the model call fails, times out, or returns something unusable.
-`Call Unit Matcher` scores the message against every currently active stage. `Prepare Known
-Route` then applies one priority order: unsupported media, then duplicate-like, then
-photo-only, then low-confidence or unclear classification, then an ambiguous match, then a
-vendor/stage mismatch, then, only if none of those fired, a genuine `stage_complete`.
+Each card shows:
 
-**A completion is confirmed.** `Should Complete Stage?` sends the message on to
-`Vendor Completion Handler`, which runs `Normalize Completion Candidate` and then
-`Call Sequence Guard`, the same sub-workflow the board's manual path uses. If the guard
-returns `allowed: false`, `Log Vendor Guard Block` records the reason and nothing changes. If
-it passes, `Complete Stage And Queue Next` marks the stage complete, stores the evidence
-photo if the message carried one, and either activates the next stage directly (if it is an
-in-house/`inspect` trade) or sets it to `awaiting_approval` and inserts a draft into
-`outbound_queue`. `Format Completion Notification` and `Send Manager Approval Card` put a
-Send/Edit/Hold card in the manager's Telegram.
+- The unit and address.
+- The current make-ready stage.
+- How long it has been sitting there.
+- Whether it is healthy, close to late, or already late.
+- Vacancy dollars burned so far.
+- The vendor assigned to the current stage.
+- Recent events, such as vendor replies, manual completions, stalls, and blocked actions.
 
-**A manager acts.** The approval card's buttons, the board's own approval controls, and the
-daily digest's Done/Skip/Snooze/Chase/Cancel buttons all resolve to the same place:
-`Apply Manager Action` inside `Manager Action Core`, reached either through
-`Manager Action API` or through `Manager Telegram Router`'s callback parsing
-(`Parse Manager Update`). `SEND` activates the next stage. `CANCEL` closes every open stage
-and queued draft for that turn in the same statement.
+The board sorts the worst units first. The point is not to make another dashboard. The point is to make stalled units hard to miss.
 
-**The board reads it back.** `GET Board Webhook` runs `Normalize Board Auth`, then
-`Load Board State`, a single query joining the current active/awaiting stage, the last five
-events, and the 30-day vendor-reply-rate and auto-handled-rate metrics for every active turn.
-`Shape Board Response` computes each card's age, dollars burned, and red/amber/green health,
-then sorts worst first.
+## What The Vendor Does
 
-## What Lives In The Database Rather Than The Orchestrator
+In the demo, vendors use Telegram. In production, the intended channel is SMS after the client's Twilio and 10DLC requirements are ready.
 
-There are no views, functions, or triggers anywhere in `db/postgres/`. Every piece of logic
-that looks like a stored procedure is actually a `WITH` chain inside a plain `SELECT` or
-`INSERT`, living inside a workflow's Postgres node (`Evaluate Sequence Guard`'s rule map is
-the one piece of business logic written in JavaScript rather than SQL; the completion and
-approval chains are pure CTEs). Two constraints do real enforcement work that is easy to miss
-by reading workflow JSON alone:
+The vendor does not log in, install an app, or learn a portal.
 
-- **`uniq_one_active_stage_per_turn`**, a partial unique index on `turn_stage(turn_id) WHERE
-  status = 'active'`. A turn can never have two active stages at once. This is why the
-  board always has exactly one current stage per unit, enforced by Postgres itself, not by
-  application code remembering to check.
-- **`uniq_outbound_awaiting_per_stage_vendor`**, a partial unique index on
-  `outbound_queue(stage_id, vendor_id) WHERE status = 'awaiting_approval'`. This is what
-  actually stops a duplicate "done" message from creating a second approval card, not the
-  60-second duplicate-detection window in the router (that window is a fast, best-effort
-  check; this index is the hard backstop).
+They send plain messages like:
 
-A row-level CHECK on `turn_stage` also guarantees that a stage cannot be `complete` or
-`skipped` without `completed_at` and `completed_via` both being set, so the audit trail can
-never show a silently-finished stage.
+- `done with 12b`
+- `finished unit 7 oak`
+- `running late on 14a`
+- a completion photo
 
-Every allowed value, by column:
+The system reads the message, identifies the sender, matches the unit, and decides whether it is safe to act.
 
-| Column | Allowed values |
+## What The Manager Controls
+
+The manager stays in control of every outbound vendor message.
+
+When one vendor reports completion, the automation can prepare the next handoff. For example:
+
+1. Rivera Painting says `done with 12b`.
+2. The system confirms Rivera is assigned to Paint on 12B.
+3. The system checks that Paint is allowed to complete.
+4. The board moves 12B from Paint to the next stage.
+5. The system drafts a message to Statewide Flooring.
+6. The manager gets Send, Edit, and Hold.
+
+Only Send contacts the next vendor.
+
+Edit lets the manager change the message first. Hold keeps the message from going out.
+
+## The Services And Tools Used
+
+| Service or tool | What it does |
 |---|---|
-| `vendor.trade` | `paint`, `clean`, `flooring`, `repairs`, `trashout`, `inspect` |
-| `"turn".status` | `active`, `complete`, `cancelled` |
-| `turn_stage.status` | `pending`, `active`, `awaiting_approval`, `complete`, `skipped`, `blocked`, `cancelled` |
-| `turn_stage.completed_via` | `vendor_reply`, `manual`, `override`, `skip` |
-| `outbound_queue.channel` | `telegram`, `generic`, `board`, `digest` |
-| `outbound_queue.status` | `awaiting_approval`, `editing`, `sent`, `held`, `rejected`, `cancelled` |
-| `event_log.actor_type` | `vendor`, `manager`, `system` |
-| `event_log.channel` | `telegram`, `generic`, `board`, `digest`, `seed`, `import`, `form`, `system` |
-| `media_asset.channel` | `telegram`, `generic` |
-| `media_asset.media_type` | `photo`, `voice`, `unsupported` |
-| `media_asset.status` | `received`, `stored`, `needs_manager`, `unsupported` |
+| n8n | Runs the automation workflows. It receives messages, calls the right workflow, and moves work through the process. |
+| Postgres | Stores the durable record: turns, stages, vendors, messages, approvals, photos, and event history. |
+| Board | Gives the manager a live view of every active turn and the current state of each unit. |
+| Telegram | Demo messaging channel for vendor replies, manager approval cards, and manager alerts. |
+| OpenAI | Reads short vendor messages and classifies intent, such as done, delayed, question, unclear, or not my unit. |
+| Cloudflare Tunnel | Gives local n8n a temporary public HTTPS URL during live Telegram testing. |
+| Caddy | Production-ready reverse proxy and HTTPS layer for a future client-owned deployment. It is not part of the local demo path. |
+| Twilio | Planned production SMS provider. It stays disabled until a client has approved SMS registration, consent records, and legal review. |
 
-`event_log.event_type` allows 30 values, covering every branch above: `reply_received`,
-`stage_complete`, `guard_blocked`, `override`, `msg_drafted`, `msg_sent`, `msg_held`,
-`msg_edit_requested`, `msg_edited`, `msg_rejected`, `stall_alert`, `stall_alert_held`,
-`chase_drafted`, `weekly_digest`, `health_check`, `photo_received`, `photo_stored`,
-`manager_photo_match_needed`, `unsupported_media`, `unmatched`, `unknown_sender`,
-`manual_advance`, `stage_seeded`, `prospect_imported`, `turn_intake`, `vendor_inbound`,
-`manager_match_needed`, `duplicate_inbound`, `classification_fallback`, `draft_fallback`,
-`stage_awaiting_approval`, `stage_skipped`, `stage_snoozed`, `turn_cancelled`,
-`workflow_error`. If a branch fires and it is not in this list, the insert fails loudly
-rather than silently logging something unrecognized.
+## The Main Workflows
 
-The 11-stage template itself (`fixtures/stage-template.json`) is JSON documentation of the
-dependency graph (which stages require which others complete first), not an enforced
-constraint. The actual enforcement of that graph is `Evaluate Sequence Guard`'s rule map, in
-the Sequence Guard workflow, not the database.
+These are the workflow names a client may see during a walkthrough.
 
-## What It Deliberately Refuses To Do
+| Workflow | Plain-English job |
+|---|---|
+| Board API | Feeds the board with current units, stage ages, vacancy dollars, and recent events. |
+| Turn Intake Form | Adds a new turn and creates the standard make-ready stages. |
+| Vendor Telegram Ingest | Receives vendor Telegram messages during the demo. |
+| Vendor Inbound API | Receives generic inbound messages, including the simulator and future SMS-style traffic. |
+| Vendor Message Router | Decides what a vendor message means and whether it needs manager review. |
+| Unit Matcher | Matches a vendor message to the right unit without guessing on vague messages. |
+| Sequence Guard | Enforces the work order, such as repairs before paint and paint before flooring. |
+| Vendor Completion Handler | Completes a valid vendor-reported stage and prepares the next handoff draft. |
+| Manager Action Core | Applies manager decisions: Send, Edit, Hold, Skip, Snooze, Chase, Cancel, and Done. |
+| Manager Telegram Router | Handles manager Telegram commands and button presses. |
+| Stall Watchdog | Finds units sitting too long at one stage and alerts the manager. |
+| Health Core | Calculates reply rate, auto-handled rate, stalled stages, and active turn metrics. |
+| Builder Error Handler | Alerts the builder if a workflow fails. It does not alert vendors or prospects. |
 
-It never sends a vendor a message on its own. Every draft sits in `outbound_queue` as
-`awaiting_approval` until a manager presses Send, edits it, or puts it on Hold. It never
-reads or writes any property management system; it runs entirely beside one, with zero
-integration of any kind.
-It never inspects a photo; `media_asset` rows store and display images for a human to look
-at, and nothing in the workflow set evaluates their content. It never assesses damage, wear
-and tear, tenant liability, or deposit deductions, a hard exclusion with no code path that
-touches that subject. It never chases a vendor on its own; a stalled stage produces a
-manager-only alert, and Chase only ever drafts a message for the manager to approve. It never
-guesses at an ambiguous match; below the unit matcher's score-70 threshold, or with more than
-one untied candidate, the message routes to the manager instead of picking a unit.
+## How A Vendor Completion Moves Through The System
 
-## What It Genuinely Cannot Do
+Here is the normal path.
 
-These are limits of what the system can know, not gaps in what was built. It cannot know a
-stage is actually finished, only that a vendor reported it finished; the manager still QAs
-the unit. It cannot judge whether a photo shows good work. It cannot forecast how long a turn
-will take; it reports elapsed time, never a prediction. It cannot deliver production SMS yet;
-Telegram is a demo stand-in, and real SMS needs 10DLC carrier registration under a client's
-own business identity, which cannot start before a client exists. It cannot function as a
-system of record; the client's PMS keeps that role, and turning this off costs visibility,
-not data. It cannot promise a vendor reply rate; the automation's value is conditional on it,
-which is why the visibility board is built to still work at 0%.
+1. A vendor sends a message.
+2. n8n receives it through Telegram or the generic inbound path.
+3. The system looks up the sender.
+4. OpenAI helps classify the message.
+5. The Unit Matcher checks which active unit the message refers to.
+6. The Sequence Guard checks whether that stage is allowed to finish.
+7. Postgres records the event and updates the stage.
+8. The board refreshes.
+9. If the next stage needs an outside vendor, the system drafts the handoff.
+10. The manager chooses Send, Edit, or Hold.
 
-## Troubleshooting
+If anything is unclear, the system asks the manager instead of guessing.
 
-Each symptom below names the workflow to open first.
+## How Sequence Protection Works
 
-- **Board shows stale or blank state.** Open `Board API`. Check `Load Board State`'s
-  execution and confirm the webhook registered after the last n8n restart;
-  registration can lag container readiness for a few seconds.
-- **Board shows a "reconnecting" strip and nothing updates.** The frontend is intentionally
-  showing last-known state rather than going blank. Confirm `BOARD_DEMO_TOKEN` matches what
-  `board/index.html` is sending and that `Board API` itself is reachable.
-- **A Telegram trigger never fires.** Open whichever Telegram-triggered workflow is
-  affected (`Vendor Telegram Ingest` or `Manager Telegram Router`) and confirm `WEBHOOK_URL`
-  is HTTPS inside the running n8n container, not just in `.env` on the host; a
-  `docker compose up -d --force-recreate n8n` is required after changing it, a plain
-  `restart` does not pick it up.
-- **A manager approval card never arrives after a vendor completion.** Open
-  `Vendor Completion Handler` and check `Send Manager Approval?`; it is gated on
-  `MANAGER_TELEGRAM_CHAT_ID` being neither blank nor the import-time placeholder sentinel.
-- **A vendor message was logged but nothing else happened.** Open `Vendor Message Router`
-  and read the logged event's `outcome` field; most non-completion outcomes
-  (`manager_match_needed`, `low_confidence`, `stage_vendor_mismatch`, `duplicate_like`) are
-  correct behavior, not a bug, and route to the manager on purpose.
-- **A stage completion returns a block instead of completing.** Open `Sequence Guard`; the
-  response's `reason` and `blocked_by` fields name exactly which prerequisite stage is still
-  open.
-- **A Telegram button press throws "query is too old or invalid."** Open
-  `Manager Telegram Router` and confirm `telegram_callback_query_id` survived every
-  Execute Sub-workflow hop back to `Answer Manager Callback`; it is easy for this field to
-  get dropped by a Postgres node that reselects columns without including it.
-- **Any workflow fails outright.** Open `Builder Error Handler` and read the corresponding
-  `workflow_error` row in `event_log`; a Telegram alert only reaches the builder if
-  `BUILDER_TELEGRAM_CHAT_ID` was substituted with a real chat ID at import time, never the
-  manager or a vendor.
+Make-ready work has a real order.
 
-## Production
+Repairs should happen before paint. Paint should happen before flooring. Deep clean should happen after repairs, paint, and flooring. QA comes after deep clean.
 
-Stage 8 covers what changes for a real client: a client-owned VPS, Caddy TLS in front of n8n
-and the board, backup and restore, monitoring, and the SMS design that stays disabled until a
-client exists to register it under. None of that is expanded here; see
-`docs/stage-8-production-pilot-readiness.md`.
+The Sequence Guard enforces that order.
+
+Example:
+
+If a cleaner reports `14a cleaned` while repairs are still open, the system blocks the completion and explains why:
+
+```text
+Repairs still open on 14A. Cleaning before repairs means cleaning twice.
+```
+
+That is the point. The system does not reward speed if the sequence creates rework.
+
+## How The System Handles Unclear Messages
+
+The system is conservative by design.
+
+| Vendor message | What happens |
+|---|---|
+| `done with 12b` | Completes the matching active stage if the vendor and sequence are correct. |
+| `done` | Asks the manager which unit. |
+| `finished the one on maple` | Asks the manager when more than one Maple unit could match. |
+| `cant get there till thursday` | Routes to manager review as a delay. |
+| `is the water back on at 12b?` | Routes to manager review as a question. |
+| Duplicate `done with 12b` | Logs the duplicate and does not create a second handoff. |
+| Unknown sender | Logs the message and does not reveal unit matches to that sender. |
+
+Wrong confident automation is worse than asking. This system asks.
+
+## Photos And Voice Notes
+
+Photos are stored and shown to the manager when they arrive.
+
+The system does not inspect the image or decide whether the work is good. A photo is evidence for a human, not proof for the automation.
+
+Voice notes and unsupported files are saved as manager-review items. They do not complete stages.
+
+## Stall Alerts And Chasing
+
+The Stall Watchdog checks active stages against their allowed time.
+
+If a stage is overdue, the manager gets an alert.
+
+The system does not chase the vendor on its own. If the manager wants to follow up, the system can draft a Chase message, but the manager still has to approve it before anything is sent.
+
+## Metrics The Manager Sees
+
+The board and health workflow track:
+
+- Units currently in turn.
+- Vacancy dollars burning now.
+- Vendor reply rate.
+- Auto-handled rate.
+- Stalled stage count.
+- Recent workflow events.
+
+These are operating metrics, not promises. They help the client see whether the automation is useful with their vendors.
+
+## What Runs Locally In The Demo
+
+The demo runs on the builder's local machine:
+
+- n8n runs the workflows.
+- Postgres stores the demo state.
+- The board runs as a local page.
+- Telegram reaches local n8n through a temporary Cloudflare Tunnel.
+- OpenAI handles short message classification and draft wording when needed.
+
+The demo uses fictional Cedar Ridge data. It does not contain client data.
+
+## What Changes For A Paid Pilot
+
+The Stage 8 readiness pack defines the production approach.
+
+For a real client:
+
+- The system runs on a VPS owned and paid for by the client.
+- Caddy provides HTTPS for n8n and the board.
+- Docker images are pinned to fixed versions.
+- Backups and restore tests are required before go-live.
+- Monitoring alerts the builder when workflow errors or silent failures appear.
+- SMS stays disabled until the client has a paid Twilio account, approved 10DLC setup, vendor consent records, and legal review for the states where they operate.
+
+This is a single-client setup. It is not a shared SaaS instance.
+
+## What The System Does Not Do
+
+It does not:
+
+- Touch the client's PMS.
+- Replace Buildium, AppFolio, Rent Manager, Propertyware, or any other system of record.
+- Prove the work is finished.
+- Inspect photos.
+- Send a vendor message without manager approval.
+- Chase a vendor without manager approval.
+- Schedule or book vendors.
+- Handle occupied maintenance.
+- Decide security deposit deductions.
+- Classify damage as tenant liability.
+- Screen tenants.
+- Write listings or run ads.
+- Forecast turn duration.
+
+Those limits are intentional. The system coordinates make-ready handoffs. It does not take over property management.
+
+## The Honest Success Test
+
+The system works best when vendors already text the manager when a stage is done.
+
+The first question for any prospect is:
+
+```text
+When your painter finishes a unit, how do you find out?
+```
+
+If vendors already text, there is a signal to capture. If the manager has to call or drive by to find out, the board can still help, but the vendor automation will be weaker.
+
+That is why vendor reply rate stays visible on the board. It tells the client whether the automation is working in their real operation.

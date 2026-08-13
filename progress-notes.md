@@ -6,6 +6,8 @@ This file is the running handoff record for future sessions. Read it before star
 
 - Stage 8 production pilot readiness pack is implemented.
 - Stage 7 is complete for implementation and live fixture verification.
+- The old recording-script document has been replaced by `docs/operating-guide.md`, a manual operating/testing guide with no fixture-runner commands except `scripts/reset-demo.ps1`.
+- `docs/how-the-system-works.md` has been rewritten as a prospect/client-facing explainer with service and workflow responsibilities but without implementation details such as variables or schemas.
 - Local n8n demo workflow display names have been cleaned up: visible names no longer include stage/WF numbers, internal workflow IDs remain stable, and the local-only Stage 7 error-smoke workflow is omitted from the normal demo-visible n8n list.
 - Live Telegram F01-F20 verification passed on 2026-08-03 with one manager bot, one vendor bot, separate private Telegram groups per fixture vendor identity, and a separate builder alert group. The local report is ignored at `data/stage-7-reports/stage7-live-patch7-20260803-105747.json`.
 - Local runtime, credentials, schema, stage template, and fixture seed data have been verified.
@@ -446,7 +448,7 @@ This file is the running handoff record for future sessions. Read it before star
   - Reports are written to ignored `data/stage-7-reports/`.
 - Added Stage 7 runbook `docs/stage-7-demo-hardening.md`.
   - Documents live tunnel/chat prerequisites, fixture operation, failure handling, demo rehearsal, offline recording, and rebuild path.
-- Updated stale demo-script wording in `make-ready-demo-build-plan.md`.
+- Updated stale demo wording in `make-ready-demo-build-plan.md`.
   - 12B Paint now hands off to Flooring / Statewide Flooring unless Flooring is skipped, matching the implemented stage template.
 - Verification completed locally without live Telegram activation:
   - `node scripts/generate-stage-7-workflows.js`
