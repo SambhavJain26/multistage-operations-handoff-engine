@@ -6,7 +6,19 @@ This plan is based on a full read of:
 - `foundation-3-turnover-makeready.md`
 - `make-ready-demo-build-plan.md`
 
-The target is a local-first live demo of a make-ready sequencing AI automation for US residential property managers, not a named software product or SaaS. Any UI exists only for demo visualization. The demo must show the visibility/sequence layer first, prove the sequencing guard, and only then show the vendor-reply automation. Everything runs on this machine during the demo build except Telegram webhooks, which use a temporary HTTPS tunnel into local n8n when needed.
+The target is a local-first live demo of a make-ready sequencing AI automation for US residential property managers, not a named software product or SaaS. Airtable is the manager-facing workspace and intake form; the custom board and simulator have been retired. The demo must prove the sequencing guard, AI interpretation, manager approval, and independent email/Telegram delivery. Everything runs on this machine during the demo build except external Airtable, email, OpenAI, and Telegram services.
+
+## Airtable And Email Redesign Supersession
+
+This section overrides historical Stage 1-8 references to the custom board, simulator, n8n Form Trigger intake, manager action APIs, or Telegram-only vendor delivery.
+
+- Postgres remains authoritative. Airtable mirrors vendors, turns, stages, communications, approvals, and channel delivery states.
+- Managers create turns through Airtable and operate approvals and controls through Telegram.
+- Vendor intake supports Telegram, IMAP email, and the generic inbound API.
+- OpenAI interprets every known-vendor free-form message. Deterministic sender, unit, duplicate, confidence, safety, and sequence checks control mutation.
+- One approval creates independent email and Telegram attempts. Missing either destination blocks sending; retry never duplicates a successful channel.
+- The canonical import contains 19 operational workflows and removes the four UI-only APIs.
+- SMS remains disabled.
 
 ## Important Spec Decisions And Conflicts
 
@@ -16,8 +28,8 @@ The target is a local-first live demo of a make-ready sequencing AI automation f
 2. **Postgres is the demo state store.**
    The source spec allows Google Sheets for demos. The demo build plan rejects Sheets because the sequence guard needs transactional state and the live demo should not depend on Sheets quota or concurrent write behavior. This plan uses Postgres from the start.
 
-3. **The board must work even if no vendor replies.**
-   The automation value is conditional on vendor reply behavior, but the demo is not. Manual manager advance through the same sequence guard is a core workflow, not a fallback. This is what makes the visibility/sequence layer useful at a 0% vendor reply rate.
+3. **The manager workflow must work even if no vendor replies.**
+   Manual manager advance through the same sequence guard remains a core workflow. Airtable visibility and Telegram controls remain useful at a 0% vendor reply rate.
 
 4. **Turnover starts at notice, vacancy cost starts at move-out.**
    The documents agree once the terms are separated. The record begins at notice received. Vacancy-day and rent-loss arithmetic starts at move-out / keys returned.

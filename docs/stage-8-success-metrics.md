@@ -8,7 +8,7 @@ Percentage of vendor-assigned completed or skipped stages completed through vend
 
 Purpose: proves whether the vendor automation is viable for this client.
 
-Decision use: if reply rate stays under roughly 30 percent, reframe the pilot around board visibility and manager control rather than vendor automation.
+Decision use: if reply rate stays under roughly 30 percent, reframe the pilot around Airtable visibility and manager control rather than vendor automation.
 
 ## Auto-Handled Rate
 

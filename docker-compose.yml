@@ -45,8 +45,6 @@ services:
       N8N_DEFAULT_BINARY_DATA_MODE: filesystem
       N8N_STORAGE_PATH: /data
       N8N_USER_FOLDER: /home/node/.n8n
-      BOARD_DEMO_TOKEN: ${BOARD_DEMO_TOKEN:-local-stage-3-demo-token}
-      BOARD_ALLOWED_ORIGIN: ${BOARD_ALLOWED_ORIGIN:-http://localhost:8080}
       MANAGER_TELEGRAM_CHAT_ID: ${MANAGER_TELEGRAM_CHAT_ID:-}
       BUILDER_TELEGRAM_CHAT_ID: ${BUILDER_TELEGRAM_CHAT_ID:-}
       VENDOR_IN_DEMO_TOKEN: ${VENDOR_IN_DEMO_TOKEN:-local-stage-4-vendor-in-token}
@@ -55,6 +53,10 @@ services:
       MARIAS_TELEGRAM_CHAT_ID: ${MARIAS_TELEGRAM_CHAT_ID:-}
       DALE_TELEGRAM_CHAT_ID: ${DALE_TELEGRAM_CHAT_ID:-}
       STATEWIDE_TELEGRAM_CHAT_ID: ${STATEWIDE_TELEGRAM_CHAT_ID:-}
+      AIRTABLE_WORKSPACE_ID: ${AIRTABLE_WORKSPACE_ID:-}
+      AIRTABLE_BASE_ID: ${AIRTABLE_BASE_ID:-}
+      VENDOR_EMAIL_FROM: ${VENDOR_EMAIL_FROM:-make-ready@example.com}
+      VENDOR_EMAIL_REPLY_TO: ${VENDOR_EMAIL_REPLY_TO:-make-ready@example.com}
       DB_TYPE: postgresdb
       DB_POSTGRESDB_HOST: postgres
       DB_POSTGRESDB_PORT: 5432
@@ -65,7 +67,6 @@ services:
       - "5678:5678"
     volumes:
       - n8n_data:/home/node/.n8n
-      - ./board:/home/node/board:ro
       - ./n8n-workflows:/home/node/workflows
       - ./data:/data
 

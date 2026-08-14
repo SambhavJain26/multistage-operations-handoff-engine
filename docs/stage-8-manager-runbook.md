@@ -1,50 +1,48 @@
 # Manager Runbook
 
-This is the one-page operating guide for a pilot manager.
-
 ## Daily Use
 
-- Open the board at `board.<client-domain>`.
-- Start with the red or oldest cards first.
-- Use the stage strip to see what is done, blocked, awaiting approval, or active.
-- Use the event history to understand why the system made or avoided a change.
+- Open the Make-Ready Operations Interface in Airtable.
+- Start with Stalled, Due Soon, Awaiting Approval, and Partially Sent.
+- Open a turn to read its linked stages, vendor messages, evidence, drafts, and delivery results.
+- Add new turns through the Airtable Turn Intake form. Don't edit synced operating records.
 
 ## Vendor Replies
 
-- A vendor reply can complete a stage only when the unit and stage are clear and the sequence guard allows it.
-- If the system is unsure, it asks you to decide instead of guessing.
-- A photo is stored for your review; the system does not inspect workmanship.
-- Voice notes and unsupported files are forwarded for review and do not update stages.
+Vendors may reply in Telegram or by email. The automation uses OpenAI to understand the wording, then fixed rules verify the sender, unit, assigned stage, duplicate status, and work sequence.
 
-## Approval Cards
+A clear completion can move a stage. Questions, delays, unusual requests, financial language, unclear wording, voice notes, and unsupported files stay unchanged and come to you for review.
 
-- `Send`: releases the approved draft and activates the next vendor stage.
-- `Edit`: changes the draft and keeps it waiting for approval.
-- `Hold`: sends nothing and records that you held the message.
-- Nothing goes to a vendor until you press `Send`.
+## Approval Cards In Telegram
 
-## Board Controls
+- `Send both` sends the approved text by email and Telegram.
+- `Edit` lets you replace the draft before approving it.
+- `Hold` sends nothing.
+- `Retry Email` or `Retry Telegram` repeats only a failed channel.
 
-- `Mark done`: manually completes a stage through the same guard used for vendor replies.
-- `Skip`: marks a stage skipped where appropriate; skipped stages count as satisfied downstream.
-- `Snooze`: suppresses a stall alert temporarily.
-- `Cancel`: closes an active turn and cancels open approval queue rows.
+Both vendor destinations must be configured before Send both works. The next stage activates after the first successful delivery. A failed second channel reads `Partially Sent` in Airtable and produces a Telegram alert.
 
-## What To Do When It Is Unsure
+## Other Manager Controls
 
-- Read the vendor text and candidate unit/stage.
-- If it is clearly the right unit, manually advance or respond from the approval card.
-- If it is unclear, contact the vendor yourself. Do not force a stage update.
+- `Done` marks verified work complete through the Sequence Guard.
+- `Skip` records that the stage wasn't required.
+- `Snooze` pauses a stall alert for 24 hours.
+- `Chase` prepares a vendor update for approval; it doesn't send on its own.
+- `Cancel` closes the turn and its open work.
+- `/health` returns current operating measures.
+
+## When The Automation Is Unsure
+
+Read the AI summary and the original vendor message. If the unit or request isn't clear, contact the vendor through the client's normal process. Don't force a completion.
 
 ## Failures
 
-- If the board is down, use your normal make-ready process and tell the operator.
-- If vendor messages stop arriving, do not ask vendors to retry repeatedly; tell the operator.
-- If a wrong unit is suggested, do not approve it. Report the event history entry.
-- Infrastructure errors go to the operator, not to vendors.
+- Airtable stale: continue normal work and tell the builder. Postgres keeps the authoritative state.
+- One delivery fails: use the failed-channel Retry control after the contact or service is fixed.
+- Both deliveries fail: the stage stays inactive until one approved delivery succeeds.
+- OpenAI fails: no stage changes; review the message manually.
+- Workflow failure: the builder receives the alert. Vendors receive no automatic recovery message.
 
 ## Boundaries
 
-- This is not the PMS system of record.
-- It does not assess deposits, tenant liability, wear and tear, screening, listings, ads, or occupied-unit maintenance.
-- It coordinates vacant-unit turn work only.
+This automation coordinates vacant-unit turn stages. It doesn't replace the PMS, assess workmanship, decide deposits or tenant liability, process invoices, screen tenants, publish listings, manage ads, handle occupied maintenance, or contact vendors without manager approval.

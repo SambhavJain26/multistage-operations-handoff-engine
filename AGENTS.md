@@ -19,7 +19,7 @@ Current files are planning docs only. When implementation begins, use:
 
 - `n8n-workflows/`: importable workflow JSON exports, named like `wf-3-board-api.json`.
 - `db/postgres/`: schema, migrations, seed SQL, reset SQL.
-- `board/`: demo visualization files such as `index.html` and `sim.html`; not a production app surface.
+- `fixtures/airtable-schema.json`: typed Airtable manager-workspace contract; no custom board or simulator assets.
 - `scripts/`: setup, import/export, reset, fixture, and verification helpers.
 - `fixtures/`: F01-F20 payloads, expected outputs, demo photos.
 - `prompts/`: classification and drafting prompts/schemas if kept outside workflow JSON.
@@ -52,7 +52,11 @@ Because `db/postgres` is mounted into `/docker-entrypoint-initdb.d`, do not put 
 
 - n8n orchestrates workflows; Postgres is durable state.
 - Do not use Google Sheets or n8n Data Tables for core state.
+- Airtable is the manager-facing mirror and turn-intake form. Postgres remains authoritative; Airtable sync failures must never change sequencing state.
 - Use two Telegram bots: vendor-facing and manager-facing.
+- Vendor messages arrive through Telegram, email, or the generic inbound API. Every approved vendor message is delivered through both Telegram and email.
+- All manager alerts, approvals, digests, and controls stay in Telegram.
+- A missing vendor email or Telegram destination blocks approval. After one channel succeeds, activate the stage; retry only a failed second channel.
 - Build the generic `/vendor-in` webhook so Telegram is only one channel.
 - Use HTTP Request for OpenAI Responses API calls requiring strict JSON schema, exact model IDs, raw errors, or fallback control.
 - Default model is `gpt-5.6-luna`; use `gpt-5.6-terra` or `gpt-5.4-mini` only if fixture-tested draft quality requires it.
@@ -68,7 +72,7 @@ Use n8n credentials by name only. Never hardcode bearer tokens, Telegram bot tok
 Known n8n gotchas to account for:
 
 - Active webhooks may use the active workflow snapshot, not the editor draft.
-- Imported Webhook nodes in local n8n may need a fixed top-level `webhookId` when the production URL must be a clean path such as `/webhook/board`.
+- Imported Webhook nodes in local n8n may need a fixed top-level `webhookId` when the production URL must use a stable path.
 - After import/activation, restart or reload active workflows if needed, then verify with a real execution or database row.
 - Respond to Webhook status-code expressions may be unreliable in some local n8n versions; prefer separate Respond nodes with literal status codes when 404/200 behavior matters.
 - Imported workflow `id` values must fit n8n database limits; keep generated IDs under 36 characters.
@@ -97,7 +101,13 @@ Known n8n gotchas to account for:
 - Imported Form Trigger workflows may register under workflow/node-prefixed form paths. Query n8n's webhook records or test the registered `/form/...` path after import.
 - Form Trigger workflows should use the Form completion step, not Respond to Webhook.
 - AI structured output may be wrapped; downstream code should handle wrapped and direct JSON shapes.
-- Board and detail pages are demo visualizations by default. Show model outputs, guard outcomes, and event details in plain language first; keep raw JSON behind collapsed technical audit controls.
+- Airtable Interface setup is presentation configuration and remains a documented manual step after API schema provisioning. Managers get Interface-only access and use the intake form as their only Airtable write surface.
+- Airtable Web API record mutations should batch at most 10 records and use typed values. Keep durable external-record mappings and payload hashes for idempotent reconciliation.
+- Airtable select values must exactly match manifest choices, and linked-record IDs may require a later reconciliation pass after parent mappings are first created. Use `$input.all()` in Code nodes; do not rely on the legacy `items` variable.
+- Code embedded inside a JavaScript workflow generator needs doubled backslashes for emitted regex and newline escapes. Compile every generated Code node before accepting the export.
+- PostgreSQL data-modifying CTEs share one statement snapshot. Do not insert a row in one CTE and then rely on updating that same row in a later CTE; generate required tokens and subjects before the insert.
+- Email replies must resolve by `In-Reply-To` or `[MR-...]` token before sender/unit fallback. Thread context never overrides the assigned-vendor sender check.
+- Dual delivery needs one durable row per channel. Never infer success for both channels from one provider response, never repeat a successful channel during retry, and refresh the failed channel's destination from the current vendor record before retrying.
 - Repeated live-model rehearsal can expose small variance. Prefer deterministic post-model boundaries and document every boundary in `progress-notes.md`.
 - Error Workflow verification should use durable signals such as `event_log` rows or execution records, not only webhook HTTP status. In local n8n 2.29, a Webhook workflow that throws before a Respond node can still return HTTP 200 with an empty body while the Error Workflow fires correctly.
 - Stage 7 live fixture rehearsal requires distinct Telegram sender chat IDs per vendor identity. Do not reuse the manager/prospect chat as a vendor sender or builder alert target.

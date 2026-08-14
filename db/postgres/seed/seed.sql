@@ -13,15 +13,29 @@ WHERE turn_id IN (SELECT id FROM fixture_turns)
 
 DELETE FROM event_log
 WHERE actor_type = 'vendor'
-  AND channel IN ('generic', 'telegram')
+  AND channel IN ('generic', 'telegram', 'email')
   AND event_type IN ('vendor_inbound', 'manager_match_needed', 'duplicate_inbound', 'unknown_sender')
   AND (
     actor_id LIKE 'placeholder\_%' ESCAPE '\'
     OR actor_id = 'mystery_vendor'
   );
 
+DELETE FROM airtable_record_map
+WHERE (entity_type = 'approval' AND entity_id IN (
+    SELECT id FROM outbound_queue
+    WHERE turn_id IN (SELECT id FROM "turn" WHERE is_fixture = TRUE)
+       OR vendor_id IN (SELECT id FROM vendor WHERE is_fixture = TRUE)
+  ))
+   OR (entity_type = 'communication' AND entity_id IN (
+    SELECT id FROM communication_message
+    WHERE turn_id IN (SELECT id FROM "turn" WHERE is_fixture = TRUE)
+       OR vendor_id IN (SELECT id FROM vendor WHERE is_fixture = TRUE)
+  ))
+   OR (entity_type = 'intake' AND entity_id IN (SELECT id FROM "turn" WHERE is_fixture = TRUE));
+
 DELETE FROM outbound_queue
 WHERE turn_id IN (SELECT id FROM "turn" WHERE is_fixture = TRUE)
+   OR vendor_id IN (SELECT id FROM vendor WHERE is_fixture = TRUE)
    OR stage_id IN (
       SELECT ts.id
       FROM turn_stage ts
@@ -40,16 +54,29 @@ WHERE turn_id IN (SELECT id FROM "turn" WHERE is_fixture = TRUE)
    OR sender_ref LIKE 'placeholder\_%' ESCAPE '\'
    OR sender_ref = 'mystery_vendor';
 
+DELETE FROM communication_message
+WHERE turn_id IN (SELECT id FROM "turn" WHERE is_fixture = TRUE)
+   OR vendor_id IN (SELECT id FROM vendor WHERE is_fixture = TRUE)
+   OR sender_ref LIKE 'placeholder\_%' ESCAPE '\'
+   OR sender_ref = 'mystery_vendor';
+
+DELETE FROM airtable_record_map
+WHERE (entity_type = 'turn' AND entity_id IN (SELECT id FROM "turn" WHERE is_fixture = TRUE))
+   OR (entity_type = 'stage' AND entity_id IN (
+      SELECT ts.id FROM turn_stage ts JOIN "turn" t ON t.id = ts.turn_id WHERE t.is_fixture = TRUE
+   ))
+   OR (entity_type = 'vendor' AND entity_id IN (SELECT id FROM vendor WHERE is_fixture = TRUE));
+
 DELETE FROM "turn" WHERE is_fixture = TRUE;
 DELETE FROM vendor WHERE is_fixture = TRUE;
 
-INSERT INTO vendor (name, trade, telegram_chat_id, phone_e164, active, is_fixture) VALUES
-  ('Rivera Painting', 'paint', 'placeholder_rivera_painting_tg', 'placeholder_rivera_painting', TRUE, TRUE),
-  ('Maria''s Cleaning Co', 'clean', 'placeholder_marias_cleaning_tg', 'placeholder_marias_cleaning', TRUE, TRUE),
-  ('Dale Hutchins', 'repairs', 'placeholder_dale_hutchins_tg', 'placeholder_dale_hutchins', TRUE, TRUE),
-  ('QuickHaul Junk Removal', 'trashout', 'placeholder_quickhaul_junk_tg', 'placeholder_quickhaul_junk', TRUE, TRUE),
-  ('Statewide Flooring', 'flooring', 'placeholder_statewide_flooring_tg', 'placeholder_statewide_flooring', TRUE, TRUE),
-  ('Cedar Ridge in-house', 'inspect', 'placeholder_cedar_inhouse_tg', 'placeholder_cedar_inhouse', TRUE, TRUE);
+INSERT INTO vendor (name, trade, telegram_chat_id, phone_e164, email_address, active, is_fixture) VALUES
+  ('Rivera Painting', 'paint', 'placeholder_rivera_painting_tg', 'placeholder_rivera_painting', 'rivera@example.com', TRUE, TRUE),
+  ('Maria''s Cleaning Co', 'clean', 'placeholder_marias_cleaning_tg', 'placeholder_marias_cleaning', 'marias@example.com', TRUE, TRUE),
+  ('Dale Hutchins', 'repairs', 'placeholder_dale_hutchins_tg', 'placeholder_dale_hutchins', 'dale@example.com', TRUE, TRUE),
+  ('QuickHaul Junk Removal', 'trashout', 'placeholder_quickhaul_junk_tg', 'placeholder_quickhaul_junk', 'quickhaul@example.com', TRUE, TRUE),
+  ('Statewide Flooring', 'flooring', 'placeholder_statewide_flooring_tg', 'placeholder_statewide_flooring', 'statewide@example.com', TRUE, TRUE),
+  ('Cedar Ridge in-house', 'inspect', 'placeholder_cedar_inhouse_tg', 'placeholder_cedar_inhouse', 'inhouse@example.com', TRUE, TRUE);
 
 CREATE TEMP TABLE stage_template_seed (
   seq INT PRIMARY KEY,

@@ -27,73 +27,39 @@
       }
     },
     {
-      "id": "parse-manager-update",
+      "id": "parse",
       "name": "Parse Manager Update",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        240,
+        260,
         0
       ],
       "parameters": {
-        "jsCode": "const callback = $json.callback_query || null;\nconst message = $json.message || $json.edited_message || null;\nif (message) {\n  const text = String(message.text || '').trim().toLowerCase();\n  const chatId = message.chat && message.chat.id ? message.chat.id : '';\n  const fromId = message.from ? message.from.id : 'manager-telegram';\n  if (text === '/health') return [{ json: { handled: true, route: 'health', actor_id: String(fromId), channel: 'telegram', telegram_chat_id: chatId } }];\n  return [{ json: { handled: false, route: 'noop', reason: 'No action taken.', telegram_chat_id: chatId } }];\n}\nif (!callback) return [{ json: { handled: false, action: 'ignored', reason: 'No callback query.' } }];\nconst data = String(callback.data || '');\nconst chatId = callback.message && callback.message.chat ? callback.message.chat.id : '';\nconst fromId = callback.from ? callback.from.id : 'manager-telegram';\nconst parts = data.split(':');\nconst action = parts[0] || 'NOOP';\nif (action === 'DONE') return [{ json: { handled: true, route: 'complete', action: 'DONE', stage_id: Number(parts[1] || 0), actor_id: String(fromId), channel: 'digest', telegram_callback_query_id: callback.id, telegram_chat_id: chatId } }];\nif (['SEND', 'HOLD', 'EDIT'].includes(action)) return [{ json: { handled: true, route: 'action', action, queue_id: Number(parts[1] || 0), actor_id: String(fromId), channel: 'telegram', telegram_callback_query_id: callback.id, telegram_chat_id: chatId } }];\nif (['SKIP', 'SNOOZE', 'CHASE'].includes(action)) return [{ json: { handled: true, route: 'action', action, stage_id: Number(parts[1] || 0), actor_id: String(fromId), channel: 'telegram', telegram_callback_query_id: callback.id, telegram_chat_id: chatId } }];\nif (action === 'CANCEL') return [{ json: { handled: true, route: 'action', action, turn_id: Number(parts[1] || 0), actor_id: String(fromId), channel: 'telegram', telegram_callback_query_id: callback.id, telegram_chat_id: chatId } }];\nreturn [{ json: { handled: false, action: 'noop', telegram_callback_query_id: callback.id, telegram_chat_id: chatId, reason: 'No action taken.' } }];"
+        "jsCode": "const cb=$json.callback_query||null; const msg=$json.message||$json.edited_message||null;\nif(msg){const text=String(msg.text||'').trim();const chat=msg.chat?.id||'';const actor=String(msg.from?.id||'manager');if(text.toLowerCase()==='/health')return[{json:{route:'health',actor_id:actor,channel:'telegram',telegram_chat_id:chat}}];if(text)return[{json:{route:'action',action:'EDIT',queue_id:0,edited_text:text,actor_id:actor,channel:'telegram',telegram_chat_id:chat,reply_to_message_id:Number(msg.reply_to_message?.message_id||0)}}];return[{json:{route:'ignore',telegram_chat_id:chat}}];}\nif(!cb)return[{json:{route:'ignore'}}];const p=String(cb.data||'').split(':');const action=String(p[0]||'').toUpperCase();const id=Number(p[1]||0);const base={actor_id:String(cb.from?.id||'manager'),channel:'telegram',telegram_chat_id:cb.message?.chat?.id||'',telegram_callback_query_id:cb.id};\nif(action==='DONE')return[{json:{...base,route:'complete',stage_id:id}}];if(['SEND','EDIT','HOLD','RETRY_EMAIL','RETRY_TELEGRAM'].includes(action))return[{json:{...base,route:'action',action,queue_id:id}}];if(['SKIP','SNOOZE','CHASE'].includes(action))return[{json:{...base,route:'action',action,stage_id:id}}];if(action==='CANCEL')return[{json:{...base,route:'action',action,turn_id:id}}];return[{json:{...base,route:'ignore'}}];"
       }
     },
     {
-      "id": "manager-update-handled",
-      "name": "Manager Update Handled?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.3,
-      "position": [
-        500,
-        0
-      ],
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict",
-            "version": 2
-          },
-          "conditions": [
-            {
-              "id": "manager-update-handled-condition",
-              "leftValue": "={{ $json.handled }}",
-              "rightValue": true,
-              "operator": {
-                "type": "boolean",
-                "operation": "true",
-                "singleValue": true
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      }
-    },
-    {
-      "id": "route-health",
-      "name": "Route Health Command",
+      "id": "routes",
+      "name": "Determine Manager Route",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        760,
-        -260
+        520,
+        0
       ],
       "parameters": {
-        "jsCode": "return [{ json: { route_health: $json.route === 'health', ...$json } }];"
+        "jsCode": "return [{json:{...$json,is_health:$json.route==='health',is_complete:$json.route==='complete',is_action:$json.route==='action',is_callback:Boolean($json.telegram_callback_query_id)}}];"
       }
     },
     {
-      "id": "is-health-command",
-      "name": "Is Health Command?",
+      "id": "health",
+      "name": "Health Command?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        1020,
-        -260
+        780,
+        -200
       ],
       "parameters": {
         "conditions": {
@@ -105,8 +71,8 @@
           },
           "conditions": [
             {
-              "id": "is-health-command-condition",
-              "leftValue": "={{ $json.route_health }}",
+              "id": "health-condition",
+              "leftValue": "={{ $json.is_health === true }}",
               "rightValue": true,
               "operator": {
                 "type": "boolean",
@@ -121,13 +87,13 @@
       }
     },
     {
-      "id": "call-health-core",
+      "id": "health-core",
       "name": "Call Health Core",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1,
       "position": [
-        1280,
-        -360
+        1040,
+        -300
       ],
       "parameters": {
         "source": "database",
@@ -138,18 +104,18 @@
       }
     },
     {
-      "id": "send-health-report",
+      "id": "health-send",
       "name": "Send Health Report",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        1540,
-        -360
+        1300,
+        -300
       ],
       "parameters": {
         "resource": "message",
         "operation": "sendMessage",
-        "chatId": "={{ $json.manager_chat_id }}",
+        "chatId": "={{ $json.manager_chat_id || $json.telegram_chat_id }}",
         "text": "={{ $json.health_text }}",
         "additionalFields": {
           "disable_web_page_preview": true,
@@ -164,26 +130,13 @@
       }
     },
     {
-      "id": "route-done-callback",
-      "name": "Route Done Callback",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1280,
-        -120
-      ],
-      "parameters": {
-        "jsCode": "return [{ json: { route_done: $json.route === 'complete', ...$json } }];"
-      }
-    },
-    {
-      "id": "is-done-callback",
-      "name": "Is Done Callback?",
+      "id": "complete",
+      "name": "Manual Completion?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        1540,
-        -120
+        1040,
+        -80
       ],
       "parameters": {
         "conditions": {
@@ -195,8 +148,8 @@
           },
           "conditions": [
             {
-              "id": "is-done-callback-condition",
-              "leftValue": "={{ $json.route_done }}",
+              "id": "complete-condition",
+              "leftValue": "={{ $json.is_complete === true }}",
               "rightValue": true,
               "operator": {
                 "type": "boolean",
@@ -211,13 +164,13 @@
       }
     },
     {
-      "id": "call-completion-core-from-manager",
-      "name": "Call Completion Core From Manager",
+      "id": "complete-core",
+      "name": "Call Stage Complete Core",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1,
       "position": [
-        1800,
-        -220
+        1300,
+        -120
       ],
       "parameters": {
         "source": "database",
@@ -228,26 +181,13 @@
       }
     },
     {
-      "id": "route-action-callback",
-      "name": "Route Action Callback",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1800,
-        20
-      ],
-      "parameters": {
-        "jsCode": "return [{ json: { route_action: $json.route === 'action', ...$json } }];"
-      }
-    },
-    {
-      "id": "is-action-callback",
-      "name": "Is Action Callback?",
+      "id": "action",
+      "name": "Manager Action?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        2060,
-        20
+        1300,
+        80
       ],
       "parameters": {
         "conditions": {
@@ -259,8 +199,8 @@
           },
           "conditions": [
             {
-              "id": "is-action-callback-condition",
-              "leftValue": "={{ $json.route_action }}",
+              "id": "action-condition",
+              "leftValue": "={{ $json.is_action === true }}",
               "rightValue": true,
               "operator": {
                 "type": "boolean",
@@ -275,13 +215,35 @@
       }
     },
     {
-      "id": "call-manager-action-core",
+      "id": "resolve",
+      "name": "Resolve Edit Queue",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1560,
+        80
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH input AS (SELECT '{{ String($json.action||\"\").replace(/'/g,\"''\") }}' action,{{ Number($json.queue_id||0) }}::int queue_id,{{ Number($json.reply_to_message_id||0) }}::bigint reply_id), resolved AS (SELECT q.id FROM outbound_queue q,input i WHERE q.status='editing' AND (q.id=i.queue_id OR (i.queue_id=0 AND (q.manager_message_id=i.reply_id OR i.reply_id=0))) ORDER BY CASE WHEN q.manager_message_id=i.reply_id THEN 0 ELSE 1 END,q.edit_prompted_at DESC NULLS LAST LIMIT 1)\nSELECT '{{ String($json.action||\"\").replace(/'/g,\"''\") }}'::text action,COALESCE(NULLIF({{ Number($json.queue_id||0) }},0),(SELECT id FROM resolved),0) queue_id,{{ Number($json.stage_id||0) }} stage_id,{{ Number($json.turn_id||0) }} turn_id,'{{ String($json.edited_text||\"\").replace(/'/g,\"''\") }}'::text edited_text,'{{ String($json.actor_id||\"manager\").replace(/'/g,\"''\") }}'::text actor_id,'{{ String($json.telegram_chat_id||\"\").replace(/'/g,\"''\") }}'::text telegram_chat_id,'{{ String($json.telegram_callback_query_id||\"\").replace(/'/g,\"''\") }}'::text telegram_callback_query_id;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "cred_make_ready_pg",
+          "name": "Make-Ready Postgres"
+        }
+      },
+      "alwaysOutputData": false
+    },
+    {
+      "id": "action-core",
       "name": "Call Manager Action Core",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1,
       "position": [
-        2320,
-        -80
+        1820,
+        80
       ],
       "parameters": {
         "source": "database",
@@ -292,13 +254,13 @@
       }
     },
     {
-      "id": "manager-action-needs-approval-card",
-      "name": "Manager Action Needs Approval Card?",
+      "id": "dispatch",
+      "name": "Dispatch Approved Message?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        2580,
-        -80
+        2080,
+        -20
       ],
       "parameters": {
         "conditions": {
@@ -310,8 +272,8 @@
           },
           "conditions": [
             {
-              "id": "manager-action-needs-approval-card-condition",
-              "leftValue": "={{ $json.should_send_manager_approval }}",
+              "id": "dispatch-condition",
+              "leftValue": "={{ $json.dispatch_required === true }}",
               "rightValue": true,
               "operator": {
                 "type": "boolean",
@@ -326,13 +288,64 @@
       }
     },
     {
-      "id": "send-chase-approval-card",
-      "name": "Send Chase Approval Card",
+      "id": "dispatcher",
+      "name": "Call Vendor Delivery Dispatcher",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [
+        2340,
+        -120
+      ],
+      "parameters": {
+        "source": "database",
+        "workflowId": "wf9-vendor-delivery",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      }
+    },
+    {
+      "id": "approval",
+      "name": "New Approval Card?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2340,
+        100
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "approval-condition",
+              "leftValue": "={{ $json.should_send_manager_approval === true }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "approval-card",
+      "name": "Send Manager Approval Card",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        2840,
-        -200
+        2600,
+        20
       ],
       "parameters": {
         "resource": "message",
@@ -346,29 +359,17 @@
               "row": {
                 "buttons": [
                   {
-                    "text": "Send",
+                    "text": "Send both",
                     "additionalFields": {
                       "callback_data": "={{ 'SEND:' + $json.queue_id }}"
                     }
-                  }
-                ]
-              }
-            },
-            {
-              "row": {
-                "buttons": [
+                  },
                   {
                     "text": "Edit",
                     "additionalFields": {
                       "callback_data": "={{ 'EDIT:' + $json.queue_id }}"
                     }
-                  }
-                ]
-              }
-            },
-            {
-              "row": {
-                "buttons": [
+                  },
                   {
                     "text": "Hold",
                     "additionalFields": {
@@ -393,21 +394,56 @@
       }
     },
     {
-      "id": "answer-callback",
-      "name": "Answer Manager Callback",
+      "id": "notice",
+      "name": "Configuration Alert?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2600,
+        180
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "notice-condition",
+              "leftValue": "={{ $json.configuration_alert === true }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "notice-send",
+      "name": "Send Configuration Alert",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        2840,
-        60
+        2860,
+        220
       ],
       "parameters": {
-        "resource": "callback",
-        "operation": "answerQuery",
-        "queryId": "={{ $json.telegram_callback_query_id }}",
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $json.manager_chat_id }}",
+        "text": "={{ $json.manager_notice_text }}",
         "additionalFields": {
-          "text": "={{ $json.outcome || $json.manager_response_text || $json.reason || $json.message || \"Done\" }}",
-          "show_alert": false
+          "disable_web_page_preview": true,
+          "appendAttribution": false
         }
       },
       "credentials": {
@@ -418,20 +454,20 @@
       }
     },
     {
-      "id": "answer-noop",
-      "name": "Answer Ignored Callback",
+      "id": "answer",
+      "name": "Answer Manager Callback",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        760,
-        180
+        2860,
+        120
       ],
       "parameters": {
         "resource": "callback",
         "operation": "answerQuery",
         "queryId": "={{ $json.telegram_callback_query_id }}",
         "additionalFields": {
-          "text": "No action taken.",
+          "text": "={{ $json.outcome || 'Done' }}",
           "show_alert": false
         }
       },
@@ -440,7 +476,8 @@
           "id": "jASZWMlrfp3v2tWH",
           "name": "Make-Ready Manager Telegram Bot"
         }
-      }
+      },
+      "continueOnFail": true
     }
   ],
   "connections": {
@@ -459,43 +496,25 @@
       "main": [
         [
           {
-            "node": "Manager Update Handled?",
+            "node": "Determine Manager Route",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Manager Update Handled?": {
+    "Determine Manager Route": {
       "main": [
         [
           {
-            "node": "Route Health Command",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Answer Ignored Callback",
+            "node": "Health Command?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Route Health Command": {
-      "main": [
-        [
-          {
-            "node": "Is Health Command?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Is Health Command?": {
+    "Health Command?": {
       "main": [
         [
           {
@@ -506,7 +525,7 @@
         ],
         [
           {
-            "node": "Route Done Callback",
+            "node": "Manual Completion?",
             "type": "main",
             "index": 0
           }
@@ -524,36 +543,25 @@
         ]
       ]
     },
-    "Route Done Callback": {
+    "Manual Completion?": {
       "main": [
         [
           {
-            "node": "Is Done Callback?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Is Done Callback?": {
-      "main": [
-        [
-          {
-            "node": "Call Completion Core From Manager",
+            "node": "Call Stage Complete Core",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Route Action Callback",
+            "node": "Manager Action?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Call Completion Core From Manager": {
+    "Call Stage Complete Core": {
       "main": [
         [
           {
@@ -564,29 +572,23 @@
         ]
       ]
     },
-    "Route Action Callback": {
+    "Manager Action?": {
       "main": [
         [
           {
-            "node": "Is Action Callback?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Is Action Callback?": {
-      "main": [
-        [
-          {
-            "node": "Call Manager Action Core",
+            "node": "Resolve Edit Queue",
             "type": "main",
             "index": 0
           }
         ],
+        []
+      ]
+    },
+    "Resolve Edit Queue": {
+      "main": [
         [
           {
-            "node": "Answer Ignored Callback",
+            "node": "Call Manager Action Core",
             "type": "main",
             "index": 0
           }
@@ -597,18 +599,76 @@
       "main": [
         [
           {
-            "node": "Manager Action Needs Approval Card?",
+            "node": "Dispatch Approved Message?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Manager Action Needs Approval Card?": {
+    "Dispatch Approved Message?": {
       "main": [
         [
           {
-            "node": "Send Chase Approval Card",
+            "node": "Call Vendor Delivery Dispatcher",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "New Approval Card?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Vendor Delivery Dispatcher": {
+      "main": [
+        [
+          {
+            "node": "Answer Manager Callback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "New Approval Card?": {
+      "main": [
+        [
+          {
+            "node": "Send Manager Approval Card",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Configuration Alert?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Manager Approval Card": {
+      "main": [
+        [
+          {
+            "node": "Answer Manager Callback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Configuration Alert?": {
+      "main": [
+        [
+          {
+            "node": "Send Configuration Alert",
             "type": "main",
             "index": 0
           }
@@ -622,7 +682,7 @@
         ]
       ]
     },
-    "Send Chase Approval Card": {
+    "Send Configuration Alert": {
       "main": [
         [
           {
@@ -640,7 +700,7 @@
   },
   "staticData": null,
   "pinData": {},
-  "versionId": "wf3-manager-router-v1",
+  "versionId": "wf3-manager-router-ae-v1",
   "triggerCount": 0,
   "tags": []
 }

@@ -4,6 +4,8 @@ This file is the running handoff record for future sessions. Read it before star
 
 ## Current Status
 
+- Airtable/email/AI redesign is implemented in source: the custom board and simulator are removed; 19 operational workflows now cover Airtable intake/sync, IMAP intake, shared AI interpretation, deterministic matching/guarding, Telegram manager control, and independent email/Telegram delivery.
+- Static verification is complete. Live Airtable provisioning, IMAP/SMTP delivery, and the redesigned n8n import remain unverified on this machine because no Airtable or mailbox credentials are configured and Docker was stopped at implementation start.
 - Stage 8 production pilot readiness pack is implemented.
 - Stage 7 is complete for implementation and live fixture verification.
 - The old recording-script document has been replaced by `docs/operating-guide.md`, a manual operating/testing guide with no fixture-runner commands except `scripts/reset-demo.ps1`.
@@ -13,7 +15,7 @@ This file is the running handoff record for future sessions. Read it before star
 - Local runtime, credentials, schema, stage template, and fixture seed data have been verified.
 - `build-plan.md` created with eight staged sessions.
 - Git repository initialized on `main`; remote target is private GitHub repo `make-ready-sequencing`.
-- Framing corrected: this is an AI automation demo, not a named software/SaaS product. Any UI is only for demo visualization.
+- Framing corrected: this is an AI automation installed around a client's existing tools, not a named software/SaaS product. Airtable replaces the retired custom visualization UI.
 
 ## Source Documents Read
 
@@ -33,10 +35,15 @@ This file is the running handoff record for future sessions. Read it before star
 | 6 | Stall Detection, Digest, Simulator, And Photos | Complete | Stall watchdog, Chase approval drafts, health metrics, simulator, photo/unsupported media handling, and board thumbnails/history are implemented and verified locally. |
 | 7 | Full Fixture Testing And Demo Hardening | Complete | Error workflow, fixture runner/report, config, docs, static checks, and guided live F01-F20 Telegram/generic/manager fixture run are complete. |
 | 8 | Production Pilot Readiness | Complete | Client-owned VPS/Caddy templates, production env contract, readiness checks, backup/restore/monitoring/SMS readiness docs, manager runbook, contract exclusions, and success metrics are implemented. |
+| Redesign | Airtable, Email, And Shared AI | Implemented; live external verification pending | Custom UI/API workflows removed; Airtable typed schema/provisioning/sync/intake, IMAP/SMTP, dual delivery, strict AI interpreter, fixtures, checks, imports, and current docs added. |
 
 ## Decisions Locked For Now
 
 - Use Postgres for demo state, not Google Sheets.
+- Use Airtable as the manager-facing operating mirror and turn-intake form. Managers don't edit synced operating tables.
+- Receive vendor replies through Telegram, email, or the generic inbound API.
+- Deliver every approved vendor message through email and Telegram; block when either destination is missing and retry only failed channels.
+- Keep all manager alerts, approvals, digests, and controls in Telegram.
 - Do not assign a product name. Refer to the work as the make-ready sequencing AI automation demo.
 - Build and test the demo locally by default.
 - Keep VPS, domain, and Caddy for production/pilot deployment only.
@@ -58,11 +65,13 @@ This file is the running handoff record for future sessions. Read it before star
 - Stage 1 tunnel default is Cloudflare Tunnel.
 - Stage 1 demo timezone is `America/Phoenix`.
 - Stage 1 secret handling uses committed `.env.example`, an ignored local `.env`, scripted local Postgres credential import, and manual n8n credentials for external APIs.
-- Surface vendor reply rate and auto-handled rate in the board header, weekly digest, and manager `/health` command.
+- Surface vendor reply rate and auto-handled rate in Airtable, the weekly digest, and manager `/health` command.
 - After every completed task, commit and push changes to `main` unless blocked; report the commit hash or push failure.
 
 ## Open Questions / Validation Items
 
+- Provision a real Airtable base with `scripts/setup-airtable.ps1`, configure the Interface/form, and run the live schema check.
+- Create the named IMAP and SMTP credentials, import with all connector switches, then run the live threaded reply, dual delivery, partial failure, and failed-channel retry tests.
 - Vendor Telegram trigger remains inactive by default. Optional Stage 4 live Telegram verification has been completed once locally; repeat it only with a fresh HTTPS tunnel, container-recreated `WEBHOOK_URL`, and local-only `VENDOR_TELEGRAM_CHAT_ID`.
 - Confirm the domain/VPS provider only when a named pilot client exists.
 - Verify Property Meld sequencing behavior before making competitive claims in sales.
@@ -501,9 +510,9 @@ This file is the running handoff record for future sessions. Read it before star
 - Added inert production readiness templates:
   - `.env.production.example` is committed as a placeholder contract and explicitly unignored in `.gitignore`.
   - `docker-compose.production.yml` adds a production-shaped Caddy/Postgres/n8n stack with explicit non-`latest` image tags.
-  - `Caddyfile.production` reverse-proxies `n8n.<client-domain>` and serves the static board at `board.<client-domain>` behind Caddy basic auth.
+  - `Caddyfile.production` reverse-proxies `n8n.<client-domain>` behind Caddy basic auth. The removed custom board is not part of the production template.
 - Added `scripts/check-stage-8-production-readiness.ps1`.
-  - Validates production env placeholders are replaced, required secrets are long enough, `WEBHOOK_URL` is HTTPS and matches `N8N_HOST`, board origin matches `BOARD_HOST`, SMS remains disabled, retention defaults are sane, images are pinned, and required Caddy directives are present.
+  - Validates production env placeholders are replaced, required secrets are long enough, `WEBHOOK_URL` is HTTPS and matches `N8N_HOST`, SMS remains disabled, retention defaults are sane, images are pinned, and required Caddy directives are present.
   - Runs `docker compose --env-file <env> -f docker-compose.production.yml config` unless `-SkipComposeConfig` is passed.
 - Added Stage 8 docs:
   - `docs/stage-8-production-pilot-readiness.md`
@@ -513,7 +522,7 @@ This file is the running handoff record for future sessions. Read it before star
 - Production posture locked:
   - Readiness pack only; no VPS/domain was provisioned.
   - SMS design only; `SMS_ENABLED=false` is enforced by the check script.
-  - First pilot auth is reverse-proxy/basic-auth in front of the static board plus existing n8n auth; custom app accounts remain deferred.
+  - First pilot auth is reverse-proxy/basic-auth in front of n8n; custom app accounts remain deferred.
   - Client-owned single-client instance remains the only production delivery model.
 - Verification completed:
   - PowerShell parser check passed for `scripts/check-stage-8-production-readiness.ps1`.
@@ -521,3 +530,14 @@ This file is the running handoff record for future sessions. Read it before star
   - A generated ignored dummy env under `data/stage-8-check/dummy.env` passes `scripts/check-stage-8-production-readiness.ps1`, including `docker compose config`.
   - A generated ignored Compose copy with `caddy:latest` fails as expected on the pinned-image check.
 - No real client data, tunnel URL, chat ID, Twilio credential, API key, database dump, or `.env.production` file was committed.
+
+## Airtable, Email, And AI Proof-Of-Concept Notes
+
+- Removed the custom board, simulator, board host/configuration, and UI-only API workflows. Postgres remains authoritative and Airtable is the intended manager-facing workspace and intake form.
+- Added a typed Airtable schema manifest plus setup and validation scripts for Turns, Stages, Vendors, Communications, approvals/deliveries, and turn intake.
+- Added vendor email ingestion and dual-channel Telegram/email delivery records. A manager approval creates independent channel attempts; a partial failure can be retried without duplicating a successful channel.
+- Added one shared AI Message Interpreter for normalized Telegram, email, and generic API messages. Deterministic sender matching, unit matching, sequencing, duplicate checks, and safety rules remain authoritative.
+- Manager approvals, alerts, digests, and exception handling remain Telegram-only. No autonomous vendor messaging was introduced.
+- Local proof-of-concept verification passed for workflow generation/JSON parsing, Compose configuration, database migration/reset, Airtable schema validation, AI fallback, channel-parity fixtures, and manager action safety paths.
+- The local n8n instance contains 19 prospect-friendly operational workflows. Thirteen credential-independent core workflows are active. Airtable intake, email ingest, Telegram ingest/router, and scheduled digests remain inactive until real external credentials are configured.
+- External Airtable base creation, Airtable Interface layout, and live IMAP/SMTP delivery are intentionally not required to complete this proof of concept. They are client-specific connection steps, not additional product development.

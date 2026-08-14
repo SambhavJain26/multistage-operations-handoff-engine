@@ -18,7 +18,7 @@
     },
     {
       "id": "load-vendor-context",
-      "name": "Load Vendor Context",
+      "name": "Load Vendor And Thread Context",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
@@ -27,7 +27,7 @@
       ],
       "parameters": {
         "operation": "executeQuery",
-        "query": "WITH input AS (\n  SELECT\n    '{{ String($json.channel || \"generic\").replace(/'/g, \"''\") }}'::text AS channel,\n    '{{ String($json.sender_ref || \"\").replace(/'/g, \"''\") }}'::text AS sender_ref,\n    '{{ String($json.text || \"\").replace(/'/g, \"''\") }}'::text AS text,\n    '{{ JSON.stringify($json.media || null).replace(/'/g, \"''\") }}'::jsonb AS media,\n    '{{ String($json.received_at || new Date().toISOString()).replace(/'/g, \"''\") }}'::timestamptz AS received_at\n)\nSELECT\n  input.channel,\n  input.sender_ref,\n  input.text,\n  input.media,\n  input.received_at,\n  v.id AS vendor_id,\n  v.name AS vendor_name,\n  v.trade AS vendor_trade,\n  (v.id IS NOT NULL) AS known_vendor,\n  EXISTS (\n    SELECT 1\n    FROM event_log e\n    WHERE e.actor_type = 'vendor'\n      AND e.actor_id = input.sender_ref\n      AND e.channel = input.channel\n      AND e.raw_text = input.text\n      AND e.event_type IN ('vendor_inbound', 'manager_match_needed', 'duplicate_inbound', 'stage_complete')\n      AND e.created_at > now() - interval '60 seconds'\n  ) AS duplicate_like\nFROM input\nLEFT JOIN vendor v\n  ON v.active = true\n AND (v.telegram_chat_id = input.sender_ref OR v.phone_e164 = input.sender_ref)\nORDER BY v.id\nLIMIT 1;",
+        "query": "WITH input AS (\n  SELECT\n    '{{ String($json.channel || \"generic\").replace(/'/g, \"''\") }}'::text AS channel,\n    '{{ String($json.sender_ref || \"\").replace(/'/g, \"''\") }}'::text AS sender_ref,\n    '{{ String($json.provider_message_id || \"\").replace(/'/g, \"''\") }}'::text AS provider_message_id,\n    '{{ String($json.thread_ref || \"\").replace(/'/g, \"''\") }}'::text AS thread_ref,\n    '{{ String($json.in_reply_to || \"\").replace(/'/g, \"''\") }}'::text AS in_reply_to,\n    upper('{{ String($json.reply_token || \"\").replace(/'/g, \"''\") }}')::text AS reply_token,\n    '{{ String($json.subject || \"\").replace(/'/g, \"''\") }}'::text AS subject,\n    '{{ String($json.text || \"\").replace(/'/g, \"''\") }}'::text AS text,\n    '{{ String($json.raw_text || $json.text || \"\").replace(/'/g, \"''\") }}'::text AS raw_text,\n    '{{ JSON.stringify($json.media || null).replace(/'/g, \"''\") }}'::jsonb AS media,\n    '{{ JSON.stringify($json.attachments || ($json.media ? [$json.media] : [])).replace(/'/g, \"''\") }}'::jsonb AS attachments,\n    '{{ String($json.received_at || new Date().toISOString()).replace(/'/g, \"''\") }}'::timestamptz AS received_at\n), reply_queue AS (\n  SELECT oq.* FROM outbound_queue oq, input\n  WHERE (input.reply_token <> '' AND oq.reply_token = input.reply_token)\n     OR EXISTS (SELECT 1 FROM communication_message cm WHERE cm.outbound_queue_id = oq.id AND cm.provider_message_id = input.in_reply_to AND input.in_reply_to <> '')\n  ORDER BY oq.id DESC LIMIT 1\n), sender_candidates AS (\n  SELECT v.* FROM vendor v, input\n  WHERE v.active = true AND (\n    (input.channel = 'telegram' AND v.telegram_chat_id = input.sender_ref) OR\n    (input.channel = 'email' AND lower(v.email_address) = lower(input.sender_ref)) OR\n    (input.channel = 'generic' AND (v.phone_e164 = input.sender_ref OR v.telegram_chat_id = input.sender_ref OR lower(v.email_address) = lower(input.sender_ref)))\n  )\n), resolved AS (\n  SELECT COALESCE(\n    (SELECT rq.vendor_id FROM reply_queue rq WHERE EXISTS (SELECT 1 FROM sender_candidates sc WHERE sc.id=rq.vendor_id)),\n    CASE WHEN (SELECT count(*) FROM sender_candidates) = 1 THEN (SELECT id FROM sender_candidates LIMIT 1) END\n  ) AS vendor_id,\n    (SELECT count(*) FROM sender_candidates) AS sender_candidate_count\n), selected_vendor AS (\n  SELECT v.* FROM vendor v JOIN resolved r ON r.vendor_id = v.id\n), duplicate_before AS (\n  SELECT EXISTS (SELECT 1 FROM communication_message cm,input i WHERE cm.channel=i.channel AND cm.provider_message_id=i.provider_message_id AND i.provider_message_id<>'')\n    OR EXISTS (SELECT 1 FROM communication_message cm,input i WHERE cm.direction='inbound' AND cm.channel=i.channel AND cm.sender_ref=i.sender_ref AND cm.normalized_text=i.text AND cm.created_at>now()-interval '60 seconds') duplicate_like\n), stored_message AS (\n  INSERT INTO communication_message(direction,channel,vendor_id,turn_id,stage_id,outbound_queue_id,provider_message_id,thread_ref,in_reply_to,sender_ref,subject,body_text,normalized_text,status,received_at,ai_result)\n  SELECT 'inbound',i.channel,r.vendor_id,rq.turn_id,rq.stage_id,rq.id,NULLIF(i.provider_message_id,''),NULLIF(i.thread_ref,''),NULLIF(i.in_reply_to,''),i.sender_ref,i.subject,i.raw_text,i.text,'received',i.received_at,jsonb_build_object('attachments',i.attachments)\n  FROM input i CROSS JOIN resolved r LEFT JOIN reply_queue rq ON true WHERE i.provider_message_id<>''\n  ON CONFLICT(channel,provider_message_id) WHERE provider_message_id IS NOT NULL AND provider_message_id<>'' DO NOTHING RETURNING id\n), stored_media AS (\n  INSERT INTO media_asset(turn_id,stage_id,vendor_id,channel,sender_ref,media_type,file_id,local_path,caption,status)\n  SELECT rq.turn_id,rq.stage_id,r.vendor_id,i.channel,i.sender_ref,CASE WHEN attachment->>'type'='photo' THEN 'photo' WHEN attachment->>'type'='voice' THEN 'voice' ELSE 'unsupported' END,attachment->>'file_id',attachment->>'local_path',i.text,CASE WHEN attachment->>'type'='photo' THEN 'received' ELSE 'needs_manager' END\n  FROM input i CROSS JOIN resolved r LEFT JOIN reply_queue rq ON true CROSS JOIN LATERAL jsonb_array_elements(i.attachments) attachment\n  WHERE jsonb_typeof(i.attachments)='array' AND NOT (SELECT duplicate_like FROM duplicate_before) RETURNING id\n)\nSELECT input.*, sv.id AS vendor_id, sv.name AS vendor_name, sv.trade AS vendor_trade, sv.email_address, sv.telegram_chat_id,\n  (sv.id IS NOT NULL) AS known_vendor, (r.sender_candidate_count > 1 AND NOT EXISTS (SELECT 1 FROM reply_queue)) AS ambiguous_sender,\n  rq.id AS thread_queue_id, rq.stage_id AS thread_stage_id, rq.turn_id AS thread_turn_id,\n  (SELECT duplicate_like FROM duplicate_before) AS duplicate_like,COALESCE((SELECT id FROM stored_message LIMIT 1),(SELECT cm.id FROM communication_message cm WHERE cm.channel=input.channel AND cm.provider_message_id=input.provider_message_id AND input.provider_message_id<>'' LIMIT 1)) communication_id,(SELECT id FROM stored_media LIMIT 1) media_asset_id,\n  COALESCE((SELECT jsonb_agg(jsonb_build_object('turn_id', t.id, 'unit_label', t.unit_label, 'property_address', t.property_address, 'stage_id', ts.id, 'stage_code', ts.stage_code, 'stage_name', ts.stage_name, 'status', ts.status) ORDER BY t.unit_label)\n    FROM turn_stage ts JOIN \"turn\" t ON t.id=ts.turn_id WHERE t.status='active' AND ts.vendor_id=sv.id AND ts.status IN ('active','awaiting_approval','awaiting_delivery')), '[]'::jsonb) AS active_assignments,\n  COALESCE((SELECT jsonb_agg(x.message ORDER BY x.created_at DESC) FROM (SELECT cm.created_at, jsonb_build_object('direction',cm.direction,'channel',cm.channel,'subject',cm.subject,'text',cm.normalized_text,'intent',cm.intent) AS message FROM communication_message cm WHERE cm.vendor_id=sv.id ORDER BY cm.created_at DESC LIMIT 5) x), '[]'::jsonb) AS recent_messages,\n  CASE WHEN rq.id IS NULL THEN NULL ELSE jsonb_build_object('queue_id',rq.id,'turn_id',rq.turn_id,'stage_id',rq.stage_id,'reply_token',rq.reply_token,'last_message',rq.approved_text) END AS reply_context\nFROM input CROSS JOIN resolved r LEFT JOIN selected_vendor sv ON true LEFT JOIN reply_queue rq ON true;",
         "options": {}
       },
       "credentials": {
@@ -35,11 +35,12 @@
           "id": "cred_make_ready_pg",
           "name": "Make-Ready Postgres"
         }
-      }
+      },
+      "alwaysOutputData": false
     },
     {
       "id": "known-vendor",
-      "name": "Known Vendor?",
+      "name": "Known Unambiguous Vendor?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
@@ -57,7 +58,7 @@
           "conditions": [
             {
               "id": "known-vendor-condition",
-              "leftValue": "={{ $json.known_vendor }}",
+              "leftValue": "={{ $json.known_vendor && !$json.ambiguous_sender }}",
               "rightValue": true,
               "operator": {
                 "type": "boolean",
@@ -72,50 +73,47 @@
       }
     },
     {
-      "id": "build-openai-classification-request",
-      "name": "Build OpenAI Classification Request",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
+      "id": "interpret-vendor-message",
+      "name": "Call AI Message Interpreter",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
       "position": [
         840,
         -180
       ],
       "parameters": {
-        "jsCode": "const media = typeof $json.media === 'string' && $json.media ? JSON.parse($json.media) : $json.media || null;\nconst text = String($json.text || '');\nconst openStages = {\n  vendor_id: $json.vendor_id ? Number($json.vendor_id) : null,\n  vendor_name: $json.vendor_name || null,\n  vendor_trade: $json.vendor_trade || null\n};\nconst schema = {\n  type: 'object',\n  additionalProperties: false,\n  required: ['intent', 'unit_hint', 'stage_hint', 'eta_text', 'confidence'],\n  properties: {\n    intent: { type: 'string', enum: ['stage_complete', 'stage_started', 'delay_notice', 'question', 'not_my_unit', 'unclear'] },\n    unit_hint: { type: ['string', 'null'] },\n    stage_hint: { type: ['string', 'null'] },\n    eta_text: { type: ['string', 'null'] },\n    confidence: { type: 'number' }\n  }\n};\nreturn [{ json: {\n  channel: $json.channel || 'generic',\n  sender_ref: $json.sender_ref || '',\n  text,\n  media,\n  received_at: $json.received_at || new Date().toISOString(),\n  vendor_id: openStages.vendor_id,\n  vendor_name: openStages.vendor_name,\n  vendor_trade: openStages.vendor_trade,\n  known_vendor: Boolean($json.known_vendor),\n  duplicate_like: Boolean($json.duplicate_like),\n  openai_request: {\n    model: 'gpt-5.6-luna',\n    temperature: 0,\n    max_output_tokens: 150,\n    input: [\n      { role: 'system', content: 'You classify short text messages sent by trade contractors about vacant rental unit work. Return only the strict JSON object. Never assess damage, tenant responsibility, deposits, wear and tear, or cost; if raised, intent is question.' },\n      { role: 'user', content: 'Vendor text: ' + text + '\\\\nVendor trade: ' + ($json.vendor_trade || '') }\n    ],\n    text: { format: { type: 'json_schema', name: 'vendor_reply', schema, strict: true } }\n  }\n} }];"
+        "source": "database",
+        "workflowId": "wf9-ai-interpreter",
+        "options": {
+          "waitForSubWorkflow": true
+        }
       }
     },
     {
-      "id": "classify-vendor-message-openai",
-      "name": "Classify Vendor Message With OpenAI",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "id": "load-unit-candidates",
+      "name": "Prepare Unit Match Candidates",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
       "position": [
         1120,
         -180
       ],
       "parameters": {
-        "method": "POST",
-        "url": "https://api.openai.com/v1/responses",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "openAiApi",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify($json.openai_request) }}",
-        "options": {
-          "timeout": 12000
-        }
+        "operation": "executeQuery",
+        "query": "WITH input AS (\n  SELECT '{{ String($json.text || \"\").replace(/'/g, \"''\") }}'::text AS text,\n    '{{ String(($json.interpretation || {}).unit_hint || \"\").replace(/'/g, \"''\") }}'::text AS unit_hint,\n    {{ Number($json.vendor_id || 0) }}::int AS vendor_id,\n    {{ Number($json.thread_stage_id || 0) }}::int AS thread_stage_id\n), candidates AS (\n SELECT COALESCE(jsonb_agg(jsonb_build_object('turn_id',t.id,'unit_label',t.unit_label,'property_address',t.property_address,'stage_id',ts.id,'stage_code',ts.stage_code,'stage_name',ts.stage_name,'assigned_vendor_id',ts.vendor_id) ORDER BY t.unit_label,ts.seq),'[]'::jsonb) rows\n FROM input JOIN turn_stage ts ON ts.status IN ('active','awaiting_approval','awaiting_delivery') JOIN \"turn\" t ON t.id=ts.turn_id AND t.status='active'\n WHERE (input.thread_stage_id>0 AND ts.id=input.thread_stage_id)\n    OR (input.thread_stage_id=0 AND input.vendor_id>0 AND ts.vendor_id=input.vendor_id)\n)\nSELECT input.text,input.unit_hint,input.vendor_id,input.thread_stage_id,candidates.rows AS candidates,\n  '{{ String($json.channel || \"generic\").replace(/'/g, \"''\") }}'::text AS channel,\n  '{{ String($json.sender_ref || \"\").replace(/'/g, \"''\") }}'::text AS sender_ref,\n  '{{ String($json.provider_message_id || \"\").replace(/'/g, \"''\") }}'::text AS provider_message_id,\n  '{{ String($json.thread_ref || \"\").replace(/'/g, \"''\") }}'::text AS thread_ref,\n  '{{ String($json.in_reply_to || \"\").replace(/'/g, \"''\") }}'::text AS in_reply_to,\n  '{{ String($json.subject || \"\").replace(/'/g, \"''\") }}'::text AS subject,\n  '{{ String($json.raw_text || $json.text || \"\").replace(/'/g, \"''\") }}'::text AS raw_text,\n  '{{ JSON.stringify($json.media || null).replace(/'/g, \"''\") }}'::jsonb AS media,\n  '{{ String($json.received_at || new Date().toISOString()).replace(/'/g, \"''\") }}'::timestamptz AS received_at,\n  '{{ String($json.vendor_name || \"\").replace(/'/g, \"''\") }}'::text AS vendor_name,\n  '{{ String($json.vendor_trade || \"\").replace(/'/g, \"''\") }}'::text AS vendor_trade,\n  '{{ String($json.email_address || \"\").replace(/'/g, \"''\") }}'::text AS email_address,\n  '{{ String($json.telegram_chat_id || \"\").replace(/'/g, \"''\") }}'::text AS telegram_chat_id,\n  {{ $json.duplicate_like ? 'true' : 'false' }}::boolean AS duplicate_like,\n  {{ $json.ambiguous_sender ? 'true' : 'false' }}::boolean AS ambiguous_sender,\n  '{{ JSON.stringify($json.interpretation || {}).replace(/'/g, \"''\") }}'::jsonb AS interpretation\nFROM input CROSS JOIN candidates;",
+        "options": {}
       },
       "credentials": {
-        "openAiApi": {
-          "id": "cred_make_ready_openai",
-          "name": "Make-Ready OpenAI"
+        "postgres": {
+          "id": "cred_make_ready_pg",
+          "name": "Make-Ready Postgres"
         }
       },
-      "continueOnFail": true
+      "alwaysOutputData": true
     },
     {
-      "id": "parse-classification-or-fallback",
-      "name": "Parse Classification Or Fallback",
+      "id": "score-unit-match",
+      "name": "Score Unit Match",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -123,46 +121,29 @@
         -180
       ],
       "parameters": {
-        "jsCode": "const source = $('Build OpenAI Classification Request').first().json;\nconst raw = $json || {};\nfunction deterministic(text) {\n  const lower = String(text || '').toLowerCase();\n  if (/deposit|tenant charge|tenant\\s+trashing|wear and tear|wear\\s+and\\s+tear/.test(lower)) {\n    return { intent: 'question', unit_hint: null, stage_hint: null, eta_text: null, confidence: 0.9 };\n  }\n  if (/\\?|water|lockbox|access|gate|key|code/.test(lower)) {\n    return { intent: 'question', unit_hint: null, stage_hint: null, eta_text: null, confidence: 0.78 };\n  }\n  if (/can't|cant|cannot|won't|wont|late|thursday|tomorrow|delay|need one more|not until/.test(lower)) {\n    return { intent: 'delay_notice', unit_hint: null, stage_hint: null, eta_text: String(text || ''), confidence: 0.76 };\n  }\n  if (/wrong unit|not my|not ours|not mine/.test(lower)) {\n    return { intent: 'not_my_unit', unit_hint: null, stage_hint: null, eta_text: null, confidence: 0.82 };\n  }\n  if (/started|on the way|materials arrived|patched|working on/.test(lower)) {\n    return { intent: 'stage_started', unit_hint: null, stage_hint: null, eta_text: null, confidence: 0.72 };\n  }\n  if (/done|finished|finishd|finshed|complete|completed|all set|cleaned|painted/.test(lower)) {\n    return { intent: 'stage_complete', unit_hint: null, stage_hint: null, eta_text: null, confidence: 0.84 };\n  }\n  return { intent: 'unclear', unit_hint: null, stage_hint: null, eta_text: null, confidence: 0.35 };\n}\nlet parsed = null;\ntry {\n  const text = raw.output_text || (Array.isArray(raw.output) && raw.output[0] && raw.output[0].content && raw.output[0].content[0] && raw.output[0].content[0].text);\n  if (text) parsed = JSON.parse(text);\n} catch (error) {\n  parsed = null;\n}\nconst fallback = deterministic(source.text);\nconst classification = parsed && parsed.intent\n  ? { status: 'openai', model: 'gpt-5.6-luna', ...parsed }\n  : { status: 'fallback_deterministic', model: 'gpt-5.6-luna', ...fallback };\nreturn [{ json: {\n  channel: source.channel,\n  sender_ref: source.sender_ref,\n  text: source.text,\n  media: source.media,\n  received_at: source.received_at,\n  vendor_id: source.vendor_id,\n  vendor_name: source.vendor_name,\n  vendor_trade: source.vendor_trade,\n  known_vendor: source.known_vendor,\n  duplicate_like: source.duplicate_like,\n  classification\n} }];"
+        "jsCode": "const first = $json || {}; const rows = Array.isArray(first.candidates) ? first.candidates : (first.candidates ? JSON.parse(first.candidates) : []);\nfunction tokens(value) { return String(value || '').toLowerCase().normalize('NFKD').replace(/[\\u0300-\\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim().split(/\\s+/).filter(Boolean); }\nconst sourceTokens = new Set(tokens((first.text || '') + ' ' + (first.unit_hint || '')));\nconst scored = rows.filter(r => r.stage_id).map(r => {\n  let score=0; const reasons=[]; const compact=String(r.unit_label||'').toLowerCase().replace(/[^a-z0-9]/g,''); const numeric=(compact.match(/\\d+/)||[''])[0];\n  if (Number(first.thread_stage_id||0) === Number(r.stage_id)) { score=100; reasons.push('reply_thread'); }\n  else if (compact && sourceTokens.has(compact)) { score=100; reasons.push('exact_unit_label'); }\n  else if (numeric && sourceTokens.has(numeric)) { score=90; reasons.push('unit_token'); }\n  else { const street=tokens(r.property_address).find(t => !/^\\d+$/.test(t) && !['st','street','ave','avenue','rd','road','dr','drive','ct','court'].includes(t)); if(street&&sourceTokens.has(street)){score=70;reasons.push('street_name');} }\n  return { turn_id:Number(r.turn_id), stage_id:Number(r.stage_id), unit_label:r.unit_label, property_address:r.property_address, stage_code:r.stage_code, stage_name:r.stage_name, assigned_vendor_id:r.assigned_vendor_id?Number(r.assigned_vendor_id):null, score, reasons };\n}).sort((a,b)=>b.score-a.score||a.unit_label.localeCompare(b.unit_label));\nconst top=scored[0]||null; const ties=top?scored.filter(c=>c.score===top.score):[]; const selected=top&&top.score>=70&&ties.length===1?top:null;\nconst interpretation=typeof first.interpretation==='string'?JSON.parse(first.interpretation):first.interpretation||{};\nreturn [{ json: { ...first, candidates:undefined, interpretation, match:{selected,score:selected?selected.score:(top?top.score:0),needs_manager:!selected,candidates:selected?[selected]:scored.filter(c=>c.score>0).slice(0,6)} } }];"
       }
     },
     {
-      "id": "call-unit-matcher",
-      "name": "Call Unit Matcher",
-      "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1,
+      "id": "apply-message-policy",
+      "name": "Apply Safe Message Policy",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         1680,
         -180
       ],
       "parameters": {
-        "source": "database",
-        "workflowId": "wf4-unit-matcher",
-        "options": {
-          "waitForSubWorkflow": true
-        }
+        "jsCode": "const i=$json.interpretation||{}; const match=$json.match||{needs_manager:true}; const flags=Array.isArray(i.safety_flags)?i.safety_flags:[];\nlet outcome=i.intent||'unclear'; let eventType='vendor_inbound'; let notify=false; let complete=false;\nif($json.duplicate_like){outcome='duplicate_like';eventType='duplicate_inbound';notify=true;}\nelse if($json.media&&['voice','unsupported'].includes(String($json.media.type||''))){outcome='unsupported_media';eventType='unsupported_media';notify=true;}\nelse if(i.status!=='openai'){outcome='manager_match_needed';eventType='classification_fallback';notify=true;}\nelse if(Number(i.confidence||0)<0.8||i.intent==='unclear'){outcome='manager_match_needed';eventType='manager_match_needed';notify=true;}\nelse if(match.needs_manager){outcome='manager_match_needed';eventType='manager_match_needed';notify=true;}\nelse if(match.selected&&Number(match.selected.assigned_vendor_id||0)!==Number($json.vendor_id||0)){outcome='stage_vendor_mismatch';eventType='manager_match_needed';notify=true;}\nelse if(flags.length){outcome='safety_review';eventType='manager_match_needed';notify=true;}\nelse if(i.intent==='stage_complete'){outcome='completion_requested';complete=true;}\nelse{notify=true;}\nconst candidates=(match.candidates||[]).map(c=>c.unit_label+' '+c.stage_name).join(', ');\nreturn [{json:{...$json,outcome,event_type:eventType,should_complete:complete,should_notify_manager:notify,needs_manager:notify,\nmanager_chat_id:'stage5-manager-chat-id-missing',manager_notice_text:(i.manager_summary||'Vendor message needs review.')+(candidates?' Candidates: '+candidates:''),\nsuggested_reply:i.suggested_reply||null,reply_needed:Boolean(i.reply_needed)}}];"
       }
     },
     {
-      "id": "prepare-known-route",
-      "name": "Prepare Known Route",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1960,
-        -180
-      ],
-      "parameters": {
-        "jsCode": "const envelope = $json.envelope || {\n  channel: $json.channel || 'generic',\n  sender_ref: $json.sender_ref || '',\n  text: $json.text || '',\n  media: $json.media || null,\n  received_at: $json.received_at || new Date().toISOString()\n};\nconst match = $json.match || { needs_manager: true, candidates: [], selected: null, score: 0 };\nconst classification = $('Parse Classification Or Fallback').first().json.classification || { status: 'fallback_missing', intent: 'unclear', confidence: 0 };\nconst vendor = {\n  known: true,\n  id: $json.vendor && $json.vendor.id ? $json.vendor.id : $('Parse Classification Or Fallback').first().json.vendor_id,\n  name: $json.vendor && $json.vendor.name ? $json.vendor.name : $('Parse Classification Or Fallback').first().json.vendor_name,\n  trade: $json.vendor && $json.vendor.trade ? $json.vendor.trade : $('Parse Classification Or Fallback').first().json.vendor_trade\n};\nconst media = envelope.media || null;\nconst mediaOnly = media && !String(envelope.text || '').trim();\nlet eventType = 'vendor_inbound';\nlet outcome = 'logged_no_action';\nlet shouldNotify = false;\nlet shouldComplete = false;\nif (media && ['voice', 'unsupported'].includes(String(media.type || ''))) {\n  eventType = 'unsupported_media';\n  outcome = 'unsupported_media';\n  shouldNotify = true;\n} else if ($json.duplicate_like) {\n  eventType = 'duplicate_inbound';\n  outcome = 'duplicate_like';\n  shouldNotify = true;\n} else if (mediaOnly && String(media.type || '') === 'photo') {\n  eventType = 'manager_photo_match_needed';\n  outcome = 'media_needs_manager';\n  shouldNotify = true;\n} else if (!classification || classification.confidence < 0.6 || classification.intent === 'unclear') {\n  eventType = 'manager_match_needed';\n  outcome = 'low_confidence';\n  shouldNotify = true;\n} else if (match.needs_manager) {\n  eventType = 'manager_match_needed';\n  outcome = 'manager_match_needed';\n  shouldNotify = true;\n} else if (match.selected && vendor.id && match.selected.assigned_vendor_id && Number(match.selected.assigned_vendor_id) !== Number(vendor.id)) {\n  eventType = 'manager_match_needed';\n  outcome = 'stage_vendor_mismatch';\n  shouldNotify = true;\n} else if (classification.intent === 'stage_complete') {\n  outcome = 'completion_requested';\n  shouldComplete = true;\n} else {\n  outcome = classification.intent || 'logged_no_action';\n  shouldNotify = true;\n}\nconst candidateText = (match.candidates || []).map(candidate => candidate.unit_label + ' ' + candidate.stage_name + ' (' + candidate.score + ')').join(', ');\nlet notice = 'Vendor message needs manager review: ' + (vendor.name || 'Known vendor') + ': \"' + envelope.text + '\"' + (candidateText ? ' Candidates: ' + candidateText : '');\nif (outcome === 'duplicate_like') notice = 'Duplicate-like vendor message from ' + (vendor.name || 'Known vendor') + ': \"' + envelope.text + '\"';\nif (outcome === 'media_needs_manager') notice = 'Photo from ' + (vendor.name || 'Known vendor') + ' needs manager review. Choose the unit and stage before updating anything.';\nif (outcome === 'unsupported_media') notice = (String(media && media.type || 'media') === 'voice' ? 'Voice message' : 'Unsupported media') + ' from ' + (vendor.name || 'Known vendor') + '. Review it in Telegram; no stage was changed.';\nreturn [{ json: {\n  accepted: true,\n  outcome,\n  event_type: eventType,\n  envelope,\n  vendor,\n  match,\n  classification,\n  duplicate_like: Boolean($json.duplicate_like),\n  needs_manager: Boolean(shouldNotify),\n  should_notify_manager: Boolean(shouldNotify),\n  should_complete: Boolean(shouldComplete),\n  manager_chat_id: 'stage5-manager-chat-id-missing',\n  manager_notice_text: notice,\n  cors_origin: 'http://localhost:8080'\n} }];"
-      }
-    },
-    {
-      "id": "should-complete-stage",
-      "name": "Should Complete Stage?",
+      "id": "completion-allowed",
+      "name": "Completion Candidate?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        2240,
+        1960,
         -180
       ],
       "parameters": {
@@ -175,7 +156,7 @@
           },
           "conditions": [
             {
-              "id": "should-complete-stage-condition",
+              "id": "completion-allowed-condition",
               "leftValue": "={{ $json.should_complete }}",
               "rightValue": true,
               "operator": {
@@ -191,12 +172,12 @@
       }
     },
     {
-      "id": "call-vendor-completion-handler",
+      "id": "call-completion-handler",
       "name": "Call Vendor Completion Handler",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1,
       "position": [
-        2520,
+        2240,
         -300
       ],
       "parameters": {
@@ -208,17 +189,17 @@
       }
     },
     {
-      "id": "log-vendor-router-event",
-      "name": "Log Vendor Router Event",
+      "id": "log-routed-message",
+      "name": "Log Message And Prepare Manager Action",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        2520,
+        2240,
         -60
       ],
       "parameters": {
         "operation": "executeQuery",
-        "query": "WITH input AS (\n  SELECT\n    '{{ String($json.event_type || \"vendor_inbound\").replace(/'/g, \"''\") }}'::text AS event_type,\n    '{{ String($json.outcome || \"logged_no_action\").replace(/'/g, \"''\") }}'::text AS outcome,\n    '{{ JSON.stringify($json.envelope || {}).replace(/'/g, \"''\") }}'::jsonb AS envelope,\n    '{{ JSON.stringify($json.vendor || {}).replace(/'/g, \"''\") }}'::jsonb AS vendor,\n    '{{ JSON.stringify($json.match || null).replace(/'/g, \"''\") }}'::jsonb AS match,\n    '{{ JSON.stringify($json.classification || null).replace(/'/g, \"''\") }}'::jsonb AS classification,\n    {{ $json.duplicate_like ? 'true' : 'false' }}::boolean AS duplicate_like,\n    {{ $json.needs_manager ? 'true' : 'false' }}::boolean AS needs_manager,\n    {{ $json.should_notify_manager ? 'true' : 'false' }}::boolean AS should_notify_manager,\n    '{{ String($json.manager_chat_id || \"\").replace(/'/g, \"''\") }}'::text AS manager_chat_id,\n    '{{ String($json.manager_notice_text || \"\").replace(/'/g, \"''\") }}'::text AS manager_notice_text,\n    '{{ String(($json.envelope || {}).channel || \"generic\").replace(/'/g, \"''\") }}'::text AS channel,\n    '{{ String(($json.envelope || {}).sender_ref || \"\").replace(/'/g, \"''\") }}'::text AS sender_ref,\n    '{{ String(($json.envelope || {}).text || \"\").replace(/'/g, \"''\") }}'::text AS raw_text,\n    '{{ JSON.stringify(($json.envelope || {}).media || null).replace(/'/g, \"''\") }}'::jsonb AS media,\n    {{ Number($json.vendor && $json.vendor.id ? $json.vendor.id : 0) }}::int AS vendor_id,\n    {{ Number($json.match && $json.match.selected ? $json.match.selected.turn_id : 0) }}::int AS turn_id,\n    {{ Number($json.match && $json.match.selected ? $json.match.selected.stage_id : 0) }}::int AS stage_id\n), inserted AS (\n  INSERT INTO event_log (turn_id, stage_id, actor_type, actor_id, channel, event_type, raw_text, parsed_json)\n  SELECT\n    NULLIF(turn_id, 0),\n    NULLIF(stage_id, 0),\n    'vendor',\n    sender_ref,\n    channel,\n    event_type,\n    raw_text,\n    jsonb_build_object('envelope', envelope, 'vendor', vendor, 'match', match, 'classification', classification, 'duplicate_like', duplicate_like, 'needs_manager', needs_manager, 'stage_state_mutated', false)\n  FROM input\n  RETURNING id\n), media_insert AS (\n  INSERT INTO media_asset (turn_id, stage_id, vendor_id, channel, sender_ref, media_type, file_id, local_path, caption, status)\n  SELECT\n    NULLIF(turn_id, 0),\n    NULLIF(stage_id, 0),\n    NULLIF(vendor_id, 0),\n    channel,\n    sender_ref,\n    CASE WHEN media->>'type' IN ('photo', 'voice') THEN media->>'type' ELSE 'unsupported' END,\n    media->>'file_id',\n    media->>'local_path',\n    raw_text,\n    CASE\n      WHEN event_type = 'manager_photo_match_needed' THEN 'needs_manager'\n      WHEN event_type = 'unsupported_media' THEN 'unsupported'\n      ELSE 'received'\n    END\n  FROM input\n  WHERE media IS NOT NULL\n  RETURNING id\n)\nSELECT\n  true AS accepted,\n  inserted.id AS event_id,\n  (SELECT id FROM media_insert LIMIT 1) AS media_asset_id,\n  input.outcome,\n  input.event_type,\n  input.envelope,\n  input.vendor,\n  input.match,\n  input.classification,\n  input.duplicate_like,\n  input.needs_manager,\n  (input.should_notify_manager AND input.manager_chat_id <> '' AND input.manager_chat_id <> 'stage5-manager-chat-id-missing') AS should_notify_manager,\n  NULLIF(input.manager_chat_id, 'stage5-manager-chat-id-missing') AS manager_chat_id,\n  input.manager_notice_text,\n  false AS stage_state_mutated,\n  'http://localhost:8080'::text AS cors_origin\nFROM input\nCROSS JOIN inserted;",
+        "query": "WITH input AS (\n  SELECT {{ Number($json.vendor_id || 0) }}::int AS vendor_id,\n    {{ Number((($json.match || {}).selected || {}).turn_id || 0) }}::int AS turn_id,\n    {{ Number((($json.match || {}).selected || {}).stage_id || 0) }}::int AS stage_id,\n    '{{ String($json.channel || \"generic\").replace(/'/g, \"''\") }}'::text AS channel,\n    '{{ String($json.sender_ref || \"\").replace(/'/g, \"''\") }}'::text AS sender_ref,\n    '{{ String($json.provider_message_id || \"\").replace(/'/g, \"''\") }}'::text AS provider_message_id,\n    '{{ String($json.thread_ref || \"\").replace(/'/g, \"''\") }}'::text AS thread_ref,\n    '{{ String($json.in_reply_to || \"\").replace(/'/g, \"''\") }}'::text AS in_reply_to,\n    '{{ String($json.subject || \"\").replace(/'/g, \"''\") }}'::text AS subject,\n    '{{ String($json.raw_text || $json.text || \"\").replace(/'/g, \"''\") }}'::text AS raw_text,\n    '{{ String($json.text || \"\").replace(/'/g, \"''\") }}'::text AS normalized_text,\n    '{{ String((($json.interpretation || {}).intent) || \"unclear\").replace(/'/g, \"''\") }}'::text AS intent,\n    {{ Number((($json.interpretation || {}).confidence) || 0) }}::numeric AS confidence,\n    '{{ String((($json.interpretation || {}).manager_summary) || \"\").replace(/'/g, \"''\") }}'::text AS ai_summary,\n    '{{ JSON.stringify($json.interpretation || {}).replace(/'/g, \"''\") }}'::jsonb AS ai_result,\n    '{{ JSON.stringify($json.match || {}).replace(/'/g, \"''\") }}'::jsonb AS deterministic_match,\n    '{{ String($json.event_type || \"vendor_inbound\").replace(/'/g, \"''\") }}'::text AS event_type,\n    '{{ String($json.outcome || \"logged_no_action\").replace(/'/g, \"''\") }}'::text AS outcome,\n    '{{ String($json.suggested_reply || \"\").replace(/'/g, \"''\") }}'::text AS suggested_reply,\n    {{ $json.reply_needed ? 'true' : 'false' }}::boolean AS reply_needed,\n    '{{ String($json.manager_notice_text || \"Vendor message needs review.\").replace(/'/g, \"''\") }}'::text AS manager_notice,\n    '{{ String($json.manager_chat_id || \"\").replace(/'/g, \"''\") }}'::text AS manager_chat_id\n), message_row AS (\n  INSERT INTO communication_message (direction,channel,vendor_id,turn_id,stage_id,provider_message_id,thread_ref,in_reply_to,sender_ref,subject,body_text,normalized_text,intent,ai_confidence,ai_summary,ai_result,status,received_at)\n  SELECT 'inbound',channel,NULLIF(vendor_id,0),NULLIF(turn_id,0),NULLIF(stage_id,0),NULLIF(provider_message_id,''),NULLIF(thread_ref,''),NULLIF(in_reply_to,''),sender_ref,subject,raw_text,normalized_text,intent,confidence,ai_summary,ai_result,\n    CASE WHEN outcome IN ('manager_match_needed','safety_review','stage_vendor_mismatch') THEN 'needs_manager' ELSE 'processed' END, now() FROM input\n  ON CONFLICT (channel,provider_message_id) WHERE provider_message_id IS NOT NULL AND provider_message_id <> '' DO UPDATE SET vendor_id=excluded.vendor_id,turn_id=excluded.turn_id,stage_id=excluded.stage_id,thread_ref=excluded.thread_ref,in_reply_to=excluded.in_reply_to,subject=excluded.subject,body_text=excluded.body_text,normalized_text=excluded.normalized_text,intent=excluded.intent,ai_confidence=excluded.ai_confidence,ai_summary=excluded.ai_summary,ai_result=excluded.ai_result,status=excluded.status RETURNING id\n), event_row AS (\n  INSERT INTO event_log (turn_id,stage_id,actor_type,actor_id,channel,event_type,raw_text,parsed_json)\n  SELECT NULLIF(turn_id,0),NULLIF(stage_id,0),'vendor',sender_ref,channel,event_type,normalized_text,\n    jsonb_build_object('vendor_id',vendor_id,'outcome',outcome,'interpretation',ai_result,'deterministic_match',deterministic_match,'stage_state_mutated',false) FROM input RETURNING id\n), reply_queue AS (\n  INSERT INTO outbound_queue (turn_id,stage_id,source_stage_id,vendor_id,channel,draft_text,approved_text,deterministic_text,status,draft_model,draft_fallback_used,approval_context,email_subject)\n  SELECT NULLIF(turn_id,0),NULLIF(stage_id,0),NULLIF(stage_id,0),vendor_id,'dual',left(suggested_reply,1000),left(suggested_reply,1000),left(suggested_reply,1000),'awaiting_approval','gpt-5.6-luna',false,\n    jsonb_build_object('kind','vendor_response','source_message_id',(SELECT id FROM message_row LIMIT 1)),\n    CASE WHEN turn_id>0 THEN 'Make-ready update' ELSE 'Vendor response' END\n  FROM input WHERE reply_needed AND suggested_reply<>'' AND vendor_id>0 AND outcome NOT IN ('duplicate_like')\n    AND NOT EXISTS (SELECT 1 FROM outbound_queue oq WHERE oq.stage_id=NULLIF(input.stage_id,0) AND oq.vendor_id=input.vendor_id AND oq.status IN ('awaiting_approval','editing','approved','sending'))\n  RETURNING id,reply_token,draft_text,email_subject\n), reply_subject AS (\n  UPDATE outbound_queue oq SET email_subject=oq.email_subject||' [MR-'||oq.reply_token||']'\n  FROM reply_queue rq WHERE oq.id=rq.id RETURNING oq.id,oq.reply_token,oq.draft_text,oq.email_subject\n)\nSELECT input.outcome,input.manager_notice AS manager_notice_text,NULLIF(input.manager_chat_id,'stage5-manager-chat-id-missing') AS manager_chat_id,\n  (SELECT id FROM reply_subject LIMIT 1) AS queue_id,(SELECT draft_text FROM reply_subject LIMIT 1) AS draft_text,\n  ((SELECT count(*) FROM reply_subject)>0 AND input.manager_chat_id<>'stage5-manager-chat-id-missing') AS should_send_approval,\n  ((SELECT count(*) FROM reply_subject)=0 AND input.manager_chat_id<>'stage5-manager-chat-id-missing') AS should_send_notice\nFROM input;",
         "options": {}
       },
       "credentials": {
@@ -226,15 +207,16 @@
           "id": "cred_make_ready_pg",
           "name": "Make-Ready Postgres"
         }
-      }
+      },
+      "alwaysOutputData": false
     },
     {
-      "id": "notify-manager",
-      "name": "Notify Manager?",
+      "id": "route-send-approval",
+      "name": "Manager Reply Approval Needed?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        2800,
+        2520,
         -60
       ],
       "parameters": {
@@ -247,8 +229,8 @@
           },
           "conditions": [
             {
-              "id": "notify-manager-condition",
-              "leftValue": "={{ $json.should_notify_manager }}",
+              "id": "route-send-approval-condition",
+              "leftValue": "={{ $json.should_send_approval === true }}",
               "rightValue": true,
               "operator": {
                 "type": "boolean",
@@ -263,13 +245,137 @@
       }
     },
     {
-      "id": "send-manager-notice",
-      "name": "Send Manager Notice",
+      "id": "format-route-approval",
+      "name": "Format Manager Reply Approval",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2800,
+        -180
+      ],
+      "parameters": {
+        "jsCode": "const text='Vendor response approval\\n\\n'+String($json.draft_text||'')+'\\n\\nDelivery: Email + Telegram';\nreturn [{json:{...$json,manager_approval_text:text}}];"
+      }
+    },
+    {
+      "id": "send-route-approval",
+      "name": "Send Manager Reply Approval",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
         3080,
         -180
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $json.manager_chat_id }}",
+        "text": "={{ $json.manager_approval_text }}",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "Send both",
+                    "additionalFields": {
+                      "callback_data": "={{ 'SEND:' + $json.queue_id }}"
+                    }
+                  },
+                  {
+                    "text": "Edit",
+                    "additionalFields": {
+                      "callback_data": "={{ 'EDIT:' + $json.queue_id }}"
+                    }
+                  },
+                  {
+                    "text": "Hold",
+                    "additionalFields": {
+                      "callback_data": "={{ 'HOLD:' + $json.queue_id }}"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {
+          "disable_web_page_preview": true,
+          "appendAttribution": false
+        }
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "jASZWMlrfp3v2tWH",
+          "name": "Make-Ready Manager Telegram Bot"
+        }
+      }
+    },
+    {
+      "id": "store-route-card",
+      "name": "Store Manager Approval Message",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3360,
+        -180
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE outbound_queue SET manager_message_id='{{ String($json.message_id || \"\").replace(/'/g, \"''\") }}' WHERE id={{ Number($('Format Manager Reply Approval').first().json.queue_id || 0) }} RETURNING true AS stored;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "cred_make_ready_pg",
+          "name": "Make-Ready Postgres"
+        }
+      },
+      "alwaysOutputData": false
+    },
+    {
+      "id": "route-send-notice",
+      "name": "Manager Notice Needed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2800,
+        60
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "route-send-notice-condition",
+              "leftValue": "={{ $json.should_send_notice === true }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "send-route-notice",
+      "name": "Send Manager Review Notice",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        3080,
+        60
       ],
       "parameters": {
         "resource": "message",
@@ -289,34 +395,8 @@
       }
     },
     {
-      "id": "return-after-manager-notice",
-      "name": "Return After Manager Notice",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        3360,
-        -180
-      ],
-      "parameters": {
-        "jsCode": "return [$('Log Vendor Router Event').first()];"
-      }
-    },
-    {
-      "id": "return-router-result",
-      "name": "Return Router Result",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        3080,
-        60
-      ],
-      "parameters": {
-        "jsCode": "return items;"
-      }
-    },
-    {
-      "id": "prepare-unknown-event",
-      "name": "Prepare Unknown Event",
+      "id": "prepare-unknown",
+      "name": "Prepare Unknown Sender Review",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -324,7 +404,132 @@
         180
       ],
       "parameters": {
-        "jsCode": "const media = typeof $json.media === 'string' && $json.media ? JSON.parse($json.media) : $json.media || null;\nconst envelope = { channel: $json.channel || 'generic', sender_ref: $json.sender_ref || '', text: $json.text || '', media, received_at: $json.received_at || new Date().toISOString() };\nreturn [{ json: {\n  accepted: true,\n  outcome: 'unknown_sender',\n  event_type: 'unknown_sender',\n  envelope,\n  vendor: { known: false },\n  match: null,\n  classification: { status: 'not_run_unknown_sender', intent: null, confidence: null },\n  duplicate_like: Boolean($json.duplicate_like),\n  needs_manager: true,\n  should_notify_manager: true,\n  manager_chat_id: 'stage5-manager-chat-id-missing',\n  manager_notice_text: 'Unknown vendor message from ' + envelope.sender_ref + ': \"' + envelope.text + '\"',\n  cors_origin: 'http://localhost:8080'\n} }];"
+        "jsCode": "const reason=$json.ambiguous_sender?'ambiguous_sender':'unknown_sender';\nreturn [{json:{...$json,outcome:reason,event_type:'unknown_sender',needs_manager:true,should_notify_manager:true,should_complete:false,\nmanager_chat_id:'stage5-manager-chat-id-missing',manager_notice_text:(reason==='ambiguous_sender'?'Email sender matches multiple vendors':'Unknown vendor sender')+': '+String($json.sender_ref||'')}}];"
+      }
+    },
+    {
+      "id": "log-unknown",
+      "name": "Log Unknown Sender",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1120,
+        180
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH message_row AS (\n  INSERT INTO communication_message (direction,channel,provider_message_id,thread_ref,in_reply_to,sender_ref,subject,body_text,normalized_text,status,received_at)\n  VALUES ('inbound','{{ String($json.channel || \"generic\").replace(/'/g, \"''\") }}',NULLIF('{{ String($json.provider_message_id || \"\").replace(/'/g, \"''\") }}',''),NULLIF('{{ String($json.thread_ref || \"\").replace(/'/g, \"''\") }}',''),NULLIF('{{ String($json.in_reply_to || \"\").replace(/'/g, \"''\") }}',''),'{{ String($json.sender_ref || \"\").replace(/'/g, \"''\") }}','{{ String($json.subject || \"\").replace(/'/g, \"''\") }}','{{ String($json.raw_text || $json.text || \"\").replace(/'/g, \"''\") }}','{{ String($json.text || \"\").replace(/'/g, \"''\") }}','needs_manager',now())\n  ON CONFLICT (channel,provider_message_id) WHERE provider_message_id IS NOT NULL AND provider_message_id <> '' DO UPDATE SET status='needs_manager',body_text=excluded.body_text,normalized_text=excluded.normalized_text,subject=excluded.subject RETURNING id\n)\nINSERT INTO event_log (actor_type,actor_id,channel,event_type,raw_text,parsed_json)\nVALUES ('vendor','{{ String($json.sender_ref || \"\").replace(/'/g, \"''\") }}','{{ String($json.channel || \"generic\").replace(/'/g, \"''\") }}','unknown_sender','{{ String($json.text || \"\").replace(/'/g, \"''\") }}',jsonb_build_object('outcome','{{ String($json.outcome || \"unknown_sender\").replace(/'/g, \"''\") }}'))\nRETURNING '{{ String($json.manager_notice_text || \"Unknown vendor message\").replace(/'/g, \"''\") }}'::text AS manager_notice_text,NULLIF('{{ String($json.manager_chat_id || \"\").replace(/'/g, \"''\") }}','stage5-manager-chat-id-missing') AS manager_chat_id,'{{ String($json.outcome || \"unknown_sender\").replace(/'/g, \"''\") }}'::text AS outcome;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "cred_make_ready_pg",
+          "name": "Make-Ready Postgres"
+        }
+      },
+      "alwaysOutputData": false
+    },
+    {
+      "id": "unknown-notify",
+      "name": "Notify Manager About Unknown?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1400,
+        180
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "unknown-notify-condition",
+              "leftValue": "={{ Boolean($json.manager_chat_id) }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "send-unknown-notice",
+      "name": "Send Unknown Sender Notice",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1680,
+        180
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $json.manager_chat_id }}",
+        "text": "={{ $json.manager_notice_text }}",
+        "additionalFields": {
+          "disable_web_page_preview": true,
+          "appendAttribution": false
+        }
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "jASZWMlrfp3v2tWH",
+          "name": "Make-Ready Manager Telegram Bot"
+        }
+      }
+    },
+    {
+      "id": "return-route",
+      "name": "Return Routed Outcome",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3640,
+        0
+      ],
+      "parameters": {
+        "jsCode": "return [$('Log Message And Prepare Manager Action').first()];"
+      }
+    },
+    {
+      "id": "return-unknown",
+      "name": "Return Unknown Outcome",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1960,
+        180
+      ],
+      "parameters": {
+        "jsCode": "return [$('Log Unknown Sender').first()];"
+      }
+    },
+    {
+      "id": "sync-airtable-side-effect",
+      "name": "Reconcile Airtable After State Change",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [
+        9000,
+        0
+      ],
+      "parameters": {
+        "source": "database",
+        "workflowId": "wf9-airtable-sync",
+        "options": {
+          "waitForSubWorkflow": true
+        }
       }
     }
   ],
@@ -333,98 +538,87 @@
       "main": [
         [
           {
-            "node": "Load Vendor Context",
+            "node": "Load Vendor And Thread Context",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Load Vendor Context": {
+    "Load Vendor And Thread Context": {
       "main": [
         [
           {
-            "node": "Known Vendor?",
+            "node": "Known Unambiguous Vendor?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Known Vendor?": {
+    "Known Unambiguous Vendor?": {
       "main": [
         [
           {
-            "node": "Build OpenAI Classification Request",
+            "node": "Call AI Message Interpreter",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Prepare Unknown Event",
+            "node": "Prepare Unknown Sender Review",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Build OpenAI Classification Request": {
+    "Call AI Message Interpreter": {
       "main": [
         [
           {
-            "node": "Classify Vendor Message With OpenAI",
+            "node": "Prepare Unit Match Candidates",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Classify Vendor Message With OpenAI": {
+    "Prepare Unit Match Candidates": {
       "main": [
         [
           {
-            "node": "Parse Classification Or Fallback",
+            "node": "Score Unit Match",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Parse Classification Or Fallback": {
+    "Score Unit Match": {
       "main": [
         [
           {
-            "node": "Call Unit Matcher",
+            "node": "Apply Safe Message Policy",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Call Unit Matcher": {
+    "Apply Safe Message Policy": {
       "main": [
         [
           {
-            "node": "Prepare Known Route",
+            "node": "Completion Candidate?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Prepare Known Route": {
-      "main": [
-        [
-          {
-            "node": "Should Complete Stage?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Should Complete Stage?": {
+    "Completion Candidate?": {
       "main": [
         [
           {
@@ -435,58 +629,160 @@
         ],
         [
           {
-            "node": "Log Vendor Router Event",
+            "node": "Log Message And Prepare Manager Action",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Prepare Unknown Event": {
+    "Log Message And Prepare Manager Action": {
       "main": [
         [
           {
-            "node": "Log Vendor Router Event",
+            "node": "Reconcile Airtable After State Change",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Log Vendor Router Event": {
+    "Manager Reply Approval Needed?": {
       "main": [
         [
           {
-            "node": "Notify Manager?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Notify Manager?": {
-      "main": [
-        [
-          {
-            "node": "Send Manager Notice",
+            "node": "Format Manager Reply Approval",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Return Router Result",
+            "node": "Manager Notice Needed?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Send Manager Notice": {
+    "Format Manager Reply Approval": {
       "main": [
         [
           {
-            "node": "Return After Manager Notice",
+            "node": "Send Manager Reply Approval",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Manager Reply Approval": {
+      "main": [
+        [
+          {
+            "node": "Store Manager Approval Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Manager Approval Message": {
+      "main": [
+        [
+          {
+            "node": "Return Routed Outcome",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manager Notice Needed?": {
+      "main": [
+        [
+          {
+            "node": "Send Manager Review Notice",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return Routed Outcome",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Manager Review Notice": {
+      "main": [
+        [
+          {
+            "node": "Return Routed Outcome",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Unknown Sender Review": {
+      "main": [
+        [
+          {
+            "node": "Log Unknown Sender",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Unknown Sender": {
+      "main": [
+        [
+          {
+            "node": "Notify Manager About Unknown?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Manager About Unknown?": {
+      "main": [
+        [
+          {
+            "node": "Send Unknown Sender Notice",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return Unknown Outcome",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Unknown Sender Notice": {
+      "main": [
+        [
+          {
+            "node": "Return Unknown Outcome",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reconcile Airtable After State Change": {
+      "main": [
+        [
+          {
+            "node": "Manager Reply Approval Needed?",
             "type": "main",
             "index": 0
           }
@@ -500,7 +796,7 @@
   },
   "staticData": null,
   "pinData": {},
-  "versionId": "wf4-vendor-router-v1",
+  "versionId": "wf4-vendor-router-ae-v1",
   "triggerCount": 0,
   "tags": []
 }

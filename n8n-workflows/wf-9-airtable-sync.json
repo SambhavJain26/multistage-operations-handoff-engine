@@ -1,0 +1,315 @@
+{
+  "id": "wf9-airtable-sync",
+  "name": "Airtable Sync",
+  "active": false,
+  "nodes": [
+    {
+      "id": "schedule",
+      "name": "FiveMinuteReconciliation",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        -100
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "trigger",
+      "name": "Receive State Change",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        100
+      ],
+      "parameters": {
+        "inputSource": "passthrough"
+      }
+    },
+    {
+      "id": "prepare",
+      "name": "Prepare Airtable Sync Run",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        200,
+        0
+      ],
+      "parameters": {
+        "jsCode": "return [{json:{caller:$json||{}}}];"
+      }
+    },
+    {
+      "id": "load",
+      "name": "Load Changed Airtable Records",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        460,
+        0
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH rows AS (\n SELECT 'Vendors' table_name,'vendor' entity_type,v.id::bigint entity_id,\n   jsonb_strip_nulls(jsonb_build_object('Vendor',v.name,'External ID','vendor:'||v.id,\n     'Trade',CASE v.trade WHEN 'trashout' THEN 'Trash-out' ELSE initcap(v.trade) END,\n     'Email',v.email_address,'Telegram Contact',v.telegram_chat_id,'Active',v.active,\n     'Contact Ready',(COALESCE(v.email_address ~* '^[^[:space:]@]+@[^[:space:]@]+[.][^[:space:]@]+$' AND lower(v.email_address) NOT LIKE '%@example.%',false) AND COALESCE(v.telegram_chat_id ~ '^-?[0-9]+$',false)),\n     'Contact Status',CASE WHEN COALESCE(v.email_address ~* '^[^[:space:]@]+@[^[:space:]@]+[.][^[:space:]@]+$' AND lower(v.email_address) NOT LIKE '%@example.%',false) AND COALESCE(v.telegram_chat_id ~ '^-?[0-9]+$',false) THEN 'Ready' WHEN NOT COALESCE(v.email_address ~* '^[^[:space:]@]+@[^[:space:]@]+[.][^[:space:]@]+$' AND lower(v.email_address) NOT LIKE '%@example.%',false) AND NOT COALESCE(v.telegram_chat_id ~ '^-?[0-9]+$',false) THEN 'Missing Both' WHEN NOT COALESCE(v.email_address ~* '^[^[:space:]@]+@[^[:space:]@]+[.][^[:space:]@]+$' AND lower(v.email_address) NOT LIKE '%@example.%',false) THEN 'Missing Email' ELSE 'Missing Telegram' END)) fields\n FROM vendor v\n UNION ALL\n SELECT 'Turns','turn',t.id,jsonb_strip_nulls(jsonb_build_object(\n   'Turn',t.unit_label||' - '||t.property_address,'External ID','turn:'||t.id,'Unit',t.unit_label,'Property Address',t.property_address,\n   'Monthly Rent',t.rent_monthly,'Status',initcap(t.status),\n   'Current Stage',CASE active.stage_code WHEN 'NOTICE' THEN 'Notice' WHEN 'PRE_INSPECT' THEN 'Inspection' WHEN 'MOVEOUT' THEN 'Move-out' WHEN 'INSPECT_PUNCH' THEN 'Inspection' WHEN 'TRASHOUT' THEN 'Trash-out' WHEN 'REPAIRS' THEN 'Repairs' WHEN 'PAINT' THEN 'Paint' WHEN 'FLOORING' THEN 'Flooring' WHEN 'DEEP_CLEAN' THEN 'Deep Clean' WHEN 'QA_PHOTOS' THEN 'QA / Photos' WHEN 'RELIST' THEN 'Relist' END,\n   'Health',CASE WHEN active.id IS NULL THEN CASE WHEN t.status='complete' THEN 'Complete' WHEN t.status='cancelled' THEN 'Cancelled' ELSE 'On Track' END WHEN active.status='awaiting_approval' THEN 'Awaiting Approval' WHEN active.status='awaiting_delivery' THEN 'Awaiting Delivery' WHEN active.snooze_until>now() THEN 'Snoozed' WHEN active.sla_hours>0 AND active.activated_at+make_interval(secs=>(active.sla_hours*3600)::double precision)<now() THEN 'Stalled' WHEN active.sla_hours>0 AND active.activated_at+make_interval(secs=>(active.sla_hours*2700)::double precision)<now() THEN 'Due Soon' ELSE 'On Track' END,\n   'Active Vendor',CASE WHEN vm.airtable_record_id IS NULL THEN NULL ELSE jsonb_build_array(vm.airtable_record_id) END,\n   'Notice Date',t.notice_date,'Move-out Date',t.moveout_date,'Target Ready Date',t.target_ready_date,'Stage Activated',active.activated_at,\n   'Elapsed',CASE WHEN active.activated_at IS NULL THEN 0 ELSE (floor(extract(epoch FROM now()-active.activated_at)/300)*300)::int END,\n   'SLA Progress',CASE WHEN active.sla_hours>0 AND active.activated_at IS NOT NULL THEN round(LEAST(2,extract(epoch FROM now()-active.activated_at)/(active.sla_hours*3600)),4) ELSE 0 END,\n   'Vacancy Days',GREATEST(0,current_date-COALESCE(t.moveout_date,current_date)),\n   'Vacancy Loss',round((t.rent_monthly/30)*GREATEST(0,current_date-COALESCE(t.moveout_date,current_date)),2),\n   'Latest Update',(SELECT e.event_type||' at '||to_char(e.created_at,'YYYY-MM-DD HH24:MI UTC') FROM event_log e WHERE e.turn_id=t.id ORDER BY e.created_at DESC LIMIT 1)))\n FROM \"turn\" t LEFT JOIN LATERAL(SELECT ts.* FROM turn_stage ts WHERE ts.turn_id=t.id AND ts.status IN('active','awaiting_approval','awaiting_delivery') ORDER BY ts.seq LIMIT 1) active ON true LEFT JOIN airtable_record_map vm ON vm.entity_type='vendor' AND vm.entity_id=active.vendor_id\n UNION ALL\n SELECT 'Stages','stage',s.id,jsonb_strip_nulls(jsonb_build_object('Stage Record',t.unit_label||' - '||s.stage_name,'External ID','stage:'||s.id,\n   'Turn',CASE WHEN tm.airtable_record_id IS NULL THEN NULL ELSE jsonb_build_array(tm.airtable_record_id) END,'Sequence',s.seq,\n   'Stage',CASE s.stage_code WHEN 'NOTICE' THEN 'Notice' WHEN 'PRE_INSPECT' THEN 'Inspection' WHEN 'MOVEOUT' THEN 'Move-out' WHEN 'INSPECT_PUNCH' THEN 'Inspection' WHEN 'TRASHOUT' THEN 'Trash-out' WHEN 'REPAIRS' THEN 'Repairs' WHEN 'PAINT' THEN 'Paint' WHEN 'FLOORING' THEN 'Flooring' WHEN 'DEEP_CLEAN' THEN 'Deep Clean' WHEN 'QA_PHOTOS' THEN 'QA / Photos' WHEN 'RELIST' THEN 'Relist' END,\n   'Status',initcap(replace(s.status,'_',' ')),'Vendor',CASE WHEN vm.airtable_record_id IS NULL THEN NULL ELSE jsonb_build_array(vm.airtable_record_id) END,\n   'SLA Hours',s.sla_hours,'Activated At',s.activated_at,'Completed At',s.completed_at,\n   'Elapsed',CASE WHEN s.activated_at IS NULL THEN 0 WHEN s.completed_at IS NOT NULL THEN extract(epoch FROM s.completed_at-s.activated_at)::int ELSE (floor(extract(epoch FROM now()-s.activated_at)/300)*300)::int END,\n   'SLA Progress',CASE WHEN s.sla_hours>0 AND s.activated_at IS NOT NULL THEN round(LEAST(2,extract(epoch FROM COALESCE(s.completed_at,now())-s.activated_at)/(s.sla_hours*3600)),4) ELSE 0 END,\n   'Overdue',(s.status='active' AND s.sla_hours>0 AND s.snooze_until IS NULL AND s.activated_at+make_interval(secs=>(s.sla_hours*3600)::double precision)<now()),\n   'Completed Via',CASE WHEN s.completed_via IS NULL THEN NULL ELSE initcap(replace(s.completed_via,'_',' ')) END))\n FROM turn_stage s JOIN \"turn\" t ON t.id=s.turn_id LEFT JOIN airtable_record_map tm ON tm.entity_type='turn' AND tm.entity_id=s.turn_id LEFT JOIN airtable_record_map vm ON vm.entity_type='vendor' AND vm.entity_id=s.vendor_id\n UNION ALL\n SELECT 'Communications','communication',c.id,jsonb_strip_nulls(jsonb_build_object('Communication',initcap(c.direction)||' '||initcap(c.channel)||' #'||c.id,'External ID','communication:'||c.id,'Direction',initcap(c.direction),'Channel',initcap(c.channel),'Vendor',CASE WHEN vm.airtable_record_id IS NULL THEN NULL ELSE jsonb_build_array(vm.airtable_record_id) END,'Turn',CASE WHEN tm.airtable_record_id IS NULL THEN NULL ELSE jsonb_build_array(tm.airtable_record_id) END,'Stage',CASE WHEN sm.airtable_record_id IS NULL THEN NULL ELSE jsonb_build_array(sm.airtable_record_id) END,'Subject',c.subject,'Message',c.normalized_text,\n   'Intent',CASE c.intent WHEN 'invoice_payment' THEN 'Invoice / Payment' WHEN 'deposit_tenant_liability' THEN 'Deposit / Liability' WHEN NULL THEN NULL ELSE initcap(replace(c.intent,'_',' ')) END,\n   'AI Confidence',c.ai_confidence,'AI Summary',c.ai_summary,'Needs Review',(c.status='needs_manager'),'Status',initcap(replace(c.status,'_',' ')),'Occurred At',COALESCE(c.received_at,c.sent_at,c.created_at)))\n FROM communication_message c LEFT JOIN airtable_record_map vm ON vm.entity_type='vendor' AND vm.entity_id=c.vendor_id LEFT JOIN airtable_record_map tm ON tm.entity_type='turn' AND tm.entity_id=c.turn_id LEFT JOIN airtable_record_map sm ON sm.entity_type='stage' AND sm.entity_id=c.stage_id\n UNION ALL\n SELECT 'Approvals & Deliveries','approval',q.id,jsonb_strip_nulls(jsonb_build_object('Approval','Approval #'||q.id,'External ID','approval:'||q.id,'Vendor',CASE WHEN vm.airtable_record_id IS NULL THEN NULL ELSE jsonb_build_array(vm.airtable_record_id) END,'Turn',CASE WHEN tm.airtable_record_id IS NULL THEN NULL ELSE jsonb_build_array(tm.airtable_record_id) END,'Stage',CASE WHEN sm.airtable_record_id IS NULL THEN NULL ELSE jsonb_build_array(sm.airtable_record_id) END,'Draft',COALESCE(q.approved_text,q.draft_text),'Channels',jsonb_build_array('Email','Telegram'),'Approval Status',initcap(replace(q.status,'_',' ')),'Email Status',initcap(replace(COALESCE(ed.status,'pending'),'_',' ')),'Telegram Status',initcap(replace(COALESCE(td.status,'pending'),'_',' ')),'Decision At',q.decided_at,'Sent At',q.sent_at,'Last Error',concat_ws('; ',ed.last_error,td.last_error))) FROM outbound_queue q LEFT JOIN outbound_delivery ed ON ed.outbound_queue_id=q.id AND ed.channel='email' LEFT JOIN outbound_delivery td ON td.outbound_queue_id=q.id AND td.channel='telegram' LEFT JOIN airtable_record_map vm ON vm.entity_type='vendor' AND vm.entity_id=q.vendor_id LEFT JOIN airtable_record_map tm ON tm.entity_type='turn' AND tm.entity_id=q.turn_id LEFT JOIN airtable_record_map sm ON sm.entity_type='stage' AND sm.entity_id=q.stage_id\n)\nSELECT table_name,entity_type,entity_id,fields,md5(fields::text) payload_hash FROM rows r WHERE NOT EXISTS(SELECT 1 FROM airtable_record_map m WHERE m.entity_type=r.entity_type AND m.entity_id=r.entity_id AND m.payload_hash=md5(r.fields::text)) ORDER BY CASE table_name WHEN 'Vendors' THEN 1 WHEN 'Turns' THEN 2 WHEN 'Stages' THEN 3 WHEN 'Communications' THEN 4 ELSE 5 END,entity_id;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "cred_make_ready_pg",
+          "name": "Make-Ready Postgres"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "id": "batch",
+      "name": "Build Airtable Batches",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const base='AIRTABLE_BASE_ID_PLACEHOLDER';const caller=$('Prepare Airtable Sync Run').first().json.caller||{};if(base.includes('PLACEHOLDER'))return[{json:{configured:false,caller}}];const groups=new Map();for(const item of $input.all()){const r=item.json;if(!r.table_name)continue;const key=r.table_name+'|'+r.entity_type;if(!groups.has(key))groups.set(key,[]);groups.get(key).push(r);}const out=[];for(const rows of groups.values()){for(let i=0;i<rows.length;i+=10){const chunk=rows.slice(i,i+10);out.push({json:{configured:true,caller,base_id:base,table_name:chunk[0].table_name,entity_type:chunk[0].entity_type,entity_ids:chunk.map(x=>Number(x.entity_id)),payload_hashes:chunk.map(x=>x.payload_hash),request_body:{performUpsert:{fieldsToMergeOn:['External ID']},records:chunk.map(x=>({fields:typeof x.fields==='string'?JSON.parse(x.fields):x.fields}))}}});}}return out.length?out:[{json:{configured:false,caller}}];"
+      }
+    },
+    {
+      "id": "configured",
+      "name": "Airtable Configured?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        980,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "configured-condition",
+              "leftValue": "={{ $json.configured === true }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "upsert",
+      "name": "Upsert Airtable Batch",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1040,
+        -100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://api.airtable.com/v0/' + $json.base_id + '/' + encodeURIComponent($json.table_name) }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "airtableTokenApi",
+        "options": {
+          "timeout": 15000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.request_body) }}"
+      },
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "cred_make_ready_airtable",
+          "name": "Make-Ready Airtable"
+        }
+      }
+    },
+    {
+      "id": "maps",
+      "name": "Capture Airtable Record IDs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1300,
+        -100
+      ],
+      "parameters": {
+        "jsCode": "const source=$('Build Airtable Batches').item.json;const records=Array.isArray($json.records)?$json.records:[];return records.map((r,i)=>({json:{caller:source.caller,entity_type:source.entity_type,entity_id:Number(source.entity_ids[i]),table_name:source.table_name,record_id:r.id,payload_hash:source.payload_hashes[i]}}));"
+      }
+    },
+    {
+      "id": "save-maps",
+      "name": "Save Airtable Mappings",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1560,
+        -100
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO airtable_record_map(entity_type,entity_id,airtable_table,airtable_record_id,payload_hash,last_synced_at,last_error) VALUES('{{ String($json.entity_type).replace(/'/g,\"''\") }}',{{ Number($json.entity_id) }},'{{ String($json.table_name).replace(/'/g,\"''\") }}','{{ String($json.record_id).replace(/'/g,\"''\") }}','{{ String($json.payload_hash).replace(/'/g,\"''\") }}',now(),NULL) ON CONFLICT(entity_type,entity_id) DO UPDATE SET airtable_table=excluded.airtable_table,airtable_record_id=excluded.airtable_record_id,payload_hash=excluded.payload_hash,last_synced_at=now(),last_error=NULL RETURNING true synced;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "cred_make_ready_pg",
+          "name": "Make-Ready Postgres"
+        }
+      },
+      "alwaysOutputData": false
+    },
+    {
+      "id": "return",
+      "name": "Return Caller Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1820,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const caller=$('Prepare Airtable Sync Run').first().json.caller||{};return [{json:{...caller,airtable_sync_completed:true}}];"
+      }
+    }
+  ],
+  "connections": {
+    "FiveMinuteReconciliation": {
+      "main": [
+        [
+          {
+            "node": "Prepare Airtable Sync Run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Receive State Change": {
+      "main": [
+        [
+          {
+            "node": "Prepare Airtable Sync Run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Airtable Sync Run": {
+      "main": [
+        [
+          {
+            "node": "Load Changed Airtable Records",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Changed Airtable Records": {
+      "main": [
+        [
+          {
+            "node": "Build Airtable Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Airtable Batches": {
+      "main": [
+        [
+          {
+            "node": "Airtable Configured?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Airtable Configured?": {
+      "main": [
+        [
+          {
+            "node": "Upsert Airtable Batch",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return Caller Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert Airtable Batch": {
+      "main": [
+        [
+          {
+            "node": "Capture Airtable Record IDs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Capture Airtable Record IDs": {
+      "main": [
+        [
+          {
+            "node": "Save Airtable Mappings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Airtable Mappings": {
+      "main": [
+        [
+          {
+            "node": "Return Caller Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": "wf7-error-handler"
+  },
+  "staticData": null,
+  "pinData": {},
+  "versionId": "wf9-airtable-sync-ae-v1",
+  "triggerCount": 0,
+  "tags": []
+}

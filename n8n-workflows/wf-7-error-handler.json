@@ -118,7 +118,7 @@
         120
       ],
       "parameters": {
-        "jsCode": "return items;"
+        "jsCode": "return $input.all();"
       }
     }
   ],

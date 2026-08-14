@@ -40,7 +40,9 @@ ALTER TABLE event_log
       'stage_skipped',
       'stage_snoozed',
       'turn_cancelled',
-      'workflow_error'
+      'workflow_error',
+      'email_auto_ignored', 'delivery_approved', 'delivery_sent', 'delivery_failed',
+      'delivery_retry', 'airtable_sync', 'airtable_sync_failed'
     )
   );
 

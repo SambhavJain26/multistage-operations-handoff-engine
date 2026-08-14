@@ -5,6 +5,18 @@
 **Deliverable:** a live demo that survives five minutes on a sales call with an unproven vendor running it
 **Audience for this document:** Claude Code, executing directly
 
+## Current Airtable/Email Redesign Override
+
+The implemented redesign supersedes older sections that describe a custom board, simulator, n8n form, UI-only APIs, or Telegram-only vendor delivery.
+
+- Airtable is the manager workspace and intake form; Postgres is still authoritative.
+- Vendor replies enter through Telegram, IMAP email, or the generic inbound API.
+- OpenAI provides one strict shared interpretation across channels. It cannot mutate records.
+- Managers receive every alert, digest, approval, and exception in Telegram.
+- Every approved vendor message goes to email and Telegram. A missing destination blocks sending; a failed second channel becomes `Partially Sent` and retries alone.
+- The final n8n list contains 19 prospect-friendly operational workflows with stable internal IDs and no visible workflow numbers.
+- The custom board, simulator, Board API, Stage Complete API, Manager Action API, and Health API are removed.
+
 ---
 
 ## 0. Four corrections to the source document, up front

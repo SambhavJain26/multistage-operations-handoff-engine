@@ -40,7 +40,9 @@ ALTER TABLE event_log
       'stage_skipped',
       'stage_snoozed',
       'turn_cancelled',
-      'workflow_error'
+      'workflow_error',
+      'email_auto_ignored', 'delivery_approved', 'delivery_sent', 'delivery_failed',
+      'delivery_retry', 'airtable_sync', 'airtable_sync_failed'
     )
   );
 
@@ -49,7 +51,7 @@ CREATE TABLE IF NOT EXISTS media_asset (
   turn_id     INT REFERENCES "turn"(id) ON DELETE CASCADE,
   stage_id    INT REFERENCES turn_stage(id) ON DELETE SET NULL,
   vendor_id   INT REFERENCES vendor(id) ON DELETE SET NULL,
-  channel     TEXT NOT NULL CHECK (channel IN ('telegram', 'generic')),
+  channel     TEXT NOT NULL CHECK (channel IN ('telegram', 'email', 'generic')),
   sender_ref  TEXT,
   media_type  TEXT NOT NULL CHECK (media_type IN ('photo', 'voice', 'unsupported')),
   file_id     TEXT,

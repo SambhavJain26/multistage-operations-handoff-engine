@@ -4,12 +4,12 @@ SET LOCAL client_min_messages = warning;
 ALTER TABLE turn_stage DROP CONSTRAINT IF EXISTS turn_stage_status_check;
 ALTER TABLE turn_stage
   ADD CONSTRAINT turn_stage_status_check
-  CHECK (status IN ('pending', 'active', 'awaiting_approval', 'complete', 'skipped', 'blocked', 'cancelled'));
+  CHECK (status IN ('pending', 'active', 'awaiting_approval', 'awaiting_delivery', 'complete', 'skipped', 'blocked', 'cancelled'));
 
 ALTER TABLE outbound_queue DROP CONSTRAINT IF EXISTS outbound_queue_status_check;
 ALTER TABLE outbound_queue
   ADD CONSTRAINT outbound_queue_status_check
-  CHECK (status IN ('awaiting_approval', 'editing', 'sent', 'held', 'rejected', 'cancelled'));
+  CHECK (status IN ('awaiting_approval', 'editing', 'approved', 'sending', 'sent', 'partially_sent', 'failed', 'held', 'rejected', 'cancelled', 'configuration_blocked'));
 
 ALTER TABLE outbound_queue
   ADD COLUMN IF NOT EXISTS source_stage_id INT REFERENCES turn_stage(id) ON DELETE SET NULL,
@@ -30,7 +30,7 @@ WHERE approved_text IS NULL;
 ALTER TABLE event_log DROP CONSTRAINT IF EXISTS event_log_channel_check;
 ALTER TABLE event_log
   ADD CONSTRAINT event_log_channel_check
-  CHECK (channel IN ('telegram', 'generic', 'board', 'digest', 'seed', 'import', 'form', 'system'));
+  CHECK (channel IN ('telegram', 'email', 'airtable', 'generic', 'board', 'digest', 'seed', 'import', 'form', 'system'));
 
 ALTER TABLE event_log DROP CONSTRAINT IF EXISTS event_log_event_type_check;
 ALTER TABLE event_log
@@ -71,7 +71,9 @@ ALTER TABLE event_log
       'stage_skipped',
       'stage_snoozed',
       'turn_cancelled',
-      'workflow_error'
+      'workflow_error',
+      'email_auto_ignored', 'delivery_approved', 'delivery_sent', 'delivery_failed',
+      'delivery_retry', 'airtable_sync', 'airtable_sync_failed'
     )
   );
 

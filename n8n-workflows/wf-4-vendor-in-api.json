@@ -1,7 +1,7 @@
 {
   "id": "wf4-vendor-in-api",
   "name": "Vendor Inbound API",
-  "active": false,
+  "active": true,
   "nodes": [
     {
       "id": "vendor-in-webhook",
@@ -18,14 +18,12 @@
         "path": "vendor-in",
         "authentication": "none",
         "responseMode": "responseNode",
-        "options": {
-          "allowedOrigins": "http://localhost:8080"
-        }
+        "options": {}
       }
     },
     {
-      "id": "normalize-vendor-in-request",
-      "name": "Normalize Vendor In Request",
+      "id": "normalize-generic-vendor",
+      "name": "Normalize Generic Vendor Message",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -33,11 +31,11 @@
         0
       ],
       "parameters": {
-        "jsCode": "const headers = $json.headers || {};\nconst query = $json.query || {};\nconst body = $json.body || {};\nconst configuredToken = 'local-stage-4-vendor-in-token';\nconst suppliedToken = query.token || headers['x-vendor-in-token'] || headers['X-Vendor-In-Token'] || headers['x-demo-token'] || headers['X-Demo-Token'] || body.token || '';\nconst text = String(body.text || query.text || '').trim();\nconst senderRef = String(body.sender_ref || query.sender_ref || '').trim();\nconst mediaType = String(body.media_type || query.media_type || '').trim();\nconst mediaFileId = String(body.media_file_id || query.media_file_id || '').trim();\nconst mediaUrl = String(body.media_url || query.media_url || '').trim();\nlet receivedAt = String(body.received_at || query.received_at || new Date().toISOString()).trim();\nif (Number.isNaN(new Date(receivedAt).getTime())) receivedAt = new Date().toISOString();\nconst media = mediaType ? { type: mediaType, file_id: mediaFileId || null, local_path: mediaUrl || null } : null;\nreturn [{ json: {\n  authorized: Boolean(configuredToken) && String(suppliedToken) === String(configuredToken),\n  valid: Boolean(senderRef && (text || media)),\n  error: senderRef ? 'text or media is required.' : 'sender_ref is required.',\n  envelope: { channel: 'generic', sender_ref: senderRef, text, media, received_at: receivedAt },\n  cors_origin: 'http://localhost:8080'\n} }];"
+        "jsCode": "const headers = $json.headers || {}; const query = $json.query || {}; const body = $json.body || {};\nconst configuredToken = 'local-stage-4-vendor-in-token';\nconst suppliedToken = query.token || headers['x-vendor-in-token'] || headers['X-Vendor-In-Token'] || headers['x-demo-token'] || body.token || '';\nconst sender = String(body.sender_ref || query.sender_ref || '').trim(); const text = String(body.text || query.text || '').trim();\nconst mediaType = String(body.media_type || query.media_type || '').trim();\nreturn [{ json: {\n  authorized: Boolean(configuredToken) && String(suppliedToken) === String(configuredToken), valid: Boolean(sender && (text || mediaType)),\n  envelope: { channel: String(body.channel || query.channel || 'generic'), sender_ref: sender,\n    provider_message_id: String(body.provider_message_id || query.provider_message_id || ''), thread_ref: String(body.thread_ref || query.thread_ref || ''),\n    in_reply_to: String(body.in_reply_to || query.in_reply_to || ''), reply_token: String(body.reply_token || query.reply_token || ''),\n    subject: String(body.subject || query.subject || ''), text, raw_text: text,\n    media: mediaType ? { type: mediaType, file_id: String(body.media_file_id || ''), local_path: String(body.media_url || '') } : null,\n    received_at: String(body.received_at || new Date().toISOString()) }\n} }];"
       }
     },
     {
-      "id": "vendor-in-authorized",
+      "id": "generic-authorized",
       "name": "Vendor In Authorized?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
@@ -55,8 +53,8 @@
           },
           "conditions": [
             {
-              "id": "vendor-in-authorized-condition",
-              "leftValue": "={{ $json.authorized }}",
+              "id": "generic-authorized-condition",
+              "leftValue": "={{ $json.authorized && $json.valid }}",
               "rightValue": true,
               "operator": {
                 "type": "boolean",
@@ -71,60 +69,26 @@
       }
     },
     {
-      "id": "vendor-in-valid",
-      "name": "Vendor In Valid?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.3,
-      "position": [
-        840,
-        -140
-      ],
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict",
-            "version": 2
-          },
-          "conditions": [
-            {
-              "id": "vendor-in-valid-condition",
-              "leftValue": "={{ $json.valid }}",
-              "rightValue": true,
-              "operator": {
-                "type": "boolean",
-                "operation": "true",
-                "singleValue": true
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      }
-    },
-    {
-      "id": "unwrap-vendor-envelope",
-      "name": "Unwrap Vendor Envelope",
+      "id": "unwrap-generic-envelope",
+      "name": "Unwrap Generic Envelope",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1120,
-        -260
+        840,
+        -120
       ],
       "parameters": {
-        "jsCode": "const envelope = $json.envelope || {};\nreturn [{ json: {\n  channel: envelope.channel,\n  sender_ref: envelope.sender_ref,\n  text: envelope.text,\n  media: envelope.media || null,\n  received_at: envelope.received_at\n} }];"
+        "jsCode": "return [{ json: $json.envelope }];"
       }
     },
     {
-      "id": "call-vendor-router",
-      "name": "Call Vendor Router",
+      "id": "call-router-generic",
+      "name": "Call Vendor Message Router",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1,
       "position": [
-        1400,
-        -260
+        1120,
+        -120
       ],
       "parameters": {
         "source": "database",
@@ -135,13 +99,13 @@
       }
     },
     {
-      "id": "respond-vendor-in-ok",
+      "id": "respond-generic-ok",
       "name": "Respond Vendor In 200",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        1680,
-        -260
+        1400,
+        -120
       ],
       "parameters": {
         "respondWith": "json",
@@ -153,10 +117,6 @@
               {
                 "name": "Content-Type",
                 "value": "application/json"
-              },
-              {
-                "name": "Access-Control-Allow-Origin",
-                "value": "={{ $json.cors_origin || \"http://localhost:8080\" }}"
               }
             ]
           }
@@ -164,68 +124,26 @@
       }
     },
     {
-      "id": "format-vendor-in-malformed",
-      "name": "Format Vendor In Malformed",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1120,
-        -20
-      ],
-      "parameters": {
-        "jsCode": "return [{ json: {\n  accepted: false,\n  outcome: 'malformed',\n  error: $json.error || 'sender_ref and text are required.',\n  envelope: $json.envelope || null,\n  cors_origin: 'http://localhost:8080'\n} }];"
-      }
-    },
-    {
-      "id": "respond-vendor-in-400",
-      "name": "Respond Vendor In 400",
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1.5,
-      "position": [
-        1400,
-        -20
-      ],
-      "parameters": {
-        "respondWith": "json",
-        "responseBody": "={{ JSON.stringify($json) }}",
-        "options": {
-          "responseCode": 400,
-          "responseHeaders": {
-            "entries": [
-              {
-                "name": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "name": "Access-Control-Allow-Origin",
-                "value": "={{ $json.cors_origin || \"http://localhost:8080\" }}"
-              }
-            ]
-          }
-        }
-      }
-    },
-    {
-      "id": "format-vendor-in-unauthorized",
-      "name": "Format Vendor In Unauthorized",
+      "id": "format-generic-rejected",
+      "name": "Format Rejected Vendor In",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
         840,
-        160
+        120
       ],
       "parameters": {
-        "jsCode": "return [{ json: {\n  accepted: false,\n  outcome: 'unauthorized',\n  error: 'unauthorized',\n  message: 'Missing or invalid demo token.',\n  cors_origin: 'http://localhost:8080'\n} }];"
+        "jsCode": "return [{ json: { accepted: false, outcome: $json.authorized ? 'malformed' : 'unauthorized' } }];"
       }
     },
     {
-      "id": "respond-vendor-in-401",
+      "id": "respond-generic-rejected",
       "name": "Respond Vendor In 401",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
         1120,
-        160
+        120
       ],
       "parameters": {
         "respondWith": "json",
@@ -237,10 +155,6 @@
               {
                 "name": "Content-Type",
                 "value": "application/json"
-              },
-              {
-                "name": "Access-Control-Allow-Origin",
-                "value": "={{ $json.cors_origin || \"http://localhost:8080\" }}"
               }
             ]
           }
@@ -253,14 +167,14 @@
       "main": [
         [
           {
-            "node": "Normalize Vendor In Request",
+            "node": "Normalize Generic Vendor Message",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Normalize Vendor In Request": {
+    "Normalize Generic Vendor Message": {
       "main": [
         [
           {
@@ -275,50 +189,32 @@
       "main": [
         [
           {
-            "node": "Vendor In Valid?",
+            "node": "Unwrap Generic Envelope",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Format Vendor In Unauthorized",
+            "node": "Format Rejected Vendor In",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Vendor In Valid?": {
+    "Unwrap Generic Envelope": {
       "main": [
         [
           {
-            "node": "Unwrap Vendor Envelope",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Format Vendor In Malformed",
+            "node": "Call Vendor Message Router",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Unwrap Vendor Envelope": {
-      "main": [
-        [
-          {
-            "node": "Call Vendor Router",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Call Vendor Router": {
+    "Call Vendor Message Router": {
       "main": [
         [
           {
@@ -329,18 +225,7 @@
         ]
       ]
     },
-    "Format Vendor In Malformed": {
-      "main": [
-        [
-          {
-            "node": "Respond Vendor In 400",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Format Vendor In Unauthorized": {
+    "Format Rejected Vendor In": {
       "main": [
         [
           {
@@ -358,7 +243,7 @@
   },
   "staticData": null,
   "pinData": {},
-  "versionId": "wf4-vendor-in-api-v1",
+  "versionId": "wf4-vendor-in-api-ae-v1",
   "triggerCount": 0,
   "tags": []
 }

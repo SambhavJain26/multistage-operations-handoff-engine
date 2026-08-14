@@ -4,7 +4,7 @@ SET LOCAL client_min_messages = warning;
 ALTER TABLE event_log DROP CONSTRAINT IF EXISTS event_log_channel_check;
 ALTER TABLE event_log
   ADD CONSTRAINT event_log_channel_check
-  CHECK (channel IN ('telegram', 'generic', 'board', 'digest', 'seed', 'import', 'form', 'system'));
+  CHECK (channel IN ('telegram', 'email', 'airtable', 'generic', 'board', 'digest', 'seed', 'import', 'form', 'system'));
 
 ALTER TABLE event_log DROP CONSTRAINT IF EXISTS event_log_event_type_check;
 ALTER TABLE event_log
@@ -45,7 +45,9 @@ ALTER TABLE event_log
       'msg_edit_requested',
       'msg_edited',
       'msg_rejected',
-      'workflow_error'
+      'workflow_error',
+      'email_auto_ignored', 'delivery_approved', 'delivery_sent', 'delivery_failed',
+      'delivery_retry', 'airtable_sync', 'airtable_sync_failed'
     )
   );
 

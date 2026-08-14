@@ -113,7 +113,7 @@
       "message": "manager cancels 55 Birch",
       "channel": "manager-action",
       "setup": "opening_reset",
-      "expected": "55 Birch is cancelled, drops from board, and has no future orphan alerts."
+      "expected": "55 Birch is cancelled, drops from the active Airtable view, and has no future stages, approvals, deliveries, or alerts."
     },
     {
       "id": "F14",
@@ -146,7 +146,7 @@
       "channel": "generic",
       "sender": "Rivera Painting",
       "setup": "opening_reset",
-      "expected": "Intent routes as question/manager review; no damage assessment, deposit language, or tenant liability classification is generated."
+      "expected": "Intent routes as deposit_tenant_liability with a safety flag and manager review; no stage changes and no deposit or tenant-liability decision is generated."
     },
     {
       "id": "F18",
@@ -158,10 +158,10 @@
     },
     {
       "id": "F19",
-      "message": "manager marks Paint done on 12B from board",
-      "channel": "board",
+      "message": "manager marks Paint done on 12B from Telegram",
+      "channel": "manager-telegram",
       "setup": "opening_reset",
-      "expected": "12B Paint completes via manual; board advances; vendor reply rate drops accordingly."
+      "expected": "12B Paint completes via manual; Airtable advances to the next approval state; vendor reply rate drops accordingly."
     },
     {
       "id": "F20",

@@ -1,0 +1,533 @@
+{
+  "id": "wf9-vendor-delivery",
+  "name": "Vendor Delivery Dispatcher",
+  "active": false,
+  "nodes": [
+    {
+      "id": "trigger",
+      "name": "Receive Approved Delivery",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "inputSource": "passthrough"
+      }
+    },
+    {
+      "id": "load-plan",
+      "name": "Load Delivery Plan",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        260,
+        0
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH q AS (SELECT oq.*,v.telegram_chat_id,v.email_address FROM outbound_queue oq JOIN vendor v ON v.id=oq.vendor_id WHERE oq.id={{ Number($json.queue_id||0) }}), marked AS (UPDATE outbound_queue oq SET status='sending' FROM q WHERE oq.id=q.id AND oq.status IN('approved','partially_sent','failed') RETURNING oq.id)\nSELECT q.id queue_id,q.turn_id,q.stage_id,q.vendor_id,q.approved_text delivery_body,q.email_subject,\n q.telegram_chat_id telegram_destination,q.email_address email_destination,\n COALESCE((SELECT status FROM outbound_delivery WHERE outbound_queue_id=q.id AND channel='email'),'missing') email_status,\n COALESCE((SELECT status FROM outbound_delivery WHERE outbound_queue_id=q.id AND channel='telegram'),'missing') telegram_status,\n 'stage5-manager-chat-id-missing'::text manager_chat_id\nFROM q;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "cred_make_ready_pg",
+          "name": "Make-Ready Postgres"
+        }
+      },
+      "alwaysOutputData": false
+    },
+    {
+      "id": "email-needed",
+      "name": "Email Delivery Needed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        520,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "email-needed-condition",
+              "leftValue": "={{ ['pending','retry_pending'].includes($json.email_status) }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "send-email",
+      "name": "Send Vendor Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        780,
+        -120
+      ],
+      "parameters": {
+        "fromEmail": "Make-Ready <VENDOR_EMAIL_FROM_PLACEHOLDER>",
+        "toEmail": "={{ $json.email_destination }}",
+        "subject": "={{ $json.email_subject }}",
+        "emailFormat": "text",
+        "text": "={{ $json.delivery_body }}",
+        "options": {
+          "appendAttribution": false,
+          "replyTo": "VENDOR_EMAIL_REPLY_TO_PLACEHOLDER"
+        }
+      },
+      "credentials": {
+        "smtp": {
+          "id": "cred_make_ready_email_smtp",
+          "name": "Make-Ready Vendor Email SMTP"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "id": "email-result",
+      "name": "Normalize Email Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        -120
+      ],
+      "parameters": {
+        "jsCode": "const plan=$('Load Delivery Plan').first().json; const error=$json.error||($json.body&&$json.statusCode>=400?$json.body:null); return [{json:{...plan,delivery_channel:'email',delivery_ok:!error,provider_message_id:String($json.messageId||$json.id||''),delivery_error:error?String(error.message||error):''}}];"
+      }
+    },
+    {
+      "id": "mark-email",
+      "name": "Record Email Result",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1300,
+        -120
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE outbound_delivery SET status=CASE WHEN {{ $json.delivery_ok ? 'true':'false' }} THEN 'sent' ELSE 'failed' END,attempt_count=attempt_count+1,provider_message_id=NULLIF('{{ String($json.provider_message_id||\"\").replace(/'/g,\"''\") }}',''),last_error=NULLIF('{{ String($json.delivery_error||\"\").replace(/'/g,\"''\") }}',''),last_attempt_at=now(),sent_at=CASE WHEN {{ $json.delivery_ok ? 'true':'false' }} THEN now() ELSE sent_at END WHERE outbound_queue_id={{ Number($json.queue_id||0) }} AND channel='{{ String($json.delivery_channel||\"\").replace(/'/g,\"''\") }}' RETURNING {{ Number($json.queue_id||0) }} queue_id;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "cred_make_ready_pg",
+          "name": "Make-Ready Postgres"
+        }
+      },
+      "alwaysOutputData": false
+    },
+    {
+      "id": "telegram-needed",
+      "name": "Telegram Delivery Needed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1560,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "telegram-needed-condition",
+              "leftValue": "={{ ['pending','retry_pending'].includes($('Load Delivery Plan').first().json.telegram_status) }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "send-telegram",
+      "name": "Send Vendor Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1820,
+        -120
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $json.telegram_destination }}",
+        "text": "={{ $json.delivery_body }}",
+        "additionalFields": {
+          "disable_web_page_preview": true,
+          "appendAttribution": false
+        }
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "5mBfLarFM6t8Cgcz",
+          "name": "Make-Ready Vendor Telegram Bot"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "id": "telegram-result",
+      "name": "Normalize Telegram Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2080,
+        -120
+      ],
+      "parameters": {
+        "jsCode": "const plan=$('Load Delivery Plan').first().json; const error=$json.error; return [{json:{...plan,delivery_channel:'telegram',delivery_ok:!error,provider_message_id:String($json.message_id||''),delivery_error:error?String(error.message||error):''}}];"
+      }
+    },
+    {
+      "id": "mark-telegram",
+      "name": "Record Telegram Result",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2340,
+        -120
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE outbound_delivery SET status=CASE WHEN {{ $json.delivery_ok ? 'true':'false' }} THEN 'sent' ELSE 'failed' END,attempt_count=attempt_count+1,provider_message_id=NULLIF('{{ String($json.provider_message_id||\"\").replace(/'/g,\"''\") }}',''),last_error=NULLIF('{{ String($json.delivery_error||\"\").replace(/'/g,\"''\") }}',''),last_attempt_at=now(),sent_at=CASE WHEN {{ $json.delivery_ok ? 'true':'false' }} THEN now() ELSE sent_at END WHERE outbound_queue_id={{ Number($json.queue_id||0) }} AND channel='{{ String($json.delivery_channel||\"\").replace(/'/g,\"''\") }}' RETURNING {{ Number($json.queue_id||0) }} queue_id;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "cred_make_ready_pg",
+          "name": "Make-Ready Postgres"
+        }
+      },
+      "alwaysOutputData": false
+    },
+    {
+      "id": "finalize",
+      "name": "Finalize Independent Deliveries",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2600,
+        0
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH states AS (SELECT d.outbound_queue_id,count(*) FILTER(WHERE status='sent') sent_count,count(*) FILTER(WHERE status='failed') failed_count,max(sent_at) sent_at,string_agg(last_error,'; ') FILTER(WHERE status='failed') errors FROM outbound_delivery d WHERE d.outbound_queue_id={{ Number($json.queue_id||0) }} GROUP BY d.outbound_queue_id), updated AS (UPDATE outbound_queue q SET status=CASE WHEN s.sent_count=2 THEN 'sent' WHEN s.sent_count>0 AND s.failed_count>0 THEN 'partially_sent' WHEN s.failed_count=2 THEN 'failed' ELSE q.status END,sent_at=CASE WHEN s.sent_count=2 THEN s.sent_at ELSE q.sent_at END FROM states s WHERE q.id=s.outbound_queue_id RETURNING q.*,s.sent_count,s.failed_count,s.errors), activate AS (UPDATE turn_stage ts SET status='active',activated_at=COALESCE(ts.activated_at,now()) FROM updated u WHERE ts.id=u.stage_id AND u.sent_count>0 AND ts.status IN('awaiting_approval','awaiting_delivery') RETURNING ts.id), communications AS (INSERT INTO communication_message(direction,channel,vendor_id,turn_id,stage_id,outbound_queue_id,provider_message_id,recipient_ref,subject,body_text,normalized_text,status,sent_at) SELECT 'outbound',d.channel,u.vendor_id,u.turn_id,u.stage_id,u.id,d.provider_message_id,d.destination,d.subject,d.body_text,d.body_text,'sent',d.sent_at FROM updated u JOIN outbound_delivery d ON d.outbound_queue_id=u.id AND d.status='sent' ON CONFLICT(channel,provider_message_id) WHERE provider_message_id IS NOT NULL AND provider_message_id<>'' DO NOTHING RETURNING id), events AS (INSERT INTO event_log(turn_id,stage_id,actor_type,actor_id,channel,event_type,raw_text,parsed_json) SELECT u.turn_id,u.stage_id,'system','delivery-dispatcher','system',CASE WHEN u.status='sent' THEN 'delivery_sent' ELSE 'delivery_failed' END,COALESCE(u.errors,u.approved_text),jsonb_build_object('queue_id',u.id,'status',u.status,'sent_count',u.sent_count,'failed_count',u.failed_count) FROM updated u RETURNING id)\nSELECT u.id queue_id,u.status outcome,u.sent_count,u.failed_count,u.errors,u.status IN('partially_sent','failed') should_alert_manager,'stage5-manager-chat-id-missing'::text manager_chat_id,CASE WHEN u.status='partially_sent' THEN 'Vendor delivery was partially sent. The successful channel will not be repeated. Use Retry on the failed channel.' WHEN u.status='failed' THEN 'Vendor delivery failed on both channels. Review the errors and retry.' END manager_notice_text FROM updated u;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "cred_make_ready_pg",
+          "name": "Make-Ready Postgres"
+        }
+      },
+      "alwaysOutputData": false
+    },
+    {
+      "id": "alert",
+      "name": "Delivery Alert Needed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2860,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "alert-condition",
+              "leftValue": "={{ $json.should_alert_manager === true && Boolean($json.manager_chat_id) && !$json.manager_chat_id.includes('missing') }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "send-alert",
+      "name": "Send Delivery Failure Alert",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        3120,
+        -120
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $json.manager_chat_id }}",
+        "text": "={{ $json.manager_notice_text }}",
+        "additionalFields": {
+          "disable_web_page_preview": true,
+          "appendAttribution": false
+        }
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "jASZWMlrfp3v2tWH",
+          "name": "Make-Ready Manager Telegram Bot"
+        }
+      }
+    },
+    {
+      "id": "return-delivery",
+      "name": "Return Delivery Outcome",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3380,
+        0
+      ],
+      "parameters": {
+        "jsCode": "return [$('Finalize Independent Deliveries').first()];"
+      }
+    },
+    {
+      "id": "sync-airtable-side-effect",
+      "name": "Reconcile Airtable After State Change",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [
+        9000,
+        0
+      ],
+      "parameters": {
+        "source": "database",
+        "workflowId": "wf9-airtable-sync",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Receive Approved Delivery": {
+      "main": [
+        [
+          {
+            "node": "Load Delivery Plan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Delivery Plan": {
+      "main": [
+        [
+          {
+            "node": "Email Delivery Needed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Delivery Needed?": {
+      "main": [
+        [
+          {
+            "node": "Send Vendor Email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Telegram Delivery Needed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Vendor Email": {
+      "main": [
+        [
+          {
+            "node": "Normalize Email Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Email Result": {
+      "main": [
+        [
+          {
+            "node": "Record Email Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Record Email Result": {
+      "main": [
+        [
+          {
+            "node": "Telegram Delivery Needed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram Delivery Needed?": {
+      "main": [
+        [
+          {
+            "node": "Send Vendor Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Finalize Independent Deliveries",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Vendor Telegram": {
+      "main": [
+        [
+          {
+            "node": "Normalize Telegram Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Telegram Result": {
+      "main": [
+        [
+          {
+            "node": "Record Telegram Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Record Telegram Result": {
+      "main": [
+        [
+          {
+            "node": "Finalize Independent Deliveries",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Finalize Independent Deliveries": {
+      "main": [
+        [
+          {
+            "node": "Reconcile Airtable After State Change",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delivery Alert Needed?": {
+      "main": [
+        [
+          {
+            "node": "Send Delivery Failure Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return Delivery Outcome",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Delivery Failure Alert": {
+      "main": [
+        [
+          {
+            "node": "Return Delivery Outcome",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reconcile Airtable After State Change": {
+      "main": [
+        [
+          {
+            "node": "Delivery Alert Needed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": "wf7-error-handler"
+  },
+  "staticData": null,
+  "pinData": {},
+  "versionId": "wf9-vendor-delivery-ae-v1",
+  "triggerCount": 0,
+  "tags": []
+}

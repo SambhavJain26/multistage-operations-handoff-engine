@@ -320,6 +320,8 @@ const guardQuery = `WITH input AS (
     {{ Number($json.stage_id || 0) }}::int AS stage_id,
     '{{ String($json.actor_id || "board-manager").replace(/'/g, "''") }}'::text AS actor_id,
     '{{ String($json.channel || "board").replace(/'/g, "''") }}'::text AS channel,
+    '{{ String($json.actor_type || (($json.envelope || {}).actor_type) || "manager").replace(/'/g, "''") }}'::text AS actor_type,
+    '{{ String($json.completed_via || (($json.envelope || {}).completed_via) || "").replace(/'/g, "''") }}'::text AS requested_completed_via,
     '{{ String($json.override_token || "").replace(/'/g, "''") }}'::text AS override_token,
     '{{ String($json.override_reason || "").replace(/'/g, "''") }}'::text AS override_reason,
     '{{ String($json.telegram_callback_query_id || "").replace(/'/g, "''") }}'::text AS telegram_callback_query_id,
@@ -360,6 +362,8 @@ SELECT
   input.stage_id AS requested_stage_id,
   input.actor_id,
   input.channel,
+  input.actor_type,
+  input.requested_completed_via,
   input.override_token,
   input.override_reason,
   input.telegram_callback_query_id,
@@ -420,7 +424,7 @@ if (missing.length === 0 || overrideAccepted) {
     override: overrideAccepted,
     blocked_by: missing.map(stage => ({ stage_code: stage.stage_code, stage_name: stage.stage_name, status: stage.status })),
     reason: overrideAccepted ? 'Manager override accepted.' : 'Sequence guard passed.',
-    completed_via: overrideAccepted ? 'override' : 'manual'
+    completed_via: overrideAccepted ? 'override' : (input.requested_completed_via || (input.actor_type === 'vendor' ? 'vendor_reply' : 'manual'))
   } }];
 }
 const first = missing[0];

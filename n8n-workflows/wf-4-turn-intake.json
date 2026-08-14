@@ -1,191 +1,78 @@
 {
   "id": "wf4-turn-intake",
-  "name": "Turn Intake Form",
+  "name": "Airtable Turn Intake",
   "active": false,
   "nodes": [
     {
-      "id": "turn-intake-form",
-      "name": "Turn Intake Form",
-      "type": "n8n-nodes-base.formTrigger",
-      "typeVersion": 2.5,
+      "id": "schedule",
+      "name": "PollAirtableIntake",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
       "position": [
         0,
         0
       ],
-      "webhookId": "wf4-turn-intake",
       "parameters": {
-        "authentication": "none",
-        "path": "turn-intake",
-        "formTitle": "Make-ready turn intake",
-        "formDescription": "Add a turn to the local demo board.",
-        "formFields": {
-          "values": [
+        "rule": {
+          "interval": [
             {
-              "fieldLabel": "Unit label",
-              "fieldName": "unit_label",
-              "fieldType": "text",
-              "placeholder": "12B",
-              "requiredField": true
-            },
-            {
-              "fieldLabel": "Property address",
-              "fieldName": "property_address",
-              "fieldType": "text",
-              "placeholder": "418 Maple St",
-              "requiredField": true
-            },
-            {
-              "fieldLabel": "Monthly rent",
-              "fieldName": "rent_monthly",
-              "fieldType": "number",
-              "placeholder": "1450",
-              "requiredField": true
-            },
-            {
-              "fieldLabel": "Notice date",
-              "fieldName": "notice_date",
-              "fieldType": "date",
-              "requiredField": true
-            },
-            {
-              "fieldLabel": "Move-out date",
-              "fieldName": "moveout_date",
-              "fieldType": "date",
-              "requiredField": true
-            },
-            {
-              "fieldLabel": "Target ready date",
-              "fieldName": "target_ready_date",
-              "fieldType": "date",
-              "requiredField": false
-            },
-            {
-              "fieldLabel": "Trash-out vendor",
-              "fieldName": "trashout_vendor",
-              "fieldType": "dropdown",
-              "requiredField": true,
-              "defaultValue": "QuickHaul Junk Removal",
-              "fieldOptions": {
-                "values": [
-                  {
-                    "option": "QuickHaul Junk Removal"
-                  },
-                  {
-                    "option": "Cedar Ridge in-house"
-                  }
-                ]
-              }
-            },
-            {
-              "fieldLabel": "Repairs vendor",
-              "fieldName": "repairs_vendor",
-              "fieldType": "dropdown",
-              "requiredField": true,
-              "defaultValue": "Dale Hutchins",
-              "fieldOptions": {
-                "values": [
-                  {
-                    "option": "Dale Hutchins"
-                  },
-                  {
-                    "option": "Cedar Ridge in-house"
-                  }
-                ]
-              }
-            },
-            {
-              "fieldLabel": "Paint vendor",
-              "fieldName": "paint_vendor",
-              "fieldType": "dropdown",
-              "requiredField": true,
-              "defaultValue": "Rivera Painting",
-              "fieldOptions": {
-                "values": [
-                  {
-                    "option": "Rivera Painting"
-                  },
-                  {
-                    "option": "Cedar Ridge in-house"
-                  }
-                ]
-              }
-            },
-            {
-              "fieldLabel": "Flooring vendor",
-              "fieldName": "flooring_vendor",
-              "fieldType": "dropdown",
-              "requiredField": true,
-              "defaultValue": "Statewide Flooring",
-              "fieldOptions": {
-                "values": [
-                  {
-                    "option": "Statewide Flooring"
-                  },
-                  {
-                    "option": "Cedar Ridge in-house"
-                  }
-                ]
-              }
-            },
-            {
-              "fieldLabel": "Deep clean vendor",
-              "fieldName": "deep_clean_vendor",
-              "fieldType": "dropdown",
-              "requiredField": true,
-              "defaultValue": "Maria's Cleaning Co",
-              "fieldOptions": {
-                "values": [
-                  {
-                    "option": "Maria's Cleaning Co"
-                  },
-                  {
-                    "option": "Cedar Ridge in-house"
-                  }
-                ]
-              }
+              "field": "minutes",
+              "minutesInterval": 1
             }
           ]
-        },
-        "responseMode": "onReceived",
-        "options": {
-          "path": "turn-intake",
-          "buttonLabel": "Add turn",
-          "appendAttribution": false,
-          "useWorkflowTimezone": true,
-          "respondWithOptions": {
-            "values": {
-              "respondWith": "text",
-              "formSubmittedText": "Turn added to board."
-            }
-          }
         }
       }
     },
     {
-      "id": "normalize-intake-submission",
-      "name": "Normalize Intake Submission",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
+      "id": "read",
+      "name": "Read New Intake Records",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
       "position": [
-        280,
+        260,
         0
       ],
       "parameters": {
-        "jsCode": "const input = $json;\nfunction pick(...keys) {\n  for (const key of keys) {\n    if (input[key] !== undefined && input[key] !== null && String(input[key]).trim() !== '') return String(input[key]).trim();\n  }\n  return '';\n}\nfunction dateOnly(value, field) {\n  if (!value) throw new Error(field + ' is required.');\n  const parsed = new Date(value);\n  if (Number.isNaN(parsed.getTime())) throw new Error(field + ' is not a valid date.');\n  return parsed.toISOString().slice(0, 10);\n}\nfunction addDays(dateText, days) {\n  const date = new Date(dateText + 'T00:00:00Z');\n  date.setUTCDate(date.getUTCDate() + days);\n  return date.toISOString().slice(0, 10);\n}\nconst unitLabel = pick('unit_label', 'Unit label', 'field-0');\nconst propertyAddress = pick('property_address', 'Property address', 'field-1');\nconst rentMonthly = Number(pick('rent_monthly', 'Monthly rent', 'field-2'));\nif (!unitLabel) throw new Error('unit_label is required.');\nif (!propertyAddress) throw new Error('property_address is required.');\nif (!Number.isFinite(rentMonthly) || rentMonthly < 0) throw new Error('rent_monthly must be a non-negative number.');\nconst noticeDate = dateOnly(pick('notice_date', 'Notice date', 'field-3'), 'notice_date');\nconst moveoutDate = dateOnly(pick('moveout_date', 'Move-out date', 'field-4'), 'moveout_date');\nconst targetInput = pick('target_ready_date', 'Target ready date', 'field-5');\nconst targetReadyDate = targetInput ? dateOnly(targetInput, 'target_ready_date') : addDays(moveoutDate, 5);\nreturn [{ json: {\n  unit_label: unitLabel,\n  property_address: propertyAddress,\n  rent_monthly: rentMonthly,\n  notice_date: noticeDate,\n  moveout_date: moveoutDate,\n  target_ready_date: targetReadyDate,\n  trashout_vendor: pick('trashout_vendor', 'Trash-out vendor', 'field-6') || 'QuickHaul Junk Removal',\n  repairs_vendor: pick('repairs_vendor', 'Repairs vendor', 'field-7') || 'Dale Hutchins',\n  paint_vendor: pick('paint_vendor', 'Paint vendor', 'field-8') || 'Rivera Painting',\n  flooring_vendor: pick('flooring_vendor', 'Flooring vendor', 'field-9') || 'Statewide Flooring',\n  deep_clean_vendor: pick('deep_clean_vendor', 'Deep clean vendor', 'field-10') || \"Maria's Cleaning Co\"\n} }];"
+        "method": "GET",
+        "url": "={{ 'https://api.airtable.com/v0/AIRTABLE_BASE_ID_PLACEHOLDER/' + encodeURIComponent('Turn Intake') + '?maxRecords=100&filterByFormula=' + encodeURIComponent(\"{Intake Status}='New'\") }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "airtableTokenApi",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "cred_make_ready_airtable",
+          "name": "Make-Ready Airtable"
+        }
       }
     },
     {
-      "id": "insert-intake-turn-and-stages",
-      "name": "Insert Intake Turn And Stages",
+      "id": "normalize",
+      "name": "Normalize Airtable Intake",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        520,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const records=Array.isArray($json.records)?$json.records:[];return records.map(r=>{const f=r.fields||{};const first=x=>Array.isArray(x)&&x.length?String(x[0]):'';const errors=[];const unit=String(f.Unit||'').trim();const address=String(f['Property Address']||'').trim();const rent=Number(f['Monthly Rent']||0);if(!unit)errors.push('Unit is required.');if(!address)errors.push('Property Address is required.');if(!Number.isFinite(rent)||rent<=0)errors.push('Monthly Rent must be greater than zero.');const cleanDate=(label,value)=>{const text=String(value||'').trim();if(!text)return'';if(!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(text)||Number.isNaN(Date.parse(text+'T00:00:00Z'))){errors.push(label+' must be a valid date.');return'';}return text;};const links={trashout_vendor_record:first(f['Trash-out Vendor']),repairs_vendor_record:first(f['Repairs Vendor']),paint_vendor_record:first(f['Paint Vendor']),flooring_vendor_record:first(f['Flooring Vendor']),clean_vendor_record:first(f['Deep Clean Vendor'])};for(const [key,value] of Object.entries(links)){if(!value)errors.push(key.replace('_vendor_record','').replace('_',' ')+' vendor is required.');}return{json:{airtable_record_id:r.id,unit_label:unit,property_address:address,rent_monthly:rent,notice_date:cleanDate('Notice Date',f['Notice Date']),moveout_date:cleanDate('Move-out Date',f['Move-out Date']),target_ready_date:cleanDate('Target Ready Date',f['Target Ready Date']),...links,validation_error:errors.join(' ')}}});"
+      }
+    },
+    {
+      "id": "create",
+      "name": "Create Turn Idempotently",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        560,
+        780,
         0
       ],
       "parameters": {
         "operation": "executeQuery",
-        "query": "WITH input AS (\n  SELECT\n    '{{ String($json.unit_label || \"\").replace(/'/g, \"''\") }}'::text AS unit_label,\n    '{{ String($json.property_address || \"\").replace(/'/g, \"''\") }}'::text AS property_address,\n    {{ Number($json.rent_monthly || 0) }}::numeric AS rent_monthly,\n    '{{ String($json.notice_date || \"\").replace(/'/g, \"''\") }}'::date AS notice_date,\n    '{{ String($json.moveout_date || \"\").replace(/'/g, \"''\") }}'::date AS moveout_date,\n    '{{ String($json.target_ready_date || \"\").replace(/'/g, \"''\") }}'::date AS target_ready_date,\n    '{{ String($json.trashout_vendor || \"QuickHaul Junk Removal\").replace(/'/g, \"''\") }}'::text AS trashout_vendor,\n    '{{ String($json.repairs_vendor || \"Dale Hutchins\").replace(/'/g, \"''\") }}'::text AS repairs_vendor,\n    '{{ String($json.paint_vendor || \"Rivera Painting\").replace(/'/g, \"''\") }}'::text AS paint_vendor,\n    '{{ String($json.flooring_vendor || \"Statewide Flooring\").replace(/'/g, \"''\") }}'::text AS flooring_vendor,\n    '{{ String($json.deep_clean_vendor || \"Maria's Cleaning Co\").replace(/'/g, \"''\") }}'::text AS deep_clean_vendor\n), inserted_turn AS (\n  INSERT INTO \"turn\" (unit_label, property_address, rent_monthly, notice_date, moveout_date, target_ready_date, status, is_fixture)\n  SELECT unit_label, property_address, rent_monthly, notice_date, moveout_date, target_ready_date, 'active', false\n  FROM input\n  RETURNING id, unit_label, property_address, target_ready_date\n), stage_template(seq, stage_code, stage_name, sla_hours) AS (\n  VALUES\n    (0, 'NOTICE', 'Notice received', 0),\n    (1, 'PRE_INSPECT', 'Pre-move-out inspection', 48),\n    (2, 'MOVEOUT', 'Move-out / keys returned', 0),\n    (3, 'INSPECT_PUNCH', 'Inspection + punch list', 24),\n    (4, 'TRASHOUT', 'Trash-out', 24),\n    (5, 'REPAIRS', 'Repairs / trades', 72),\n    (6, 'PAINT', 'Paint', 48),\n    (7, 'FLOORING', 'Flooring', 48),\n    (8, 'DEEP_CLEAN', 'Deep clean', 24),\n    (9, 'QA_PHOTOS', 'QA walkthrough + photos', 12),\n    (10, 'RELIST', 'Relist', 0)\n), stage_vendor AS (\n  SELECT 'NOTICE'::text AS stage_code, 'Cedar Ridge in-house'::text AS vendor_name FROM input\n  UNION ALL SELECT 'PRE_INSPECT', 'Cedar Ridge in-house' FROM input\n  UNION ALL SELECT 'MOVEOUT', 'Cedar Ridge in-house' FROM input\n  UNION ALL SELECT 'INSPECT_PUNCH', 'Cedar Ridge in-house' FROM input\n  UNION ALL SELECT 'TRASHOUT', trashout_vendor FROM input\n  UNION ALL SELECT 'REPAIRS', repairs_vendor FROM input\n  UNION ALL SELECT 'PAINT', paint_vendor FROM input\n  UNION ALL SELECT 'FLOORING', flooring_vendor FROM input\n  UNION ALL SELECT 'DEEP_CLEAN', deep_clean_vendor FROM input\n  UNION ALL SELECT 'QA_PHOTOS', 'Cedar Ridge in-house' FROM input\n  UNION ALL SELECT 'RELIST', 'Cedar Ridge in-house' FROM input\n), inserted_stages AS (\n  INSERT INTO turn_stage (turn_id, seq, stage_code, stage_name, status, vendor_id, sla_hours, activated_at)\n  SELECT\n    it.id,\n    st.seq,\n    st.stage_code,\n    st.stage_name,\n    CASE WHEN st.stage_code = 'NOTICE' THEN 'active' ELSE 'pending' END,\n    v.id,\n    st.sla_hours,\n    CASE WHEN st.stage_code = 'NOTICE' THEN now() ELSE NULL END\n  FROM inserted_turn it\n  CROSS JOIN stage_template st\n  JOIN stage_vendor sv ON sv.stage_code = st.stage_code\n  LEFT JOIN vendor v ON v.name = sv.vendor_name AND v.active = true\n  ORDER BY st.seq\n  RETURNING id, turn_id, stage_code, status\n), write_event AS (\n  INSERT INTO event_log (turn_id, stage_id, actor_type, actor_id, channel, event_type, raw_text, parsed_json)\n  SELECT\n    it.id,\n    (SELECT id FROM inserted_stages WHERE stage_code = 'NOTICE' LIMIT 1),\n    'manager',\n    'intake-form',\n    'form',\n    'turn_intake',\n    'manager submitted turn intake',\n    jsonb_build_object(\n      'unit_label', input.unit_label,\n      'property_address', input.property_address,\n      'target_ready_date', input.target_ready_date,\n      'stage_count', (SELECT count(*) FROM inserted_stages),\n      'initial_stage_code', 'NOTICE'\n    )\n  FROM inserted_turn it\n  CROSS JOIN input\n  RETURNING id\n)\nSELECT\n  it.id AS turn_id,\n  it.unit_label,\n  it.property_address,\n  it.target_ready_date,\n  (SELECT count(*) FROM inserted_stages) AS stage_count,\n  (SELECT id FROM write_event LIMIT 1) AS event_id,\n  'NOTICE'::text AS current_stage_code,\n  'Turn added to board.'::text AS formSubmittedText\nFROM inserted_turn it;",
+        "query": "WITH input AS (\n SELECT '{{ String($json.airtable_record_id||\"\").replace(/'/g,\"''\") }}' record_id,'{{ String($json.unit_label||\"\").replace(/'/g,\"''\") }}' unit_label,'{{ String($json.property_address||\"\").replace(/'/g,\"''\") }}' property_address,{{ Number($json.rent_monthly||0) }}::numeric rent_monthly,\n NULLIF('{{ String($json.notice_date||\"\").replace(/'/g,\"''\") }}','')::date notice_date,NULLIF('{{ String($json.moveout_date||\"\").replace(/'/g,\"''\") }}','')::date moveout_date,NULLIF('{{ String($json.target_ready_date||\"\").replace(/'/g,\"''\") }}','')::date target_ready_date,\n '{{ String($json.trashout_vendor_record||\"\").replace(/'/g,\"''\") }}' trashout_ref,'{{ String($json.repairs_vendor_record||\"\").replace(/'/g,\"''\") }}' repairs_ref,'{{ String($json.paint_vendor_record||\"\").replace(/'/g,\"''\") }}' paint_ref,'{{ String($json.flooring_vendor_record||\"\").replace(/'/g,\"''\") }}' flooring_ref,'{{ String($json.clean_vendor_record||\"\").replace(/'/g,\"''\") }}' clean_ref,\n '{{ String($json.validation_error||\"\").replace(/'/g,\"''\") }}' validation_error\n), resolved AS (\n SELECT i.*,\n   (SELECT m.entity_id::int FROM airtable_record_map m JOIN vendor v ON v.id=m.entity_id WHERE m.entity_type='vendor' AND m.airtable_record_id=i.trashout_ref AND v.trade='trashout' AND v.active) trashout_id,\n   (SELECT m.entity_id::int FROM airtable_record_map m JOIN vendor v ON v.id=m.entity_id WHERE m.entity_type='vendor' AND m.airtable_record_id=i.repairs_ref AND v.trade='repairs' AND v.active) repairs_id,\n   (SELECT m.entity_id::int FROM airtable_record_map m JOIN vendor v ON v.id=m.entity_id WHERE m.entity_type='vendor' AND m.airtable_record_id=i.paint_ref AND v.trade='paint' AND v.active) paint_id,\n   (SELECT m.entity_id::int FROM airtable_record_map m JOIN vendor v ON v.id=m.entity_id WHERE m.entity_type='vendor' AND m.airtable_record_id=i.flooring_ref AND v.trade='flooring' AND v.active) flooring_id,\n   (SELECT m.entity_id::int FROM airtable_record_map m JOIN vendor v ON v.id=m.entity_id WHERE m.entity_type='vendor' AND m.airtable_record_id=i.clean_ref AND v.trade='clean' AND v.active) clean_id\n FROM input i\n), validated AS (\n SELECT r.*,CASE WHEN r.validation_error<>'' THEN r.validation_error WHEN r.trashout_id IS NULL OR r.repairs_id IS NULL OR r.paint_id IS NULL OR r.flooring_id IS NULL OR r.clean_id IS NULL THEN 'Each selected vendor must be active, synced from Airtable, and match the stage trade.' ELSE '' END error_text FROM resolved r\n), existing AS (\n SELECT m.entity_id turn_id FROM airtable_record_map m,validated i WHERE m.entity_type='intake' AND m.airtable_record_id=i.record_id\n), inserted_turn AS (\n INSERT INTO \"turn\"(unit_label,property_address,rent_monthly,notice_date,moveout_date,target_ready_date,status,is_fixture)\n SELECT unit_label,property_address,rent_monthly,notice_date,moveout_date,target_ready_date,'active',false FROM validated WHERE error_text='' AND NOT EXISTS(SELECT 1 FROM existing)\n ON CONFLICT(unit_label,property_address,is_fixture) DO NOTHING RETURNING *\n), chosen AS (\n SELECT * FROM inserted_turn UNION ALL SELECT t.* FROM \"turn\" t JOIN existing e ON e.turn_id=t.id LIMIT 1\n), template(seq,stage_code,stage_name,trade,sla) AS (\n VALUES(0,'NOTICE','Notice received','inspect',0),(1,'PRE_INSPECT','Pre-move-out inspection','inspect',48),(2,'MOVEOUT','Move-out / keys returned','inspect',0),(3,'INSPECT_PUNCH','Inspection + punch list','inspect',24),(4,'TRASHOUT','Trash-out','trashout',24),(5,'REPAIRS','Repairs / trades','repairs',72),(6,'PAINT','Paint','paint',48),(7,'FLOORING','Flooring','flooring',48),(8,'DEEP_CLEAN','Deep clean','clean',24),(9,'QA_PHOTOS','QA walkthrough + photos','inspect',12),(10,'RELIST','Relist','inspect',0)\n), assigned AS (\n SELECT x.*,CASE x.trade WHEN 'trashout' THEN i.trashout_id WHEN 'repairs' THEN i.repairs_id WHEN 'paint' THEN i.paint_id WHEN 'flooring' THEN i.flooring_id WHEN 'clean' THEN i.clean_id ELSE (SELECT id FROM vendor WHERE trade='inspect' AND active ORDER BY id LIMIT 1) END vendor_id FROM template x CROSS JOIN validated i\n), stages AS (\n INSERT INTO turn_stage(turn_id,seq,stage_code,stage_name,status,vendor_id,sla_hours,activated_at)\n SELECT c.id,a.seq,a.stage_code,a.stage_name,CASE WHEN a.seq=0 THEN 'active' ELSE 'pending' END,a.vendor_id,a.sla,CASE WHEN a.seq=0 THEN now() END FROM chosen c CROSS JOIN assigned a ON CONFLICT(turn_id,seq) DO NOTHING RETURNING id\n), map AS (\n INSERT INTO airtable_record_map(entity_type,entity_id,airtable_table,airtable_record_id) SELECT 'intake',c.id,'Turn Intake',i.record_id FROM chosen c CROSS JOIN validated i ON CONFLICT(entity_type,entity_id) DO UPDATE SET airtable_record_id=excluded.airtable_record_id,last_synced_at=now() RETURNING entity_id\n), event AS (\n INSERT INTO event_log(turn_id,stage_id,actor_type,actor_id,channel,event_type,raw_text,parsed_json) SELECT c.id,(SELECT id FROM turn_stage WHERE turn_id=c.id AND stage_code='NOTICE'),'manager','airtable-form','airtable','turn_intake','Airtable intake submitted',jsonb_build_object('record_id',i.record_id) FROM chosen c CROSS JOIN validated i WHERE NOT EXISTS(SELECT 1 FROM existing) RETURNING id\n)\nSELECT i.record_id airtable_record_id,c.id turn_id,(c.id IS NOT NULL) success,CASE WHEN c.id IS NOT NULL THEN NULL WHEN i.error_text<>'' THEN i.error_text ELSE 'This unit and property already exist under a different Airtable intake record.' END error_details FROM validated i LEFT JOIN chosen c ON true;",
         "options": {}
       },
       "credentials": {
@@ -193,50 +80,129 @@
           "id": "cred_make_ready_pg",
           "name": "Make-Ready Postgres"
         }
-      }
+      },
+      "alwaysOutputData": false
     },
     {
-      "id": "format-intake-result",
-      "name": "Format Intake Result",
+      "id": "status",
+      "name": "Build Intake Status Update",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        840,
+        1040,
         0
       ],
       "parameters": {
-        "jsCode": "return items.map(item => ({ json: {\n  accepted: true,\n  outcome: 'turn_intake',\n  turn_id: Number(item.json.turn_id),\n  unit_label: item.json.unit_label,\n  property_address: item.json.property_address,\n  target_ready_date: item.json.target_ready_date,\n  stage_count: Number(item.json.stage_count),\n  current_stage_code: item.json.current_stage_code,\n  event_id: Number(item.json.event_id),\n  formSubmittedText: item.json.formsubmittedtext || item.json.formSubmittedText || 'Turn added to board.'\n} }));"
+        "jsCode": "return [{json:{...$json,base_id:'AIRTABLE_BASE_ID_PLACEHOLDER',update_body:{fields:{'Intake Status':$json.success?'Created':'Error','Error Details':$json.error_details||''}}}}];"
+      }
+    },
+    {
+      "id": "update",
+      "name": "Update Intake Result",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1300,
+        0
+      ],
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ 'https://api.airtable.com/v0/' + $json.base_id + '/' + encodeURIComponent('Turn Intake') + '/' + $json.airtable_record_id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "airtableTokenApi",
+        "options": {
+          "timeout": 15000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.update_body) }}"
+      },
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "cred_make_ready_airtable",
+          "name": "Make-Ready Airtable"
+        }
+      }
+    },
+    {
+      "id": "sync",
+      "name": "Sync New Turn To Airtable",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [
+        1560,
+        0
+      ],
+      "parameters": {
+        "source": "database",
+        "workflowId": "wf9-airtable-sync",
+        "options": {
+          "waitForSubWorkflow": true
+        }
       }
     }
   ],
   "connections": {
-    "Turn Intake Form": {
+    "PollAirtableIntake": {
       "main": [
         [
           {
-            "node": "Normalize Intake Submission",
+            "node": "Read New Intake Records",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Normalize Intake Submission": {
+    "Read New Intake Records": {
       "main": [
         [
           {
-            "node": "Insert Intake Turn And Stages",
+            "node": "Normalize Airtable Intake",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Insert Intake Turn And Stages": {
+    "Normalize Airtable Intake": {
       "main": [
         [
           {
-            "node": "Format Intake Result",
+            "node": "Create Turn Idempotently",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Turn Idempotently": {
+      "main": [
+        [
+          {
+            "node": "Build Intake Status Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Intake Status Update": {
+      "main": [
+        [
+          {
+            "node": "Update Intake Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Intake Result": {
+      "main": [
+        [
+          {
+            "node": "Sync New Turn To Airtable",
             "type": "main",
             "index": 0
           }
@@ -250,7 +216,7 @@
   },
   "staticData": null,
   "pinData": {},
-  "versionId": "wf4-turn-intake-v1",
+  "versionId": "wf4-turn-intake-ae-v1",
   "triggerCount": 0,
   "tags": []
 }

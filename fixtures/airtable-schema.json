@@ -1,0 +1,168 @@
+{
+  "baseName": "Make-Ready Operations Demo",
+  "tables": [
+    {
+      "name": "Vendors",
+      "fields": [
+        { "name": "Vendor", "type": "singleLineText" },
+        { "name": "External ID", "type": "singleLineText" },
+        { "name": "Trade", "type": "singleSelect", "options": { "choices": [
+          { "name": "Paint", "color": "blueLight2" }, { "name": "Clean", "color": "cyanLight2" },
+          { "name": "Flooring", "color": "purpleLight2" }, { "name": "Repairs", "color": "orangeLight2" },
+          { "name": "Trash-out", "color": "yellowLight2" }, { "name": "Inspect", "color": "greenLight2" }
+        ] } },
+        { "name": "Email", "type": "email" },
+        { "name": "Telegram Contact", "type": "singleLineText" },
+        { "name": "Active", "type": "checkbox", "options": { "icon": "check", "color": "greenBright" } },
+        { "name": "Contact Ready", "type": "checkbox", "options": { "icon": "check", "color": "blueBright" } },
+        { "name": "Contact Status", "type": "singleSelect", "options": { "choices": [
+          { "name": "Ready", "color": "greenLight2" }, { "name": "Missing Email", "color": "yellowLight2" },
+          { "name": "Missing Telegram", "color": "orangeLight2" }, { "name": "Missing Both", "color": "redLight2" }
+        ] } }
+      ]
+    },
+    {
+      "name": "Turn Intake",
+      "fields": [
+        { "name": "Unit", "type": "singleLineText" },
+        { "name": "External ID", "type": "singleLineText" },
+        { "name": "Property Address", "type": "singleLineText" },
+        { "name": "Monthly Rent", "type": "currency", "options": { "precision": 2, "symbol": "$" } },
+        { "name": "Notice Date", "type": "date", "options": { "dateFormat": { "name": "iso", "format": "YYYY-MM-DD" } } },
+        { "name": "Move-out Date", "type": "date", "options": { "dateFormat": { "name": "iso", "format": "YYYY-MM-DD" } } },
+        { "name": "Target Ready Date", "type": "date", "options": { "dateFormat": { "name": "iso", "format": "YYYY-MM-DD" } } },
+        { "name": "Trash-out Vendor", "type": "multipleRecordLinks", "linkedTable": "Vendors", "options": { "prefersSingleRecordLink": true } },
+        { "name": "Repairs Vendor", "type": "multipleRecordLinks", "linkedTable": "Vendors", "options": { "prefersSingleRecordLink": true } },
+        { "name": "Paint Vendor", "type": "multipleRecordLinks", "linkedTable": "Vendors", "options": { "prefersSingleRecordLink": true } },
+        { "name": "Flooring Vendor", "type": "multipleRecordLinks", "linkedTable": "Vendors", "options": { "prefersSingleRecordLink": true } },
+        { "name": "Deep Clean Vendor", "type": "multipleRecordLinks", "linkedTable": "Vendors", "options": { "prefersSingleRecordLink": true } },
+        { "name": "Intake Status", "type": "singleSelect", "options": { "choices": [
+          { "name": "New", "color": "blueLight2" }, { "name": "Processing", "color": "yellowLight2" },
+          { "name": "Created", "color": "greenLight2" }, { "name": "Error", "color": "redLight2" }
+        ] } },
+        { "name": "Error Details", "type": "multilineText" },
+        { "name": "Submitted At", "type": "createdTime", "options": { "result": { "type": "dateTime", "options": { "dateFormat": { "name": "iso", "format": "YYYY-MM-DD" }, "timeFormat": { "name": "24hour", "format": "HH:mm" }, "timeZone": "utc" } } } }
+      ]
+    },
+    {
+      "name": "Turns",
+      "fields": [
+        { "name": "Turn", "type": "singleLineText" },
+        { "name": "External ID", "type": "singleLineText" },
+        { "name": "Unit", "type": "singleLineText" },
+        { "name": "Property Address", "type": "singleLineText" },
+        { "name": "Monthly Rent", "type": "currency", "options": { "precision": 2, "symbol": "$" } },
+        { "name": "Status", "type": "singleSelect", "options": { "choices": [
+          { "name": "Active", "color": "blueLight2" }, { "name": "Complete", "color": "greenLight2" }, { "name": "Cancelled", "color": "grayLight2" }
+        ] } },
+        { "name": "Current Stage", "type": "singleSelect", "options": { "choices": [
+          { "name": "Notice" }, { "name": "Move-out" }, { "name": "Inspection" }, { "name": "Trash-out" },
+          { "name": "Repairs" }, { "name": "Paint" }, { "name": "Flooring" }, { "name": "Deep Clean" },
+          { "name": "QA / Photos" }, { "name": "Manager Ready" }, { "name": "Relist" }
+        ] } },
+        { "name": "Health", "type": "singleSelect", "options": { "choices": [
+          { "name": "On Track", "color": "greenLight2" }, { "name": "Due Soon", "color": "yellowLight2" },
+          { "name": "Stalled", "color": "redLight2" }, { "name": "Awaiting Approval", "color": "orangeLight2" },
+          { "name": "Awaiting Delivery", "color": "purpleLight2" }, { "name": "Snoozed", "color": "yellowLight1" },
+          { "name": "Complete", "color": "greenBright" },
+          { "name": "Cancelled", "color": "grayLight2" }
+        ] } },
+        { "name": "Active Vendor", "type": "multipleRecordLinks", "linkedTable": "Vendors", "options": { "prefersSingleRecordLink": true } },
+        { "name": "Notice Date", "type": "date", "options": { "dateFormat": { "name": "iso", "format": "YYYY-MM-DD" } } },
+        { "name": "Move-out Date", "type": "date", "options": { "dateFormat": { "name": "iso", "format": "YYYY-MM-DD" } } },
+        { "name": "Target Ready Date", "type": "date", "options": { "dateFormat": { "name": "iso", "format": "YYYY-MM-DD" } } },
+        { "name": "Stage Activated", "type": "dateTime", "options": { "dateFormat": { "name": "iso", "format": "YYYY-MM-DD" }, "timeFormat": { "name": "24hour", "format": "HH:mm" }, "timeZone": "utc" } },
+        { "name": "Elapsed", "type": "duration", "options": { "durationFormat": "h:mm" } },
+        { "name": "SLA Progress", "type": "percent", "options": { "precision": 0 } },
+        { "name": "Vacancy Days", "type": "number", "options": { "precision": 1 } },
+        { "name": "Vacancy Loss", "type": "currency", "options": { "precision": 2, "symbol": "$" } },
+        { "name": "Latest Update", "type": "multilineText" },
+        { "name": "Last Synced", "type": "dateTime", "options": { "dateFormat": { "name": "iso", "format": "YYYY-MM-DD" }, "timeFormat": { "name": "24hour", "format": "HH:mm" }, "timeZone": "utc" } }
+      ]
+    },
+    {
+      "name": "Stages",
+      "fields": [
+        { "name": "Stage Record", "type": "singleLineText" },
+        { "name": "External ID", "type": "singleLineText" },
+        { "name": "Turn", "type": "multipleRecordLinks", "linkedTable": "Turns", "options": { "prefersSingleRecordLink": true } },
+        { "name": "Sequence", "type": "number", "options": { "precision": 0 } },
+        { "name": "Stage", "type": "singleSelect", "options": { "choices": [
+          { "name": "Notice" }, { "name": "Move-out" }, { "name": "Inspection" }, { "name": "Trash-out" },
+          { "name": "Repairs" }, { "name": "Paint" }, { "name": "Flooring" }, { "name": "Deep Clean" },
+          { "name": "QA / Photos" }, { "name": "Manager Ready" }, { "name": "Relist" }
+        ] } },
+        { "name": "Status", "type": "singleSelect", "options": { "choices": [
+          { "name": "Pending", "color": "grayLight2" }, { "name": "Active", "color": "blueLight2" },
+          { "name": "Awaiting Approval", "color": "orangeLight2" }, { "name": "Awaiting Delivery", "color": "purpleLight2" },
+          { "name": "Complete", "color": "greenLight2" }, { "name": "Skipped", "color": "yellowLight2" },
+          { "name": "Blocked", "color": "redLight2" }, { "name": "Cancelled", "color": "grayLight2" }
+        ] } },
+        { "name": "Vendor", "type": "multipleRecordLinks", "linkedTable": "Vendors", "options": { "prefersSingleRecordLink": true } },
+        { "name": "SLA Hours", "type": "number", "options": { "precision": 0 } },
+        { "name": "Activated At", "type": "dateTime", "options": { "dateFormat": { "name": "iso", "format": "YYYY-MM-DD" }, "timeFormat": { "name": "24hour", "format": "HH:mm" }, "timeZone": "utc" } },
+        { "name": "Completed At", "type": "dateTime", "options": { "dateFormat": { "name": "iso", "format": "YYYY-MM-DD" }, "timeFormat": { "name": "24hour", "format": "HH:mm" }, "timeZone": "utc" } },
+        { "name": "Elapsed", "type": "duration", "options": { "durationFormat": "h:mm" } },
+        { "name": "SLA Progress", "type": "percent", "options": { "precision": 0 } },
+        { "name": "Overdue", "type": "checkbox", "options": { "icon": "alert", "color": "redBright" } },
+        { "name": "Completed Via", "type": "singleSelect", "options": { "choices": [
+          { "name": "Vendor Reply" }, { "name": "Manual" }, { "name": "Override" }, { "name": "Skip" }
+        ] } },
+        { "name": "Evidence", "type": "multipleAttachments" },
+        { "name": "Last Synced", "type": "dateTime", "options": { "dateFormat": { "name": "iso", "format": "YYYY-MM-DD" }, "timeFormat": { "name": "24hour", "format": "HH:mm" }, "timeZone": "utc" } }
+      ]
+    },
+    {
+      "name": "Communications",
+      "fields": [
+        { "name": "Communication", "type": "singleLineText" },
+        { "name": "External ID", "type": "singleLineText" },
+        { "name": "Direction", "type": "singleSelect", "options": { "choices": [ { "name": "Inbound", "color": "blueLight2" }, { "name": "Outbound", "color": "greenLight2" } ] } },
+        { "name": "Channel", "type": "singleSelect", "options": { "choices": [ { "name": "Email", "color": "cyanLight2" }, { "name": "Telegram", "color": "blueLight2" }, { "name": "Generic", "color": "grayLight2" } ] } },
+        { "name": "Vendor", "type": "multipleRecordLinks", "linkedTable": "Vendors", "options": { "prefersSingleRecordLink": true } },
+        { "name": "Turn", "type": "multipleRecordLinks", "linkedTable": "Turns", "options": { "prefersSingleRecordLink": true } },
+        { "name": "Stage", "type": "multipleRecordLinks", "linkedTable": "Stages", "options": { "prefersSingleRecordLink": true } },
+        { "name": "Subject", "type": "singleLineText" },
+        { "name": "Message", "type": "multilineText" },
+        { "name": "Intent", "type": "singleSelect", "options": { "choices": [
+          { "name": "Stage Complete" }, { "name": "Stage Started" }, { "name": "Delay Notice" }, { "name": "Schedule Change" },
+          { "name": "Access Issue" }, { "name": "Question" }, { "name": "Materials Issue" }, { "name": "Invoice / Payment" },
+          { "name": "Deposit / Liability" }, { "name": "Not My Unit" }, { "name": "Unrelated" }, { "name": "Unclear" }
+        ] } },
+        { "name": "AI Confidence", "type": "percent", "options": { "precision": 0 } },
+        { "name": "AI Summary", "type": "multilineText" },
+        { "name": "Needs Review", "type": "checkbox", "options": { "icon": "alert", "color": "orangeBright" } },
+        { "name": "Status", "type": "singleSelect", "options": { "choices": [
+          { "name": "Received" }, { "name": "Processed" }, { "name": "Needs Manager" }, { "name": "Ignored" }, { "name": "Sent" }, { "name": "Failed" }
+        ] } },
+        { "name": "Attachments", "type": "multipleAttachments" },
+        { "name": "Occurred At", "type": "dateTime", "options": { "dateFormat": { "name": "iso", "format": "YYYY-MM-DD" }, "timeFormat": { "name": "24hour", "format": "HH:mm" }, "timeZone": "utc" } }
+      ]
+    },
+    {
+      "name": "Approvals & Deliveries",
+      "fields": [
+        { "name": "Approval", "type": "singleLineText" },
+        { "name": "External ID", "type": "singleLineText" },
+        { "name": "Vendor", "type": "multipleRecordLinks", "linkedTable": "Vendors", "options": { "prefersSingleRecordLink": true } },
+        { "name": "Turn", "type": "multipleRecordLinks", "linkedTable": "Turns", "options": { "prefersSingleRecordLink": true } },
+        { "name": "Stage", "type": "multipleRecordLinks", "linkedTable": "Stages", "options": { "prefersSingleRecordLink": true } },
+        { "name": "Draft", "type": "multilineText" },
+        { "name": "Channels", "type": "multipleSelects", "options": { "choices": [ { "name": "Email", "color": "cyanLight2" }, { "name": "Telegram", "color": "blueLight2" } ] } },
+        { "name": "Approval Status", "type": "singleSelect", "options": { "choices": [
+          { "name": "Awaiting Approval", "color": "orangeLight2" }, { "name": "Editing", "color": "yellowLight2" },
+          { "name": "Approved", "color": "blueLight2" }, { "name": "Sending", "color": "cyanLight2" },
+          { "name": "Retry Pending", "color": "yellowLight2" }, { "name": "Sent", "color": "greenLight2" },
+          { "name": "Partially Sent", "color": "redLight2" }, { "name": "Failed", "color": "redBright" },
+          { "name": "Held", "color": "grayLight2" }, { "name": "Cancelled", "color": "grayLight2" },
+          { "name": "Configuration Blocked", "color": "orangeBright" }
+        ] } },
+        { "name": "Email Status", "type": "singleSelect", "options": { "choices": [ { "name": "Pending" }, { "name": "Sent" }, { "name": "Failed" }, { "name": "Retry Pending" }, { "name": "Cancelled" } ] } },
+        { "name": "Telegram Status", "type": "singleSelect", "options": { "choices": [ { "name": "Pending" }, { "name": "Sent" }, { "name": "Failed" }, { "name": "Retry Pending" }, { "name": "Cancelled" } ] } },
+        { "name": "Decision At", "type": "dateTime", "options": { "dateFormat": { "name": "iso", "format": "YYYY-MM-DD" }, "timeFormat": { "name": "24hour", "format": "HH:mm" }, "timeZone": "utc" } },
+        { "name": "Sent At", "type": "dateTime", "options": { "dateFormat": { "name": "iso", "format": "YYYY-MM-DD" }, "timeFormat": { "name": "24hour", "format": "HH:mm" }, "timeZone": "utc" } },
+        { "name": "Last Error", "type": "multilineText" }
+      ]
+    }
+  ]
+}

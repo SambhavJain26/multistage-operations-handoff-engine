@@ -1,59 +1,38 @@
 # Stage 8 Production Pilot Readiness
 
-Stage 8 prepares the make-ready sequencing automation for a first paid pilot. It does not deploy a real server, enable SMS, or create a multi-client SaaS. Production remains one client per instance, on infrastructure billed to and owned by that client.
+This pack prepares one client-owned pilot instance. It doesn't deploy a VPS, enable SMS, or create a multi-client product.
 
-## Readiness Assets
+## Production Shape
 
-- `docker-compose.production.yml`: production-shaped Compose template with pinned images for Caddy, Postgres, and n8n.
-- `Caddyfile.production`: TLS reverse proxy for `n8n.<client-domain>` and basic-auth static board hosting at `board.<client-domain>`.
-- `.env.production.example`: placeholder production environment contract. Copy to `.env.production` only on a client-owned VPS.
-- `scripts/check-stage-8-production-readiness.ps1`: validates production placeholders, pinned images, HTTPS origins, retention defaults, and safe SMS-disabled posture.
-- `docs/stage-8-manager-runbook.md`: one-page client manager operating guide.
-- `docs/stage-8-contract-exclusions.md`: one-page proposal/contract exclusions.
-- `docs/stage-8-success-metrics.md`: pilot metric definitions.
+- The client owns the VPS, domain, Airtable workspace, mailbox, Telegram groups, OpenAI account, and future Twilio account.
+- Caddy exposes only `n8n.<client-domain>` over HTTPS.
+- Postgres isn't public. Airtable is the manager workspace, not the database of record.
+- n8n, Postgres, and Caddy use explicit image versions in the production Compose template.
+- n8n editor access uses reverse-proxy/basic authentication for the first pilot.
 
-## Client-Owned Provisioning Path
+## Provision From An Empty VPS
 
-1. Client buys or owns the VPS, domain, and Twilio account. Your access is by SSH key and can be revoked by the client.
-2. Point DNS:
-   - `n8n.<client-domain>` -> VPS public IP.
-   - `board.<client-domain>` -> VPS public IP.
-3. Open only required public firewall ports:
-   - `80/tcp` and `443/tcp` to Caddy.
-   - SSH restricted to known admin IPs where possible.
-   - Do not expose Postgres publicly.
-4. Install Docker Engine and Docker Compose plugin.
-5. Clone the private client repo or copy the approved release artifact to the VPS.
-6. Copy `.env.production.example` to `.env.production` and replace every placeholder.
-7. Run:
-   ```powershell
-   .\scripts\check-stage-8-production-readiness.ps1 -EnvFile .env.production
-   ```
-8. Start the stack:
-   ```bash
-   docker compose --env-file .env.production -f docker-compose.production.yml up -d
-   ```
-9. Import workflows using the Stage 7 import helper with production env values in place. Telegram may remain inactive unless explicitly retained for the pilot.
-10. Create n8n credentials manually for Postgres, OpenAI, and any approved messaging provider.
-11. Run the Stage 8 readiness check again, then run the Stage 7 static check against the production instance before onboarding vendors.
+1. Record the client's VPS and domain ownership. Add operator SSH keys individually so the client can revoke them.
+2. Point `n8n.<client-domain>` to the VPS public IP.
+3. Open public ports 80 and 443. Restrict SSH by source IP where possible. Don't expose port 5432.
+4. Install Docker Engine and the Docker Compose plugin.
+5. Place the approved repository release on the VPS.
+6. Create `.env.production` from `.env.production.example` and replace every placeholder with a client value.
+7. Generate the Caddy bcrypt password hash with `docker run --rm -it caddy:2.8.4-alpine caddy hash-password`. Put the result in `CADDY_BASIC_AUTH_HASH` inside single quotes so its dollar signs remain literal. Keep the plaintext password in the client's password manager, not `.env.production`.
+8. Validate `docker-compose.production.yml` and `Caddyfile.production` with the Stage 8 readiness check.
+9. Start Caddy, Postgres, and n8n.
+10. In n8n, create credentials named `Make-Ready Postgres`, `Make-Ready OpenAI`, `Make-Ready Airtable`, `Make-Ready Manager Telegram Bot`, `Make-Ready Vendor Telegram Bot`, `Make-Ready Vendor Email IMAP`, and `Make-Ready Vendor Email SMTP`.
+11. Provision the client Airtable base and create the Interface and intake form from `docs/airtable-workspace-setup.md`.
+12. Import the 19 operational workflows with `scripts/import-make-ready-workflows.ps1` and only the connector activation switches approved for that client.
+13. Test intake, one inbound Telegram message, one inbound email reply, one dual delivery, one partial delivery retry, one OpenAI fallback, and one Airtable reconciliation.
+14. Run a database restore test before adding the real vendor roster.
+15. Record handoff, credential ownership, backup location, and operator access removal.
 
-## Caddy Layout
-
-- `n8n.<client-domain>` reverse-proxies to `n8n:5678`.
-- `board.<client-domain>` serves the static board from `/srv/board` and applies Caddy basic auth.
-- Caddy obtains public certificates automatically when DNS points to the VPS and ports 80/443 are reachable.
-- The board still uses internal webhook tokens in n8n. Caddy basic auth is the pilot user-facing gate; custom app accounts are deferred.
+Caddy can obtain a public certificate only after DNS points to the VPS and ports 80/443 are reachable.
 
 ## Backup And Restore
 
-Default policy:
-
-- Nightly Postgres dump.
-- Keep backups for at least `BACKUP_RETENTION_DAYS`, default 30.
-- Store a second copy outside the VPS region or provider.
-- Test restore once before go-live and after any backup script change.
-
-Manual dump command:
+Run a nightly custom-format `pg_dump`. Keep 30 days by default and store a second copy outside the VPS provider or region.
 
 ```bash
 docker compose --env-file .env.production -f docker-compose.production.yml exec -T postgres \
@@ -61,70 +40,46 @@ docker compose --env-file .env.production -f docker-compose.production.yml exec 
   > "data/backups/make-ready-$(date -u +%Y%m%d-%H%M%S).dump"
 ```
 
-Restore-test outline:
+A backup isn't accepted until restore passes:
 
-1. Start an isolated throwaway Postgres container or database.
+1. Start an isolated throwaway Postgres database.
 2. Restore the latest dump with `pg_restore`.
-3. Confirm core tables exist: `vendor`, `turn`, `turn_stage`, `outbound_queue`, `event_log`, and `media_asset`.
-4. Confirm at least one known pilot row is present when testing after go-live.
-5. Record the restore timestamp and dump file name in the client handoff log.
+3. Confirm `vendor`, `turn`, `turn_stage`, `communication_message`, `outbound_queue`, `outbound_delivery`, `airtable_record_map`, and `event_log` exist.
+4. Compare row counts and one known turn against the source.
+5. Record the dump name, restore time, result, and tester.
+6. Delete the throwaway database and any unencrypted temporary copy.
 
 ## Retention
 
-- Keep stage timestamps and non-sensitive metrics long-term because they are the reporting value.
-- Purge vendor free-text messages after `RETENTION_MESSAGE_DAYS`, default 90.
-- Purge stored photos after `RETENTION_PHOTO_DAYS`, default 90, unless the client chooses a shorter window.
-- Do not store SSNs, bank details, lease documents, tenant screening data, or deposit itemization artifacts.
+- Keep stage timestamps and aggregate operating measures long term.
+- Delete vendor message bodies after `RETENTION_MESSAGE_DAYS`, default 90.
+- Delete photos and email attachments after `RETENTION_PHOTO_DAYS`, default 90.
+- Keep backup files for `BACKUP_RETENTION_DAYS`, default 30.
+- Don't collect SSNs, bank details, lease files, screening data, or deposit evidence in this automation.
 
-## Monitoring And Dead Letter
+## Monitoring And Failed Work
 
-Required pilot alerts:
+Alert the builder when:
 
-- n8n health endpoint unavailable.
-- Board URL unavailable.
-- No inbound vendor message for 24 business-hours after vendor SMS is enabled.
-- Any `workflow_error` event.
-- Any failed messaging/OpenAI call that exhausts retries.
+- n8n webhook health fails;
+- no inbound vendor message is processed for 24 business-hours during an active turn;
+- `workflow_error` appears;
+- Airtable reconciliation fails;
+- approved email or Telegram delivery exhausts its retries; or
+- an OpenAI call fails and uses the safe fallback.
 
-Dead-letter policy:
+Failed provider calls remain in durable delivery or communication records. Retry transient failures with backoff, then stop and alert the builder. Don't send an automatic apology, chase, or recovery message to a vendor.
 
-- Retry transient OpenAI or messaging failures with backoff.
-- After three failed attempts, write a dead-letter event and alert the builder/operator.
-- Do not auto-send recovery messages to vendors.
-- The manager may resolve from the board or approval queue after review.
+## SMS Readiness Only
 
-## SMS Readiness
+SMS stays disabled. Before any future SMS activation, the client needs a paid Twilio account, an approved A2P 10DLC brand and campaign, consent records, reviewed templates, and legal review for every operating state.
 
-SMS remains disabled in Stage 8. `SMS_ENABLED` must be `false`.
+Consent records must include source, timestamp, person who captured it, phone number, and approved purpose. STOP, UNSUBSCRIBE, QUIT, END, and CANCEL style requests set `vendor.opted_out_at`; every future SMS send path must block opted-out contacts.
 
-Before first production SMS:
-
-- Client has a paid Twilio account.
-- Client registers A2P 10DLC under their EIN/brand.
-- Campaign is approved before any vendor traffic.
-- Client has public privacy policy and terms URLs for A2P campaign registration.
-- Vendor roster includes phone number, consent source, consent timestamp, and opt-out state.
-- STOP/UNSUBSCRIBE/QUIT/END/CANCEL style inbound text sets `vendor.opted_out_at`.
-- Every outbound Send path checks `opted_out_at IS NULL`.
-- Client message templates are reviewed and approved.
-- Client operating states are reviewed by qualified US counsel for TCPA and state SMS rules.
-
-Reference sources for the current checklist:
-
-- Twilio A2P 10DLC quickstart: https://www.twilio.com/docs/messaging/compliance/a2p-10dlc/quickstart
-- Twilio June 30 2026 privacy/terms requirement: https://www.twilio.com/en-us/changelog/a2p-10dlc-campaign-registration-will-require-privacy-policy-and-
-- FCC TCPA revocation rules page: https://www.fcc.gov/document/tcpa-rules-revoking-consent-unwanted-robocallsrobotexts
+New campaign registration also needs public privacy-policy and terms URLs under Twilio's June 30, 2026 requirement. A qualified US lawyer must review TCPA and state rules before the first production text.
 
 ## Handoff
 
-Give the client:
+Give the client control of the VPS, DNS, Airtable, mailbox, Telegram groups, OpenAI account, backup target, and any future Twilio account. Provide the release, manager runbook, restore-test record, credential rotation steps, and an offboarding record.
 
-- VPS provider login ownership.
-- Domain/DNS ownership.
-- Twilio ownership.
-- Repo or release artifact.
-- `.env.production` location and rotation instructions, without sending secrets over chat/email.
-- Backup restore procedure and latest restore-test record.
-- Manager runbook.
-- Contract exclusions.
-- Offboarding note: stop containers, revoke your SSH key, rotate n8n/OpenAI/Twilio secrets, and keep the database/backups.
+Then revoke operator SSH and workspace access that the client no longer needs.
