@@ -70,6 +70,10 @@ Expected result: the reply token connects the email to the exact turn and stage.
 
 Changing the subject is safe when the email keeps a valid `In-Reply-To` header. A shared dispatch address is safe only when the reply thread points to a stage assigned to one of the vendors using that address.
 
+### Single-Inbox Demo Setup
+
+For the local demo, one Gmail address can act as the automation mailbox and every fixture vendor address. The workflow ignores an email from that address unless it is a reply with an `In-Reply-To` header, so it cannot mistake its own sent handoff for vendor input. Always use Gmail's **Reply** action on the received handoff email. This is a demo convenience, not a production mailbox pattern.
+
 ## Test Questions, Delays, And Random Messages
 
 Send these one at a time from an assigned vendor channel:

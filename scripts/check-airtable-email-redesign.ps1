@@ -56,6 +56,7 @@ foreach ($needle in @("configuration_blocked","RETRY_EMAIL","RETRY_TELEGRAM","em
 $email = $workflows | Where-Object id -eq "wf9-vendor-email-ingest"
 if (-not ($email.nodes.type -contains "n8n-nodes-base.emailReadImap")) { Fail "email intake does not use an IMAP trigger" }
 if (($email | ConvertTo-Json -Depth 100) -notlike "*content.airtable.com*v0*uploadAttachment*") { Fail "supported email evidence is not uploaded to Airtable attachments" }
+if (($email | ConvertTo-Json -Depth 100) -notlike "*selfOriginated*") { Fail "email intake does not protect the single-inbox demo from outbound-message reingestion" }
 $telegramIngestRaw = ($workflows | Where-Object id -eq "wf4-vendor-telegram-ingest") | ConvertTo-Json -Depth 100
 foreach ($needle in @("Download Vendor Telegram Photo", "Upload Telegram Evidence To Airtable", "content.airtable.com")) { if ($telegramIngestRaw -notlike "*$needle*") { Fail "Telegram evidence path missing $needle" } }
 if (-not ($delivery.nodes.type -contains "n8n-nodes-base.emailSend")) { Fail "vendor delivery does not use SMTP email" }
@@ -68,6 +69,7 @@ $syncRaw = ($workflows | Where-Object id -eq "wf9-airtable-sync") | ConvertTo-Js
 foreach ($needle in @('performUpsert', 'fieldsToMergeOn', 'payload_hash', '$input.all()')) { if ($syncRaw -notlike "*$needle*") { Fail "Airtable reconciliation missing $needle" } }
 $fixtures = Get-Content -Raw (Join-Path $repoRoot "fixtures\email-ai-fixtures.json") | ConvertFrom-Json
 if ($fixtures.fixtures.Count -lt 15) { Fail "email/AI fixture coverage is incomplete" }
+if (-not ($fixtures.fixtures | Where-Object { $_.id -eq "E16" -and $_.expected.self_originated_without_reply_header })) { Fail "single-inbox self-message fixture is missing" }
 
 $schemaArgs = @("-NoProfile", "-File", (Join-Path $scriptDir "check-airtable-schema.ps1"))
 if ($RequireAirtable) { $schemaArgs += "-Live" }

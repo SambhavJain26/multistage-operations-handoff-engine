@@ -317,7 +317,10 @@ const from = address(raw.from && raw.from.value ? raw.from.value[0] && raw.from.
 const messageId = String(raw.messageId || header('message-id') || '').replace(/[<>]/g, '').trim();
 const inReplyTo = String(raw.inReplyTo || header('in-reply-to') || '').replace(/[<>]/g, '').trim();
 const autoSubmitted = header('auto-submitted').toLowerCase(); const precedence = header('precedence').toLowerCase();
-const automated = (autoSubmitted && autoSubmitted !== 'no') || ['bulk','list','junk'].includes(precedence) || /mailer-daemon|postmaster/.test(from);
+const systemEmail = 'VENDOR_EMAIL_FROM_PLACEHOLDER'.trim().toLowerCase();
+// Demo-only single-inbox mode: accept self-addressed messages only when they reply to a tracked thread.
+const selfOriginated = Boolean(systemEmail && from === systemEmail && !inReplyTo);
+const automated = (autoSubmitted && autoSubmitted !== 'no') || ['bulk','list','junk'].includes(precedence) || /mailer-daemon|postmaster/.test(from) || selfOriginated;
 const tokenMatch = subject.match(/\\[MR-([A-Z0-9]{6,12})\\]/i);
 const binaries = $binary || {}; const binaryNames = Object.keys(binaries); const attachments=[]; const attachment_uploads=[];
 for (const binaryName of binaryNames) {
@@ -331,7 +334,7 @@ const media=attachments[0]||null;
 return [{ json: {
   channel: 'email', sender_ref: from, provider_message_id: messageId, thread_ref: String(raw.threadId || inReplyTo || messageId), in_reply_to: inReplyTo,
   reply_token: tokenMatch ? tokenMatch[1].toUpperCase() : '', subject, text: normalizedText, raw_text: rawText, media, attachments, attachment_uploads,
-  automated, received_at: raw.date ? new Date(raw.date).toISOString() : new Date().toISOString()
+  automated, self_originated: selfOriginated, received_at: raw.date ? new Date(raw.date).toISOString() : new Date().toISOString()
 }, binary: binaries }];`;
 
 const logIgnoredEmailQuery = `INSERT INTO event_log (actor_type, actor_id, channel, event_type, raw_text, parsed_json)

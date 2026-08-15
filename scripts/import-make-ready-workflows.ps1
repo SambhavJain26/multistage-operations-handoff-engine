@@ -29,10 +29,13 @@ function Invoke-N8nScalar([string]$Sql) {
   return $first.Trim()
 }
 
-function Get-CredentialId([string]$Name, [switch]$Required) {
-  $escaped = $Name.Replace("'", "''")
-  $id = Invoke-N8nScalar "SELECT id FROM credentials_entity WHERE name='$escaped' LIMIT 1;"
-  if ($Required -and [string]::IsNullOrWhiteSpace($id)) { throw "Create the n8n credential named '$Name' before activating this connector." }
+function Get-CredentialId([string[]]$Names, [switch]$Required) {
+  foreach ($name in $Names) {
+    $escaped = $name.Replace("'", "''")
+    $id = Invoke-N8nScalar "SELECT id FROM credentials_entity WHERE name='$escaped' LIMIT 1;"
+    if (-not [string]::IsNullOrWhiteSpace($id)) { return $id }
+  }
+  if ($Required) { throw "Create one of these n8n credentials before activating this connector: $($Names -join ', ')." }
   return $id
 }
 
@@ -82,13 +85,13 @@ if ($ActivateEmail) {
 }
 
 $credentialIds = @{
-  "cred_make_ready_pg" = Get-CredentialId "Make-Ready Postgres" -Required
-  "cred_make_ready_openai" = Get-CredentialId "Make-Ready OpenAI" -Required
-  "jASZWMlrfp3v2tWH" = Get-CredentialId "Make-Ready Manager Telegram Bot" -Required:$ActivateTelegram
-  "5mBfLarFM6t8Cgcz" = Get-CredentialId "Make-Ready Vendor Telegram Bot" -Required:$ActivateTelegram
-  "cred_make_ready_airtable" = Get-CredentialId "Make-Ready Airtable" -Required:$ActivateAirtable
-  "cred_make_ready_email_imap" = Get-CredentialId "Make-Ready Vendor Email IMAP" -Required:$ActivateEmail
-  "cred_make_ready_email_smtp" = Get-CredentialId "Make-Ready Vendor Email SMTP" -Required:$ActivateEmail
+  "cred_make_ready_pg" = Get-CredentialId -Names @("Make-Ready Postgres") -Required
+  "cred_make_ready_openai" = Get-CredentialId -Names @("Make-Ready OpenAI") -Required
+  "jASZWMlrfp3v2tWH" = Get-CredentialId -Names @("Make-Ready Manager Telegram Bot") -Required:$ActivateTelegram
+  "5mBfLarFM6t8Cgcz" = Get-CredentialId -Names @("Make-Ready Vendor Telegram Bot") -Required:$ActivateTelegram
+  "cred_make_ready_airtable" = Get-CredentialId -Names @("Make-Ready Airtable", "Airtable Make Ready Demo") -Required:$ActivateAirtable
+  "cred_make_ready_email_imap" = Get-CredentialId -Names @("Make-Ready Vendor Email IMAP") -Required:$ActivateEmail
+  "cred_make_ready_email_smtp" = Get-CredentialId -Names @("Make-Ready Vendor Email SMTP") -Required:$ActivateEmail
 }
 
 $all = @(Get-ChildItem -LiteralPath $workflowDir -Filter "*.json" | Sort-Object Name)
