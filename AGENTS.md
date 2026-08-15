@@ -79,6 +79,7 @@ Known n8n gotchas to account for:
 - Keep imported workflow IDs stable for Execute Sub-workflow references and webhook records, but use prospect-friendly visible workflow names in n8n. Stage numbers such as `WF-3` belong in internal IDs/files only, not in final demo display names.
 - Strict IF nodes require boolean values. Normalize truthy strings or draft bodies to booleans in Code nodes before routing.
 - Telegram Trigger needs a public HTTPS `WEBHOOK_URL`; localhost will not work.
+- Telegram `getUpdates` cannot be used while that bot has an active webhook. To identify already-configured project chats without disrupting live delivery, use `getChat` against the local configured chat IDs instead.
 - Publish/activate Telegram Trigger workflows only after real chat IDs and `WEBHOOK_URL` are set.
 - Local Cloudflare Tunnel runs, when needed, should stay as a temporary sidecar container or host process outside `make-ready-n8n`. Do not install or run cloudflared inside the n8n container; remove the temporary tunnel when live Telegram testing is done.
 - Docker Compose `restart` does not apply `.env` changes to existing containers. After changing `WEBHOOK_URL` for Telegram testing, run `docker compose up -d --force-recreate n8n` before import/activation.
