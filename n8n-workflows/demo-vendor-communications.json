@@ -1301,6 +1301,7 @@
         0,
         0
       ],
+      "webhookId": "demo-vendor-telegram-hook",
       "parameters": {
         "updates": [
           "message",
@@ -3311,7 +3312,7 @@
   },
   "staticData": null,
   "pinData": {},
-  "versionId": "3eb949b9-88c8-4286-af49-ce02ed03482f",
+  "versionId": "2883ae97-6551-4c0d-b022-86f33e50ba38",
   "triggerCount": 3,
   "tags": []
 }

@@ -289,7 +289,9 @@ save("wf-4-vendor-telegram-ingest.json", wf(
   "wf4-vendor-telegram-ingest",
   "Vendor Telegram Ingest",
   [
-    { id: "vendor-telegram-trigger", name: "VendorTelegramTrigger", type: "n8n-nodes-base.telegramTrigger", typeVersion: 1.3, position: [0, 0], parameters: { updates: ["message", "channel_post"], additionalFields: {} }, credentials: { telegramApi: vendorTgCred } },
+    // A fixed webhookId keeps the registered Telegram path and its secret token stable across
+    // imports and restarts. Without it n8n rejects real Telegram deliveries with 403 Forbidden.
+    { id: "vendor-telegram-trigger", name: "VendorTelegramTrigger", type: "n8n-nodes-base.telegramTrigger", typeVersion: 1.3, position: [0, 0], webhookId: "demo-vendor-telegram-hook", parameters: { updates: ["message", "channel_post"], additionalFields: {} }, credentials: { telegramApi: vendorTgCred } },
     codeNode("normalize-vendor-telegram", "Normalize Vendor Telegram Message", 280, 0, normalizeTelegramCode),
     executeNode("call-vendor-router-telegram", "Call Vendor Message Router", 560, 0, "wf4-vendor-router"),
     ifNode("telegram-photo", "Telegram Photo Attached?", 840, 0, "={{ $('Normalize Vendor Telegram Message').first().json.media?.type === 'photo' }}"),
@@ -997,7 +999,9 @@ const managerRouteCode = `return [{json:{...$json,is_health:$json.route==='healt
 const resolveEditQuery = `WITH input AS (SELECT '{{ String($json.action||"").replace(/'/g,"''") }}' action,{{ Number($json.queue_id||0) }}::int queue_id,{{ Number($json.reply_to_message_id||0) }}::bigint reply_id), resolved AS (SELECT q.id FROM outbound_queue q,input i WHERE q.status='editing' AND (q.id=i.queue_id OR (i.queue_id=0 AND (q.manager_message_id=i.reply_id::text OR i.reply_id=0))) ORDER BY CASE WHEN q.manager_message_id=i.reply_id::text THEN 0 ELSE 1 END,q.edit_prompted_at DESC NULLS LAST LIMIT 1)
 SELECT '{{ String($json.action||"").replace(/'/g,"''") }}'::text action,COALESCE(NULLIF({{ Number($json.queue_id||0) }},0),(SELECT id FROM resolved),0) queue_id,{{ Number($json.stage_id||0) }} stage_id,{{ Number($json.turn_id||0) }} turn_id,'{{ String($json.edited_text||"").replace(/'/g,"''") }}'::text edited_text,'{{ String($json.actor_id||"manager").replace(/'/g,"''") }}'::text actor_id,'{{ String($json.telegram_chat_id||"").replace(/'/g,"''") }}'::text telegram_chat_id,'{{ String($json.telegram_callback_query_id||"").replace(/'/g,"''") }}'::text telegram_callback_query_id;`;
 function answerCallbackNode(){return {id:"answer",name:"Answer Manager Callback",type:"n8n-nodes-base.telegram",typeVersion:1.2,position:[2860,120],parameters:{resource:"callback",operation:"answerQuery",queryId:"={{ $json.telegram_callback_query_id }}",additionalFields:{text:"={{ $json.outcome || 'Done' }}",show_alert:false}},credentials:{telegramApi:managerTgCred},continueOnFail:true};}
-const managerTrigger={id:"manager-trigger",name:"ManagerTelegramTrigger",type:"n8n-nodes-base.telegramTrigger",typeVersion:1.3,position:[0,0],parameters:{updates:["message","callback_query"],additionalFields:{}},credentials:{telegramApi:managerTgCred}};
+// A fixed webhookId keeps the registered Telegram path and its secret token stable across
+// imports and restarts. Without it n8n rejects real Telegram deliveries with 403 Forbidden.
+const managerTrigger={id:"manager-trigger",name:"ManagerTelegramTrigger",type:"n8n-nodes-base.telegramTrigger",typeVersion:1.3,position:[0,0],webhookId:"demo-manager-telegram-hook",parameters:{updates:["message","callback_query"],additionalFields:{}},credentials:{telegramApi:managerTgCred}};
 
 save("wf-3-manager-router.json",wf("wf3-manager-router","Manager Telegram Router",[
  managerTrigger,codeNode("parse","Parse Manager Update",260,0,managerParseCode),codeNode("routes","Determine Manager Route",520,0,managerRouteCode),
