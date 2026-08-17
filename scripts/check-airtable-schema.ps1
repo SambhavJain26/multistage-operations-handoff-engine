@@ -11,14 +11,14 @@ function Assert-True {
   if (-not $Condition) { throw $Message }
 }
 
-$schema = Get-Content -Raw -LiteralPath $SchemaPath | ConvertFrom-Json -Depth 100
+$schema = Get-Content -Raw -LiteralPath $SchemaPath | ConvertFrom-Json
 $expectedTables = @("Turn Intake", "Turns", "Stages", "Vendors", "Communications", "Approvals & Deliveries")
 foreach ($tableName in $expectedTables) {
   Assert-True ($null -ne ($schema.tables | Where-Object name -eq $tableName)) "Missing Airtable table: $tableName"
 }
 
 $typedRequirements = @{
-  "Turn Intake" = @{ "Monthly Rent" = "currency"; "Notice Date" = "date"; "Paint Vendor" = "multipleRecordLinks"; "Intake Status" = "singleSelect"; "Submitted At" = "createdTime" }
+  "Turn Intake" = @{ "Monthly Rent" = "currency"; "Notice Date" = "date"; "Paint Vendor" = "multipleRecordLinks"; "Intake Status" = "singleSelect"; "Submitted At" = "dateTime" }
   "Turns" = @{ "Monthly Rent" = "currency"; "Health" = "singleSelect"; "Active Vendor" = "multipleRecordLinks"; "Elapsed" = "duration"; "SLA Progress" = "percent"; "Vacancy Loss" = "currency" }
   "Stages" = @{ "Turn" = "multipleRecordLinks"; "Status" = "singleSelect"; "Overdue" = "checkbox"; "Evidence" = "multipleAttachments" }
   "Vendors" = @{ "Trade" = "singleSelect"; "Email" = "email"; "Active" = "checkbox" }
@@ -57,14 +57,22 @@ if (-not $Live) {
 }
 
 Assert-True (Test-Path -LiteralPath $ManifestPath) "Airtable manifest is required for -Live. Run scripts/setup-airtable.ps1 first."
-$manifest = Get-Content -Raw -LiteralPath $ManifestPath | ConvertFrom-Json -Depth 100
+$manifest = Get-Content -Raw -LiteralPath $ManifestPath | ConvertFrom-Json
 $plainToken = $env:AIRTABLE_PAT
 if ([string]::IsNullOrWhiteSpace($plainToken)) {
-  $secureToken = Read-Host "Airtable personal access token" -AsSecureString
-  $tokenPtr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureToken)
-  try { $plainToken = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($tokenPtr) }
-  finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($tokenPtr) }
+  $credentialJson = docker exec make-ready-n8n n8n export:credentials --all --decrypted
+  if ($LASTEXITCODE -eq 0 -and $credentialJson) {
+    try {
+      $credentials = $credentialJson | ConvertFrom-Json
+      $credential = @($credentials | Where-Object { $_.name -in @("Airtable Make Ready Demo", "Make-Ready Airtable") } | Select-Object -First 1)
+      if ($credential.Count -eq 1) { $plainToken = [string]$credential[0].data.accessToken }
+    } finally {
+      $credentialJson = $null
+      Remove-Variable credentialJson -ErrorAction SilentlyContinue
+    }
+  }
 }
+if ([string]::IsNullOrWhiteSpace($plainToken)) { throw "Airtable credential is required for -Live." }
 try {
   $liveSchema = Invoke-RestMethod -Method GET -Uri "https://api.airtable.com/v0/meta/bases/$($manifest.baseId)/tables" -Headers @{ Authorization = "Bearer $plainToken" }
   foreach ($tableSource in $schema.tables) {

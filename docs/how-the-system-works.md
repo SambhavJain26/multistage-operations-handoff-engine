@@ -9,9 +9,9 @@ This automation watches those handoffs. It reads vendor updates, checks the corr
 Managers work in two familiar places:
 
 - **Airtable** shows active turns, current stages, due work, communications, approvals, delivery results, and performance measures. Its form also collects new turns.
-- **Telegram** sends manager alerts and approval cards. Managers approve, edit, hold, skip, snooze, chase, cancel, or mark work done there.
+- **Telegram** sends manager alerts and approval cards. Managers choose a delivery channel, skip, snooze, chase, cancel, or mark work done there.
 
-Vendors can use **Telegram or email**. Every manager-approved vendor message goes to both channels, and vendor replies from either channel follow the same decision process.
+Vendors can use **Telegram or email**. The manager decides per message whether it goes by email, by Telegram, or both, and vendor replies from either channel follow the same decision process.
 
 There is no separate custom dashboard.
 
@@ -23,8 +23,8 @@ There is no separate custom dashboard.
 4. Fixed safety checks confirm the sender, unit, stage, prior work, and duplicate status.
 5. Paint completes only when every check passes.
 6. The automation prepares the Flooring handoff.
-7. The manager receives the draft in Telegram and presses Send both, Edit, or Hold.
-8. After approval, the vendor receives the message by email and Telegram.
+7. The manager receives the draft in Telegram and presses Email, Message, or Both.
+8. After approval, the vendor receives the message on the chosen channels.
 9. Airtable shows each delivery result and the newly active stage.
 
 The same flow works when the first update arrives in Telegram.
@@ -33,7 +33,7 @@ The same flow works when the first update arrives in Telegram.
 
 | Service | Responsibility |
 |---|---|
-| Airtable | Manager workspace, intake form, linked records, evidence, approval status, and operating views. |
+| Airtable | Manager workspace, turn-intake table, linked records, evidence, approval status, and operating tables. |
 | Telegram | Vendor messages plus all manager alerts, decisions, and approvals. |
 | Client email mailbox | Receives vendor replies through IMAP and sends approved messages through SMTP. |
 | n8n | Runs the workflows and moves information between each service. |
@@ -47,16 +47,13 @@ Airtable mirrors Postgres. If Airtable has an outage, the underlying turn state 
 
 | Workflow group | What it does |
 |---|---|
-| Airtable Turn Intake and Airtable Sync | Create turns from the manager form and keep the operating workspace current. |
-| Vendor Email Ingest and Vendor Telegram Ingest | Receive and clean messages from each vendor channel. |
-| Vendor Inbound API and Vendor Message Router | Accept another approved channel and send every normalized message through one decision path. |
-| AI Message Interpreter | Detect completion, delay, question, access, schedule, materials, financial, unrelated, or unclear intent. |
-| Unit Matcher and Sequence Guard | Confirm the unit and block work from moving out of order. |
-| Stage Complete Core and Vendor Completion Handler | Apply a permitted completion once and prepare the next handoff. |
-| Vendor Delivery Dispatcher | Send approved email and Telegram messages independently, then record both results. |
-| Manager Telegram Router and Manager Action Core | Apply manager approvals and controls from Telegram. |
-| Digests, Stall Watchdog, and Health Core | Show due work, delays, reply rates, cycle time, vacancy cost, and blocked sequence attempts. |
-| Builder Error Handler | Alert the operator when a workflow or external service fails. |
+| Airtable Workspace | Reads new Airtable intake records and keeps the operating tables current. |
+| Vendor Communications | Receives email, Telegram, and other approved inbound messages, then interprets and routes them safely. |
+| Stage Update | Applies permitted completions, checks the work order, and prepares the next handoff. |
+| Manager Operations | Sends Telegram approval cards, manager controls, daily updates, and health information. |
+| Vendor Delivery | Sends approved vendor messages through email and Telegram and records each delivery separately. |
+| Monitoring | Watches for stalled work and prepares the weekly metrics update. |
+| Builder Error Handler | Alerts the operator when a workflow or external service fails. |
 
 ## How AI Is Used
 
@@ -86,11 +83,13 @@ OpenAI summarizes the message and may prepare a reply. Telegram shows that draft
 
 Unknown senders also go to the manager. The automation doesn't reveal unit information to an unverified sender.
 
-## Dual-Channel Delivery
+## Manager-Chosen Delivery
 
-Every active vendor needs an email address and a Telegram destination. Missing either one blocks Send both.
+The manager picks the channel on every approval: Email, Message, or Both. A vendor reachable on only one channel can still be contacted there.
 
-One approval creates two separate delivery attempts. If Telegram succeeds and email fails, the next stage becomes active after the successful delivery, Airtable reads `Partially Sent`, and the manager gets a Telegram alert. Retrying email doesn't repeat Telegram.
+Choosing `Both` creates two separate delivery attempts. If Telegram succeeds and email fails, the next stage becomes active after the successful delivery, Airtable reads `Partially Sent`, and the manager gets a Telegram alert. Retrying email doesn't repeat Telegram.
+
+If the chosen channel has no destination on file, nothing is sent and the manager gets a configuration alert.
 
 No automatic chasing. No silent resend.
 

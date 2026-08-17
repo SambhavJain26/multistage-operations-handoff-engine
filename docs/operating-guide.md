@@ -10,16 +10,38 @@ Use this guide to operate and test the automation by hand. It contains no fixtur
 
 | Place | What you do there |
 |---|---|
-| Airtable Interface | Review active turns, stages, communications, approvals, delivery results, and due work. |
-| Airtable Turn Intake form | Add a turn using business fields only. |
-| Manager Telegram group | Receive alerts and approval cards; use Send both, Edit, Hold, Skip, Snooze, Chase, Cancel, and Done. |
+| Airtable tables | Review active turns, stages, communications, approvals, delivery results, and due work. |
+| Airtable `Turn Intake` table | Add a turn using business fields only. |
+| Manager Telegram group | Receive alerts and approval cards; use Email, Message, Both, Skip, Snooze, Chase, Cancel, and Done. |
 | Vendor Telegram group or vendor mailbox | Send realistic vendor updates and receive manager-approved messages. |
 
-n8n should show 19 operational workflows. Postgres and OpenAI work behind the scenes; there is no custom board or simulator.
+n8n should show seven operational workflows: Airtable Workspace, Vendor Communications, Stage Update, Manager Operations, Vendor Delivery, Monitoring, and Builder Error Handler. Postgres and OpenAI work behind the scenes; there is no custom board or simulator.
+
+## Check The Telegram Tunnel First
+
+Telegram only reaches local n8n through a temporary HTTPS tunnel. That tunnel can collapse while its process keeps running, and nothing in the demo surfaces it: buttons and vendor messages simply do nothing.
+
+Before any live Telegram step, confirm the configured webhook host answers:
+
+```powershell
+Invoke-WebRequest -Uri "$((docker exec make-ready-n8n printenv WEBHOOK_URL).Trim())/healthz" -UseBasicParsing
+```
+
+A non-200 or a DNS failure means restart the tunnel, then recreate n8n so it picks up the new URL:
+
+```powershell
+.\scripts\start-demo-telegram-tunnel.ps1
+```
+
+```powershell
+docker compose up -d --force-recreate n8n
+```
+
+If a control appears to do nothing, check this before suspecting the button or the person pressing it.
 
 ## Start From A Known State
 
-Run the reset once. Wait for Airtable Sync to reconcile, then open the Airtable Interface.
+Run the reset once. Wait for Airtable Workspace to reconcile, then open the Airtable base.
 
 Expected starting state:
 
@@ -32,10 +54,10 @@ The reset restores fixture vendor contacts to placeholders. Reapply the live fix
 
 ## Add A Turn Through Airtable
 
-1. Open the Turn Intake form in Airtable.
-2. Enter a unique unit, property address, rent, dates, and one vendor for each outside trade.
-3. Submit once.
-4. Watch the Turn Intake record change from `New` to `Created`.
+1. Open the `Turn Intake` table in Airtable.
+2. Add one record with a unique unit, property address, rent, dates, and one vendor for each outside trade.
+3. Leave `Intake Status` as `New`.
+4. Wait for the intake poll, then watch the record change to `Created`.
 5. Open the new Turn record and its linked Stages.
 
 Expected result: one Postgres turn and one Airtable Turn appear, with eleven linked stages. Submitting the same Airtable record again doesn't create a second turn. Invalid input changes the intake row to `Error` and explains what needs correction.
@@ -96,19 +118,21 @@ Deposit, tenant-liability, invoice, payment, access, and unusual requests follow
 
 ## Use A Manager Approval Card
 
-An approval card shows the vendor, turn, stage, draft, and the planned channels.
+An approval card shows the vendor, turn, stage, draft, and the delivery choice. The manager picks the channel:
 
-- `Send both` authorizes one email attempt and one Telegram attempt.
-- `Edit` puts the queue into editing. Reply to that approval message with the replacement text, review the new card, then approve it.
-- `Hold` records the decision and sends nothing.
+- `Email` authorizes one email attempt only.
+- `Message` authorizes one Telegram attempt only.
+- `Both` authorizes one email attempt and one Telegram attempt.
 
-Before Send both works, the vendor must have both a valid email address and Telegram destination. Missing either destination blocks the entire send and produces a manager configuration alert.
+Every card always shows all three buttons. If the vendor is missing the destination for the channel you chose, nothing is sent: the approval records `configuration_blocked` and the manager receives a Telegram configuration alert. Choosing a channel the vendor does have still works, so a missing Telegram ID no longer prevents reaching that vendor by email.
 
-After approval, Airtable shows independent Email and Telegram delivery states. The next stage becomes active after the first channel succeeds. If the second channel fails, the approval reads `Partially Sent`; Telegram alerts the manager, and Retry targets only the failed channel.
+Ignoring a card is a valid decision. The draft stays in the database as an open approval and nothing reaches the vendor.
+
+After approval, Airtable shows a delivery state for each channel that was actually authorized. The next stage becomes active after the first authorized channel succeeds. When `Both` was chosen and only one channel succeeds, the approval reads `Partially Sent`; Telegram alerts the manager, and Retry targets only the failed channel.
 
 ## Test Delivery Failure And Retry
 
-Temporarily make the vendor's email destination invalid, then approve a dual-channel message.
+Temporarily make the vendor's email destination invalid, then approve a message with `Both`.
 
 Expected result:
 
@@ -143,7 +167,7 @@ When a guard blocks an action, read the reason. Don't override it unless a manag
 
 ## Airtable Expectations
 
-Airtable is a mirror, not the authority. Managers use the Interface and intake form; they don't edit operational tables directly.
+Airtable is a mirror, not the authority. For this demo, managers add records only in `Turn Intake`; they don't edit the synced operational tables directly.
 
 After a state change, Airtable Sync runs. A five-minute reconciliation catches missed updates. If Airtable is unavailable, Postgres keeps the correct state, vendor sequencing continues, and Builder Error Handler alerts the operator. Never repair a mismatch by editing a synced Airtable field.
 
@@ -164,7 +188,7 @@ After a state change, Airtable Sync runs. A five-minute reconciliation catches m
 1. Confirm six turns and `12B` stalled in Airtable.
 2. Send a clear assigned-vendor completion through Telegram.
 3. Show the AI summary, deterministic match, guard result, and completed stage in Airtable.
-4. Open the manager approval card and press Send both.
+4. Open the manager approval card and press `Both`.
 5. Show one Telegram delivery, one email delivery, and the next stage active.
 6. Reply to that email with a question and show that the stage doesn't change.
 7. Open `/health` in manager Telegram and compare the result with Airtable metrics.

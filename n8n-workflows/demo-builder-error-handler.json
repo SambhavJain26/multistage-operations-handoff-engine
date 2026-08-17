@@ -1,11 +1,11 @@
 {
-  "id": "wf7-error-handler",
+  "id": "demo-builder-error-handler",
   "name": "Builder Error Handler",
-  "active": true,
+  "active": false,
   "nodes": [
     {
-      "id": "error-trigger",
-      "name": "Error Trigger",
+      "id": "demo-node-1",
+      "name": "Error Error Trigger",
       "type": "n8n-nodes-base.errorTrigger",
       "typeVersion": 1,
       "position": [
@@ -15,8 +15,8 @@
       "parameters": {}
     },
     {
-      "id": "normalize-error-payload",
-      "name": "Normalize Error Payload",
+      "id": "demo-node-2",
+      "name": "Error Normalize Error Payload",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -28,8 +28,8 @@
       }
     },
     {
-      "id": "log-workflow-error",
-      "name": "Log Workflow Error",
+      "id": "demo-node-3",
+      "name": "Error Log Workflow Error",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
@@ -38,7 +38,7 @@
       ],
       "parameters": {
         "operation": "executeQuery",
-        "query": "WITH input AS (\n  SELECT\n    '{{ String($json.workflow_id || \"\").replace(/'/g, \"''\") }}'::text AS workflow_id,\n    '{{ String($json.workflow_name || \"\").replace(/'/g, \"''\") }}'::text AS workflow_name,\n    '{{ String($json.execution_id || \"\").replace(/'/g, \"''\") }}'::text AS execution_id,\n    '{{ String($json.execution_url || \"\").replace(/'/g, \"''\") }}'::text AS execution_url,\n    '{{ String($json.last_node || \"\").replace(/'/g, \"''\") }}'::text AS last_node,\n    '{{ String($json.mode || \"\").replace(/'/g, \"''\") }}'::text AS mode,\n    '{{ String($json.error_message || \"Unknown workflow error\").replace(/'/g, \"''\") }}'::text AS error_message,\n    '{{ String($json.builder_chat_id || \"\").replace(/'/g, \"''\") }}'::text AS builder_chat_id,\n    '{{ String($json.builder_notice_text || \"Make-ready demo workflow error\").replace(/'/g, \"''\") }}'::text AS builder_notice_text,\n    '{{ JSON.stringify($json.error_payload || {}).replace(/'/g, \"''\") }}'::jsonb AS error_payload\n), inserted AS (\n  INSERT INTO event_log (actor_type, actor_id, channel, event_type, raw_text, parsed_json)\n  SELECT\n    'system',\n    'wf7-error-handler',\n    'system',\n    'workflow_error',\n    error_message,\n    jsonb_build_object(\n      'workflow_id', workflow_id,\n      'workflow_name', workflow_name,\n      'execution_id', execution_id,\n      'execution_url', execution_url,\n      'last_node', last_node,\n      'mode', mode,\n      'error_payload', error_payload\n    )\n  FROM input\n  RETURNING id\n)\nSELECT\n  inserted.id AS event_id,\n  input.workflow_id,\n  input.workflow_name,\n  input.execution_id,\n  input.execution_url,\n  input.last_node,\n  input.mode,\n  input.error_message,\n  input.builder_notice_text,\n  CASE WHEN input.builder_chat_id LIKE 'stage7-%-missing' THEN NULL ELSE NULLIF(input.builder_chat_id, '') END AS builder_chat_id,\n  (input.builder_chat_id <> '' AND input.builder_chat_id NOT LIKE 'stage7-%-missing') AS should_notify_builder\nFROM input\nCROSS JOIN inserted;",
+        "query": "WITH input AS (\n  SELECT\n    '{{ String($json.workflow_id || \"\").replace(/'/g, \"''\") }}'::text AS workflow_id,\n    '{{ String($json.workflow_name || \"\").replace(/'/g, \"''\") }}'::text AS workflow_name,\n    '{{ String($json.execution_id || \"\").replace(/'/g, \"''\") }}'::text AS execution_id,\n    '{{ String($json.execution_url || \"\").replace(/'/g, \"''\") }}'::text AS execution_url,\n    '{{ String($json.last_node || \"\").replace(/'/g, \"''\") }}'::text AS last_node,\n    '{{ String($json.mode || \"\").replace(/'/g, \"''\") }}'::text AS mode,\n    '{{ String($json.error_message || \"Unknown workflow error\").replace(/'/g, \"''\") }}'::text AS error_message,\n    '{{ String($json.builder_chat_id || \"\").replace(/'/g, \"''\") }}'::text AS builder_chat_id,\n    '{{ String($json.builder_notice_text || \"Make-ready demo workflow error\").replace(/'/g, \"''\") }}'::text AS builder_notice_text,\n    '{{ JSON.stringify($json.error_payload || {}).replace(/'/g, \"''\") }}'::jsonb AS error_payload\n), inserted AS (\n  INSERT INTO event_log (actor_type, actor_id, channel, event_type, raw_text, parsed_json)\n  SELECT\n    'system',\n    'wf7-error-handler',\n    'system',\n    'workflow_error',\n    error_message,\n    jsonb_build_object(\n      'workflow_id', workflow_id,\n      'workflow_name', workflow_name,\n      'execution_id', execution_id,\n      'execution_url', execution_url,\n      'last_node', last_node,\n      'mode', mode,\n      'error_payload', error_payload\n    )\n  FROM input\n  WHERE NOT EXISTS (\n    SELECT 1\n    FROM event_log existing\n    WHERE existing.event_type = 'workflow_error'\n      AND input.execution_id <> ''\n      AND existing.parsed_json->>'workflow_id' = input.workflow_id\n      AND existing.parsed_json->>'execution_id' = input.execution_id\n  )\n  RETURNING id\n)\nSELECT\n  inserted.id AS event_id,\n  input.workflow_id,\n  input.workflow_name,\n  input.execution_id,\n  input.execution_url,\n  input.last_node,\n  input.mode,\n  input.error_message,\n  input.builder_notice_text,\n  CASE WHEN input.builder_chat_id LIKE 'stage7-%-missing' THEN NULL ELSE NULLIF(input.builder_chat_id, '') END AS builder_chat_id,\n  (input.builder_chat_id <> '' AND input.builder_chat_id NOT LIKE 'stage7-%-missing') AS should_notify_builder\nFROM input\nCROSS JOIN inserted;",
         "options": {}
       },
       "credentials": {
@@ -49,8 +49,8 @@
       }
     },
     {
-      "id": "builder-chat-configured",
-      "name": "Builder Chat Configured?",
+      "id": "demo-node-4",
+      "name": "Error Builder Chat Configured?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
@@ -83,8 +83,8 @@
       }
     },
     {
-      "id": "send-builder-error-alert",
-      "name": "Send Builder Error Alert",
+      "id": "demo-node-5",
+      "name": "Error Send Builder Error Alert",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
@@ -109,8 +109,8 @@
       }
     },
     {
-      "id": "return-error-log-summary",
-      "name": "Return Error Log Summary",
+      "id": "demo-node-6",
+      "name": "Error Return Error Log Summary",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -123,51 +123,51 @@
     }
   ],
   "connections": {
-    "Error Trigger": {
+    "Error Error Trigger": {
       "main": [
         [
           {
-            "node": "Normalize Error Payload",
+            "node": "Error Normalize Error Payload",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Normalize Error Payload": {
+    "Error Normalize Error Payload": {
       "main": [
         [
           {
-            "node": "Log Workflow Error",
+            "node": "Error Log Workflow Error",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Log Workflow Error": {
+    "Error Log Workflow Error": {
       "main": [
         [
           {
-            "node": "Builder Chat Configured?",
+            "node": "Error Builder Chat Configured?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Builder Chat Configured?": {
+    "Error Builder Chat Configured?": {
       "main": [
         [
           {
-            "node": "Send Builder Error Alert",
+            "node": "Error Send Builder Error Alert",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Return Error Log Summary",
+            "node": "Error Return Error Log Summary",
             "type": "main",
             "index": 0
           }
@@ -180,7 +180,7 @@
   },
   "staticData": null,
   "pinData": {},
-  "versionId": "wf7-error-handler-v1",
-  "triggerCount": 0,
+  "versionId": "5a0df429-ddfa-4b8d-88de-470afe622830",
+  "triggerCount": 1,
   "tags": []
 }

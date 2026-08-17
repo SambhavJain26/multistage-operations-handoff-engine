@@ -236,6 +236,14 @@ const logErrorQuery = `WITH input AS (
       'error_payload', error_payload
     )
   FROM input
+  WHERE NOT EXISTS (
+    SELECT 1
+    FROM event_log existing
+    WHERE existing.event_type = 'workflow_error'
+      AND input.execution_id <> ''
+      AND existing.parsed_json->>'workflow_id' = input.workflow_id
+      AND existing.parsed_json->>'execution_id' = input.execution_id
+  )
   RETURNING id
 )
 SELECT

@@ -16,8 +16,8 @@ This section overrides historical Stage 1-8 references to the custom board, simu
 - Managers create turns through Airtable and operate approvals and controls through Telegram.
 - Vendor intake supports Telegram, IMAP email, and the generic inbound API.
 - OpenAI interprets every known-vendor free-form message. Deterministic sender, unit, duplicate, confidence, safety, and sequence checks control mutation.
-- One approval creates independent email and Telegram attempts. Missing either destination blocks sending; retry never duplicates a successful channel.
-- The canonical import contains 19 operational workflows and removes the four UI-only APIs.
+- The manager chooses the channel on each approval with `Email`, `Message`, or `Both`. `Both` creates independent email and Telegram attempts; retry never duplicates a successful channel. Choosing a channel the vendor cannot receive records `configuration_blocked` and alerts the manager. This supersedes the earlier rule that every approved message must go out on both channels.
+- The canonical import contains seven consolidated operational workflows and removes the UI-only APIs.
 - SMS remains disabled.
 
 ## Important Spec Decisions And Conflicts
@@ -222,7 +222,7 @@ This section overrides historical Stage 1-8 references to the custom board, simu
   - OpenAI tone rewrite second.
   - Fallback to deterministic template on failure or overlong output.
 - Insert drafts into `outbound_queue` as `awaiting_approval`.
-- Build manager router for Send, Edit, Hold, Override, Skip, Snooze, Done, and Cancel.
+- Build manager router for the channel choices, Override, Skip, Snooze, Done, and Cancel. Historical note: Stage 5 shipped Send/Edit/Hold; the 2026-08-17 decision replaced those approval buttons with `Email`, `Message`, and `Both`.
 - Ensure Send is the only action that contacts the next vendor.
 
 **Out of scope:**
@@ -236,7 +236,7 @@ This section overrides historical Stage 1-8 references to the custom board, simu
 **Verification:**
 
 - `done with 12b` from the painter completes Paint, creates a draft to the cleaner, and shows approval buttons on the manager bot.
-- Nothing is sent to the cleaner until the manager presses Send.
+- Nothing is sent to the cleaner until the manager chooses a delivery channel.
 - Pressing Edit lets the manager revise the draft and still requires a later Send.
 - Pressing Hold sends nothing and records the decision.
 - Pressing Send delivers the approved message and activates the next stage.

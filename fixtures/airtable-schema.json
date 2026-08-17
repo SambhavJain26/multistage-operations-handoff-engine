@@ -41,7 +41,7 @@
           { "name": "Created", "color": "greenLight2" }, { "name": "Error", "color": "redLight2" }
         ] } },
         { "name": "Error Details", "type": "multilineText" },
-        { "name": "Submitted At", "type": "createdTime", "options": { "result": { "type": "dateTime", "options": { "dateFormat": { "name": "iso", "format": "YYYY-MM-DD" }, "timeFormat": { "name": "24hour", "format": "HH:mm" }, "timeZone": "utc" } } } }
+        { "name": "Submitted At", "type": "dateTime", "options": { "dateFormat": { "name": "iso", "format": "YYYY-MM-DD" }, "timeFormat": { "name": "24hour", "format": "HH:mm" }, "timeZone": "utc" } }
       ]
     },
     {

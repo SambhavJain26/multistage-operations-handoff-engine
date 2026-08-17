@@ -153,9 +153,9 @@ function managerApprovalNode(id, name, x, y) {
       inlineKeyboard: {
         rows: [
           { row: { buttons: [
-            { text: "Send both", additionalFields: { callback_data: "={{ 'SEND:' + $json.queue_id }}" } },
-            { text: "Edit", additionalFields: { callback_data: "={{ 'EDIT:' + $json.queue_id }}" } },
-            { text: "Hold", additionalFields: { callback_data: "={{ 'HOLD:' + $json.queue_id }}" } }
+            { text: "Email", additionalFields: { callback_data: "={{ 'SEND_EMAIL:' + $json.queue_id }}" } },
+            { text: "Message", additionalFields: { callback_data: "={{ 'SEND_TELEGRAM:' + $json.queue_id }}" } },
+            { text: "Both", additionalFields: { callback_data: "={{ 'SEND_BOTH:' + $json.queue_id }}" } }
           ] } }
         ],
       },
@@ -253,7 +253,7 @@ save("wf-9-ai-message-interpreter.json", wf(
   }
 ));
 
-const normalizeTelegramCode = `const message = $json.message || $json.edited_message || {};
+const normalizeTelegramCode = `const message = $json.message || $json.edited_message || $json.channel_post || $json.edited_channel_post || {};
 const from = message.from || {}; const chat = message.chat || {};
 const photos = Array.isArray(message.photo) ? message.photo : [];
 const photo = photos.length ? photos[photos.length - 1] : null;
@@ -265,6 +265,7 @@ else if (document) media = { type: 'unsupported', file_id: document.file_id || n
 return [{ json: {
   channel: 'telegram', sender_ref: String(chat.id || from.id || ''), provider_message_id: String(message.message_id || ''),
   thread_ref: String(chat.id || ''), in_reply_to: message.reply_to_message ? String(message.reply_to_message.message_id || '') : '',
+  reply_to_text: String(message.reply_to_message?.text || message.reply_to_message?.caption || '').trim(),
   subject: '', text: String(message.text || message.caption || '').trim(), raw_text: String(message.text || message.caption || '').trim(),
   media, received_at: message.date ? new Date(Number(message.date) * 1000).toISOString() : new Date().toISOString()
 } }];`;
@@ -278,7 +279,7 @@ save("wf-4-vendor-telegram-ingest.json", wf(
   "wf4-vendor-telegram-ingest",
   "Vendor Telegram Ingest",
   [
-    { id: "vendor-telegram-trigger", name: "VendorTelegramTrigger", type: "n8n-nodes-base.telegramTrigger", typeVersion: 1.3, position: [0, 0], parameters: { updates: ["message"], additionalFields: {} }, credentials: { telegramApi: vendorTgCred } },
+    { id: "vendor-telegram-trigger", name: "VendorTelegramTrigger", type: "n8n-nodes-base.telegramTrigger", typeVersion: 1.3, position: [0, 0], parameters: { updates: ["message", "channel_post"], additionalFields: {} }, credentials: { telegramApi: vendorTgCred } },
     codeNode("normalize-vendor-telegram", "Normalize Vendor Telegram Message", 280, 0, normalizeTelegramCode),
     executeNode("call-vendor-router-telegram", "Call Vendor Message Router", 560, 0, "wf4-vendor-router"),
     ifNode("telegram-photo", "Telegram Photo Attached?", 840, 0, "={{ $('Normalize Vendor Telegram Message').first().json.media?.type === 'photo' }}"),
@@ -304,7 +305,10 @@ const normalizeEmailCode = `const raw = $json || {};
 function header(name) {
   const headers = raw.headers || raw.headerLines || {};
   if (Array.isArray(headers)) { const hit = headers.find(h => String(h.key || '').toLowerCase() === name.toLowerCase()); return hit ? String(hit.line || hit.value || '') : ''; }
-  return String(headers[name] || headers[name.toLowerCase()] || raw[name] || raw[name.toLowerCase()] || '');
+  // n8n emailReadImap 'simple' format exposes raw headers under metadata, not headers.
+  const meta = raw.metadata || {};
+  const lower = name.toLowerCase();
+  return String(headers[name] || headers[lower] || meta[name] || meta[lower] || raw[name] || raw[lower] || '');
 }
 function address(value) { const match = String(value || '').match(/<([^>]+)>/); return String(match ? match[1] : value || '').trim().toLowerCase(); }
 function stripQuoted(value) {
@@ -425,6 +429,7 @@ const vendorContextQuery = `WITH input AS (
     '{{ String($json.provider_message_id || "").replace(/'/g, "''") }}'::text AS provider_message_id,
     '{{ String($json.thread_ref || "").replace(/'/g, "''") }}'::text AS thread_ref,
     '{{ String($json.in_reply_to || "").replace(/'/g, "''") }}'::text AS in_reply_to,
+    '{{ String($json.reply_to_text || "").replace(/'/g, "''") }}'::text AS reply_to_text,
     upper('{{ String($json.reply_token || "").replace(/'/g, "''") }}')::text AS reply_token,
     '{{ String($json.subject || "").replace(/'/g, "''") }}'::text AS subject,
     '{{ String($json.text || "").replace(/'/g, "''") }}'::text AS text,
@@ -436,6 +441,7 @@ const vendorContextQuery = `WITH input AS (
   SELECT oq.* FROM outbound_queue oq, input
   WHERE (input.reply_token <> '' AND oq.reply_token = input.reply_token)
      OR EXISTS (SELECT 1 FROM communication_message cm WHERE cm.outbound_queue_id = oq.id AND cm.provider_message_id = input.in_reply_to AND input.in_reply_to <> '')
+     OR EXISTS (SELECT 1 FROM communication_message cm WHERE cm.outbound_queue_id = oq.id AND cm.channel='telegram' AND cm.recipient_ref=input.sender_ref AND cm.normalized_text=input.reply_to_text AND input.reply_to_text <> '')
   ORDER BY oq.id DESC LIMIT 1
 ), sender_candidates AS (
   SELECT v.* FROM vendor v, input
@@ -758,7 +764,7 @@ const saveDraftQuery = `UPDATE outbound_queue SET draft_text='{{ String($json.dr
 RETURNING id queue_id,draft_text,email_subject,reply_token,turn_id,stage_id,vendor_id,'stage5-manager-chat-id-missing'::text manager_chat_id;`;
 
 const completionCardCode = `const qid=Number($json.queue_id||0); const chat=String($json.manager_chat_id||'');
-return [{json:{...$json,should_send_manager_approval:qid>0&&chat&&!chat.includes('missing'),manager_approval_text:'Stage completed. Next vendor handoff is ready.\\n\\n'+String($json.draft_text||'')+'\\n\\nDelivery after approval: Email + Telegram. Nothing has been sent yet.'}}];`;
+return [{json:{...$json,should_send_manager_approval:qid>0&&chat&&!chat.includes('missing'),manager_approval_text:'Stage completed. Next vendor handoff is ready.\\n\\n'+String($json.draft_text||'')+'\\n\\nChoose a delivery channel. Nothing has been sent yet.'}}];`;
 
 save("wf-5-vendor-completion-handler.json", wf("wf5-vendor-completion-handler","Vendor Completion Handler",[
   {id:"trigger",name:"Receive Completion Candidate",type:"n8n-nodes-base.executeWorkflowTrigger",typeVersion:1.2,position:[0,0],parameters:{inputSource:"passthrough"}},
@@ -796,7 +802,9 @@ save("wf-5-vendor-completion-handler.json", wf("wf5-vendor-completion-handler","
 }));
 
 function vendorTelegramSendNode(id,name,x,y) {
-  return {id,name,type:"n8n-nodes-base.telegram",typeVersion:1.2,position:[x,y],parameters:{resource:"message",operation:"sendMessage",chatId:"={{ $json.telegram_destination }}",text:"={{ $json.delivery_body }}",additionalFields:{disable_web_page_preview:true,appendAttribution:false}},credentials:{telegramApi:vendorTgCred},continueOnFail:true};
+  // Recording the email result returns only its queue ID. Resolve the original
+  // delivery plan again so the second channel always receives the same body.
+  return {id,name,type:"n8n-nodes-base.telegram",typeVersion:1.2,position:[x,y],parameters:{resource:"message",operation:"sendMessage",chatId:"={{ $json.telegram_destination || $('Load Delivery Plan').first().json.telegram_destination }}",text:"={{ $json.delivery_body || $('Load Delivery Plan').first().json.delivery_body }}",additionalFields:{disable_web_page_preview:true,appendAttribution:false}},credentials:{telegramApi:vendorTgCred},continueOnFail:true};
 }
 
 function emailSendNode(id,name,x,y) {
@@ -806,7 +814,9 @@ function emailSendNode(id,name,x,y) {
 const managerActionQuery = `WITH input AS (
  SELECT upper('{{ String($json.action||"").replace(/'/g,"''") }}') action,{{ Number($json.queue_id||0) }}::int queue_id,{{ Number($json.stage_id||0) }}::int stage_id,{{ Number($json.turn_id||0) }}::int turn_id,
  '{{ String($json.actor_id||"manager").replace(/'/g,"''") }}' actor_id,'{{ String($json.edited_text||"").replace(/'/g,"''") }}' edited_text,
- NULLIF('{{ String($json.telegram_chat_id||"").replace(/'/g,"''") }}','') manager_chat_id,NULLIF('{{ String($json.telegram_callback_query_id||"").replace(/'/g,"''") }}','') callback_id
+ NULLIF('{{ String($json.telegram_chat_id||"").replace(/'/g,"''") }}','') manager_chat_id,NULLIF('{{ String($json.telegram_callback_query_id||"").replace(/'/g,"''") }}','') callback_id,
+ upper('{{ String($json.action||"").replace(/'/g,"''") }}') IN ('SEND','SEND_BOTH','SEND_TELEGRAM') want_telegram,
+ upper('{{ String($json.action||"").replace(/'/g,"''") }}') IN ('SEND','SEND_BOTH','SEND_EMAIL') want_email
 ), q AS (
  SELECT oq.*,v.name vendor_name,v.telegram_chat_id,v.email_address,t.unit_label,ts.stage_name FROM outbound_queue oq JOIN input i ON i.queue_id=oq.id LEFT JOIN vendor v ON v.id=oq.vendor_id LEFT JOIN "turn" t ON t.id=oq.turn_id LEFT JOIN turn_stage ts ON ts.id=oq.stage_id FOR UPDATE OF oq
 ), configuration AS (
@@ -815,14 +825,15 @@ const managerActionQuery = `WITH input AS (
    (NULLIF(trim(q.email_address),'') IS NOT NULL AND q.email_address ~* '^[^[:space:]@]+@[^[:space:]@]+[.][^[:space:]@]+$' AND lower(q.email_address) NOT LIKE '%@example.%') email_ready
  FROM q
 ), approve AS (
- UPDATE outbound_queue oq SET status=CASE WHEN c.telegram_ready AND c.email_ready THEN 'approved' ELSE 'configuration_blocked' END,
- approved_text=COALESCE(NULLIF(input.edited_text,''),oq.approved_text,oq.draft_text),approved_at=CASE WHEN c.telegram_ready AND c.email_ready THEN now() ELSE oq.approved_at END,decision_by=input.actor_id,decided_at=now()
- FROM input,configuration c WHERE input.action='SEND' AND oq.id=c.id AND oq.status IN('awaiting_approval','editing','held','configuration_blocked') RETURNING oq.*
+ UPDATE outbound_queue oq SET status=CASE WHEN (NOT input.want_telegram OR c.telegram_ready) AND (NOT input.want_email OR c.email_ready) THEN 'approved' ELSE 'configuration_blocked' END,
+ approved_text=COALESCE(NULLIF(input.edited_text,''),oq.approved_text,oq.draft_text),approved_at=CASE WHEN (NOT input.want_telegram OR c.telegram_ready) AND (NOT input.want_email OR c.email_ready) THEN now() ELSE oq.approved_at END,decision_by=input.actor_id,decided_at=now()
+ FROM input,configuration c WHERE input.action IN('SEND','SEND_BOTH','SEND_EMAIL','SEND_TELEGRAM') AND oq.id=c.id AND oq.status IN('awaiting_approval','editing','held','configuration_blocked') RETURNING oq.*
 ), deliveries AS (
  INSERT INTO outbound_delivery(outbound_queue_id,channel,destination,subject,body_text,status)
  SELECT a.id,x.channel,CASE x.channel WHEN 'telegram' THEN c.telegram_chat_id ELSE c.email_address END,CASE WHEN x.channel='email' THEN a.email_subject END,a.approved_text,'pending'
- FROM approve a JOIN configuration c ON c.id=a.id CROSS JOIN (VALUES('telegram'),('email')) x(channel)
- WHERE c.telegram_ready AND c.email_ready ON CONFLICT(outbound_queue_id,channel) DO NOTHING RETURNING id
+ FROM approve a JOIN configuration c ON c.id=a.id CROSS JOIN input i CROSS JOIN (VALUES('telegram'),('email')) x(channel)
+ WHERE a.status='approved' AND ((x.channel='telegram' AND i.want_telegram) OR (x.channel='email' AND i.want_email))
+ ON CONFLICT(outbound_queue_id,channel) DO NOTHING RETURNING id
 ), await_delivery AS (
  UPDATE turn_stage ts SET status='awaiting_delivery' FROM approve a WHERE ts.id=a.stage_id AND a.status='approved' AND ts.status='awaiting_approval' RETURNING ts.id
 ), hold AS (
@@ -884,15 +895,15 @@ const managerActionQuery = `WITH input AS (
  action_event AS (
  INSERT INTO event_log(turn_id,stage_id,actor_type,actor_id,channel,event_type,raw_text,parsed_json)
  SELECT COALESCE((SELECT turn_id FROM q LIMIT 1),(SELECT turn_id FROM chase_stage LIMIT 1),(SELECT turn_id FROM skip LIMIT 1),input.turn_id),COALESCE((SELECT stage_id FROM q LIMIT 1),input.stage_id),'manager',input.actor_id,'telegram',
- CASE WHEN input.action='SEND' AND (SELECT status FROM approve LIMIT 1)='approved' THEN 'delivery_approved' WHEN input.action='SEND' THEN 'msg_rejected' WHEN input.action='HOLD' THEN 'msg_held' WHEN input.action='EDIT' AND input.edited_text='' THEN 'msg_edit_requested' WHEN input.action='EDIT' THEN 'msg_edited' WHEN input.action LIKE 'RETRY_%' AND (SELECT count(*) FROM retry)>0 THEN 'delivery_retry' WHEN input.action LIKE 'RETRY_%' THEN 'msg_rejected' WHEN input.action='CHASE' THEN 'chase_drafted' WHEN input.action='SKIP' THEN 'stage_skipped' WHEN input.action='SNOOZE' THEN 'stage_snoozed' WHEN input.action='CANCEL' THEN 'turn_cancelled' ELSE 'msg_rejected' END,input.action,jsonb_build_object('queue_id',COALESCE((SELECT id FROM chase_subject LIMIT 1),(SELECT id FROM skip_queue LIMIT 1),input.queue_id))
- FROM input WHERE input.action IN('SEND','HOLD','EDIT','RETRY_EMAIL','RETRY_TELEGRAM','CHASE','SKIP','SNOOZE','CANCEL') RETURNING id
+ CASE WHEN input.action IN('SEND','SEND_BOTH','SEND_EMAIL','SEND_TELEGRAM') AND (SELECT status FROM approve LIMIT 1)='approved' THEN 'delivery_approved' WHEN input.action IN('SEND','SEND_BOTH','SEND_EMAIL','SEND_TELEGRAM') THEN 'msg_rejected' WHEN input.action='HOLD' THEN 'msg_held' WHEN input.action='EDIT' AND input.edited_text='' THEN 'msg_edit_requested' WHEN input.action='EDIT' THEN 'msg_edited' WHEN input.action LIKE 'RETRY_%' AND (SELECT count(*) FROM retry)>0 THEN 'delivery_retry' WHEN input.action LIKE 'RETRY_%' THEN 'msg_rejected' WHEN input.action='CHASE' THEN 'chase_drafted' WHEN input.action='SKIP' THEN 'stage_skipped' WHEN input.action='SNOOZE' THEN 'stage_snoozed' WHEN input.action='CANCEL' THEN 'turn_cancelled' ELSE 'msg_rejected' END,input.action,jsonb_build_object('queue_id',COALESCE((SELECT id FROM chase_subject LIMIT 1),(SELECT id FROM skip_queue LIMIT 1),input.queue_id))
+ FROM input WHERE input.action IN('SEND','SEND_BOTH','SEND_EMAIL','SEND_TELEGRAM','HOLD','EDIT','RETRY_EMAIL','RETRY_TELEGRAM','CHASE','SKIP','SNOOZE','CANCEL') RETURNING id
 )
 SELECT input.action,COALESCE((SELECT id FROM chase_subject LIMIT 1),(SELECT id FROM skip_queue LIMIT 1),input.queue_id) queue_id,input.stage_id,input.turn_id,input.manager_chat_id,input.callback_id telegram_callback_query_id,
  CASE WHEN (SELECT count(*) FROM approve)>0 AND (SELECT status FROM approve LIMIT 1)='approved' THEN 'approved' WHEN (SELECT count(*) FROM approve)>0 THEN 'configuration_blocked' WHEN (SELECT count(*) FROM retry)>0 THEN 'retry_pending' WHEN input.action LIKE 'RETRY_%' AND EXISTS(SELECT 1 FROM q) THEN 'configuration_blocked' WHEN (SELECT count(*) FROM hold)>0 THEN 'held' WHEN (SELECT count(*) FROM edit)>0 THEN (SELECT status FROM edit LIMIT 1) WHEN (SELECT count(*) FROM chase)>0 THEN 'chase_awaiting_approval' WHEN (SELECT count(*) FROM skip)>0 THEN 'skipped' WHEN (SELECT count(*) FROM snooze)>0 THEN 'snoozed' WHEN (SELECT count(*) FROM cancel_turn)>0 THEN 'cancelled' ELSE 'no_change' END outcome,
  ((SELECT count(*) FROM deliveries)>0 OR (SELECT count(*) FROM retry)>0) dispatch_required,
  (((SELECT count(*) FROM approve)>0 AND (SELECT status FROM approve LIMIT 1)='configuration_blocked') OR (input.action LIKE 'RETRY_%' AND (SELECT count(*) FROM retry)=0 AND EXISTS(SELECT 1 FROM q))) configuration_alert,
  CASE WHEN (SELECT count(*) FROM approve)>0 AND (SELECT status FROM approve LIMIT 1)='configuration_blocked' THEN 'Delivery blocked. Both vendor email and Telegram must be configured before sending.' WHEN input.action LIKE 'RETRY_%' AND (SELECT count(*) FROM retry)=0 AND EXISTS(SELECT 1 FROM q) THEN 'Retry blocked. Correct the failed vendor destination before retrying.' END manager_notice_text,
- COALESCE((SELECT 'Manager approval required.\n\n'||draft_text||'\n\nDelivery after approval: Email + Telegram.' FROM chase_subject LIMIT 1),(SELECT 'Skipped stage recorded. Next vendor handoff requires approval.\n\n'||draft_text||'\n\nDelivery after approval: Email + Telegram.' FROM skip_queue LIMIT 1)) manager_approval_text,
+ COALESCE((SELECT 'Manager approval required.\n\n'||draft_text||'\n\nChoose a delivery channel.' FROM chase_subject LIMIT 1),(SELECT 'Skipped stage recorded. Next vendor handoff requires approval.\n\n'||draft_text||'\n\nChoose a delivery channel.' FROM skip_queue LIMIT 1)) manager_approval_text,
  ((SELECT count(*) FROM chase_subject)>0 OR (SELECT count(*) FROM skip_queue)>0) should_send_manager_approval
 FROM input;`;
 
@@ -909,10 +920,11 @@ SELECT q.id queue_id,q.turn_id,q.stage_id,q.vendor_id,q.approved_text delivery_b
  'stage5-manager-chat-id-missing'::text manager_chat_id
 FROM q;`;
 const emailResultCode = `const plan=$('Load Delivery Plan').first().json; const error=$json.error||($json.body&&$json.statusCode>=400?$json.body:null); return [{json:{...plan,delivery_channel:'email',delivery_ok:!error,provider_message_id:String($json.messageId||$json.id||''),delivery_error:error?String(error.message||error):''}}];`;
-const telegramResultCode = `const plan=$('Load Delivery Plan').first().json; const error=$json.error; return [{json:{...plan,delivery_channel:'telegram',delivery_ok:!error,provider_message_id:String($json.message_id||''),delivery_error:error?String(error.message||error):''}}];`;
+const telegramResultCode = `const plan=$('Load Delivery Plan').first().json; const error=$json.error; const providerId=$json.message_id||$json.message?.message_id||$json.result?.message_id||$json.id||''; return [{json:{...plan,delivery_channel:'telegram',delivery_ok:!error,provider_message_id:String(providerId),delivery_error:error?String(error.message||error):''}}];`;
 const markDeliveryQuery = `UPDATE outbound_delivery SET status=CASE WHEN {{ $json.delivery_ok ? 'true':'false' }} THEN 'sent' ELSE 'failed' END,attempt_count=attempt_count+1,provider_message_id=NULLIF('{{ String($json.provider_message_id||"").replace(/'/g,"''") }}',''),last_error=NULLIF('{{ String($json.delivery_error||"").replace(/'/g,"''") }}',''),last_attempt_at=now(),sent_at=CASE WHEN {{ $json.delivery_ok ? 'true':'false' }} THEN now() ELSE sent_at END WHERE outbound_queue_id={{ Number($json.queue_id||0) }} AND channel='{{ String($json.delivery_channel||"").replace(/'/g,"''") }}' RETURNING {{ Number($json.queue_id||0) }} queue_id;`;
-const finalizeDeliveryQuery = `WITH states AS (SELECT d.outbound_queue_id,count(*) FILTER(WHERE status='sent') sent_count,count(*) FILTER(WHERE status='failed') failed_count,max(sent_at) sent_at,string_agg(last_error,'; ') FILTER(WHERE status='failed') errors FROM outbound_delivery d WHERE d.outbound_queue_id={{ Number($json.queue_id||0) }} GROUP BY d.outbound_queue_id), updated AS (UPDATE outbound_queue q SET status=CASE WHEN s.sent_count=2 THEN 'sent' WHEN s.sent_count>0 AND s.failed_count>0 THEN 'partially_sent' WHEN s.failed_count=2 THEN 'failed' ELSE q.status END,sent_at=CASE WHEN s.sent_count=2 THEN s.sent_at ELSE q.sent_at END FROM states s WHERE q.id=s.outbound_queue_id RETURNING q.*,s.sent_count,s.failed_count,s.errors), activate AS (UPDATE turn_stage ts SET status='active',activated_at=COALESCE(ts.activated_at,now()) FROM updated u WHERE ts.id=u.stage_id AND u.sent_count>0 AND ts.status IN('awaiting_approval','awaiting_delivery') RETURNING ts.id), communications AS (INSERT INTO communication_message(direction,channel,vendor_id,turn_id,stage_id,outbound_queue_id,provider_message_id,recipient_ref,subject,body_text,normalized_text,status,sent_at) SELECT 'outbound',d.channel,u.vendor_id,u.turn_id,u.stage_id,u.id,d.provider_message_id,d.destination,d.subject,d.body_text,d.body_text,'sent',d.sent_at FROM updated u JOIN outbound_delivery d ON d.outbound_queue_id=u.id AND d.status='sent' ON CONFLICT(channel,provider_message_id) WHERE provider_message_id IS NOT NULL AND provider_message_id<>'' DO NOTHING RETURNING id), events AS (INSERT INTO event_log(turn_id,stage_id,actor_type,actor_id,channel,event_type,raw_text,parsed_json) SELECT u.turn_id,u.stage_id,'system','delivery-dispatcher','system',CASE WHEN u.status='sent' THEN 'delivery_sent' ELSE 'delivery_failed' END,COALESCE(u.errors,u.approved_text),jsonb_build_object('queue_id',u.id,'status',u.status,'sent_count',u.sent_count,'failed_count',u.failed_count) FROM updated u RETURNING id)
-SELECT u.id queue_id,u.status outcome,u.sent_count,u.failed_count,u.errors,u.status IN('partially_sent','failed') should_alert_manager,'stage5-manager-chat-id-missing'::text manager_chat_id,CASE WHEN u.status='partially_sent' THEN 'Vendor delivery was partially sent. The successful channel will not be repeated. Use Retry on the failed channel.' WHEN u.status='failed' THEN 'Vendor delivery failed on both channels. Review the errors and retry.' END manager_notice_text FROM updated u;`;
+const finalizeDeliveryQuery = `WITH states AS (SELECT d.outbound_queue_id,count(*) FILTER(WHERE status='sent') sent_count,count(*) FILTER(WHERE status='failed') failed_count,count(*) planned_count,max(sent_at) sent_at,string_agg(last_error,'; ') FILTER(WHERE status='failed') errors FROM outbound_delivery d WHERE d.outbound_queue_id={{ Number($json.queue_id||0) }} GROUP BY d.outbound_queue_id), updated AS (UPDATE outbound_queue q SET status=CASE WHEN s.sent_count=s.planned_count THEN 'sent' WHEN s.sent_count>0 AND s.failed_count>0 THEN 'partially_sent' WHEN s.failed_count=s.planned_count THEN 'failed' ELSE q.status END,sent_at=CASE WHEN s.sent_count=s.planned_count THEN s.sent_at ELSE q.sent_at END FROM states s WHERE q.id=s.outbound_queue_id RETURNING q.*,s.sent_count,s.failed_count,s.errors), activate AS (UPDATE turn_stage ts SET status='active',activated_at=COALESCE(ts.activated_at,now()) FROM updated u WHERE ts.id=u.stage_id AND u.sent_count>0 AND ts.status IN('awaiting_approval','awaiting_delivery') RETURNING ts.id), communications AS (INSERT INTO communication_message(direction,channel,vendor_id,turn_id,stage_id,outbound_queue_id,provider_message_id,recipient_ref,subject,body_text,normalized_text,status,sent_at) SELECT 'outbound',d.channel,u.vendor_id,u.turn_id,u.stage_id,u.id,d.provider_message_id,d.destination,d.subject,d.body_text,d.body_text,'sent',d.sent_at FROM updated u JOIN outbound_delivery d ON d.outbound_queue_id=u.id AND d.status='sent' ON CONFLICT(channel,provider_message_id) WHERE provider_message_id IS NOT NULL AND provider_message_id<>'' DO NOTHING RETURNING id), events AS (INSERT INTO event_log(turn_id,stage_id,actor_type,actor_id,channel,event_type,raw_text,parsed_json) SELECT u.turn_id,u.stage_id,'system','delivery-dispatcher','system',CASE WHEN u.status='sent' THEN 'delivery_sent' ELSE 'delivery_failed' END,COALESCE(u.errors,u.approved_text),jsonb_build_object('queue_id',u.id,'status',u.status,'sent_count',u.sent_count,'failed_count',u.failed_count) FROM updated u RETURNING id)
+SELECT u.id queue_id,u.status outcome,u.sent_count,u.failed_count,u.errors,u.status IN('partially_sent','failed') should_alert_manager,'stage5-manager-chat-id-missing'::text manager_chat_id,(SELECT d.channel FROM outbound_delivery d WHERE d.outbound_queue_id=u.id AND d.status='failed' ORDER BY d.channel LIMIT 1) failed_channel,CASE WHEN u.status='partially_sent' THEN 'Vendor delivery was partially sent. The successful channel will not be repeated. Use Retry on the failed channel.' WHEN u.status='failed' THEN 'Vendor delivery failed on both channels. Review the errors and retry.' END manager_notice_text FROM updated u;`;
+function deliveryRetryNode(){return {id:"delivery-retry",name:"Send Failed Channel Retry",type:"n8n-nodes-base.telegram",typeVersion:1.2,position:[3120,-120],parameters:{resource:"message",operation:"sendMessage",chatId:"={{ $json.manager_chat_id }}",text:"={{ $json.manager_notice_text }}",replyMarkup:"inlineKeyboard",inlineKeyboard:{rows:[{row:{buttons:[{text:"={{ 'Retry ' + String($json.failed_channel || 'delivery').replace(/^./, c => c.toUpperCase()) }}",additionalFields:{callback_data:"={{ 'RETRY_' + String($json.failed_channel || '').toUpperCase() + ':' + $json.queue_id }}"}}]}}]}},credentials:{telegramApi:managerTgCred}};}
 
 save("wf-9-vendor-delivery-dispatcher.json",wf("wf9-vendor-delivery","Vendor Delivery Dispatcher",[
  {id:"trigger",name:"Receive Approved Delivery",type:"n8n-nodes-base.executeWorkflowTrigger",typeVersion:1.2,position:[0,0],parameters:{inputSource:"passthrough"}},
@@ -922,21 +934,21 @@ save("wf-9-vendor-delivery-dispatcher.json",wf("wf9-vendor-delivery","Vendor Del
  ifNode("telegram-needed","Telegram Delivery Needed?",1560,0,"={{ ['pending','retry_pending'].includes($('Load Delivery Plan').first().json.telegram_status) }}"),
  vendorTelegramSendNode("send-telegram","Send Vendor Telegram",1820,-120),codeNode("telegram-result","Normalize Telegram Result",2080,-120,telegramResultCode),pgNode("mark-telegram","Record Telegram Result",2340,-120,markDeliveryQuery),
  pgNode("finalize","Finalize Independent Deliveries",2600,0,finalizeDeliveryQuery),ifNode("alert","Delivery Alert Needed?",2860,0,"={{ $json.should_alert_manager === true && Boolean($json.manager_chat_id) && !$json.manager_chat_id.includes('missing') }}"),
- telegramSendNode("send-alert","Send Delivery Failure Alert",3120,-120,"={{ $json.manager_chat_id }}","={{ $json.manager_notice_text }}"),
+ deliveryRetryNode(),
  codeNode("return-delivery","Return Delivery Outcome",3380,0,"return [$('Finalize Independent Deliveries').first()];"),
 ],{
  "Receive Approved Delivery":{main:[[{node:"Load Delivery Plan",type:"main",index:0}]]},"Load Delivery Plan":{main:[[{node:"Email Delivery Needed?",type:"main",index:0}]]},
  "Email Delivery Needed?":{main:[[{node:"Send Vendor Email",type:"main",index:0}],[{node:"Telegram Delivery Needed?",type:"main",index:0}]]},"Send Vendor Email":{main:[[{node:"Normalize Email Result",type:"main",index:0}]]},"Normalize Email Result":{main:[[{node:"Record Email Result",type:"main",index:0}]]},"Record Email Result":{main:[[{node:"Telegram Delivery Needed?",type:"main",index:0}]]},
  "Telegram Delivery Needed?":{main:[[{node:"Send Vendor Telegram",type:"main",index:0}],[{node:"Finalize Independent Deliveries",type:"main",index:0}]]},"Send Vendor Telegram":{main:[[{node:"Normalize Telegram Result",type:"main",index:0}]]},"Normalize Telegram Result":{main:[[{node:"Record Telegram Result",type:"main",index:0}]]},"Record Telegram Result":{main:[[{node:"Finalize Independent Deliveries",type:"main",index:0}]]},
- "Finalize Independent Deliveries":{main:[[{node:"Delivery Alert Needed?",type:"main",index:0}]]},"Delivery Alert Needed?":{main:[[{node:"Send Delivery Failure Alert",type:"main",index:0}],[{node:"Return Delivery Outcome",type:"main",index:0}]]},"Send Delivery Failure Alert":{main:[[{node:"Return Delivery Outcome",type:"main",index:0}]]}
+ "Finalize Independent Deliveries":{main:[[{node:"Delivery Alert Needed?",type:"main",index:0}]]},"Delivery Alert Needed?":{main:[[{node:"Send Failed Channel Retry",type:"main",index:0}],[{node:"Return Delivery Outcome",type:"main",index:0}]]},"Send Failed Channel Retry":{main:[[{node:"Return Delivery Outcome",type:"main",index:0}]]}
 }));
 
 const managerParseCode = `const cb=$json.callback_query||null; const msg=$json.message||$json.edited_message||null;
 if(msg){const text=String(msg.text||'').trim();const chat=msg.chat?.id||'';const actor=String(msg.from?.id||'manager');if(text.toLowerCase()==='/health')return[{json:{route:'health',actor_id:actor,channel:'telegram',telegram_chat_id:chat}}];if(text)return[{json:{route:'action',action:'EDIT',queue_id:0,edited_text:text,actor_id:actor,channel:'telegram',telegram_chat_id:chat,reply_to_message_id:Number(msg.reply_to_message?.message_id||0)}}];return[{json:{route:'ignore',telegram_chat_id:chat}}];}
 if(!cb)return[{json:{route:'ignore'}}];const p=String(cb.data||'').split(':');const action=String(p[0]||'').toUpperCase();const id=Number(p[1]||0);const base={actor_id:String(cb.from?.id||'manager'),channel:'telegram',telegram_chat_id:cb.message?.chat?.id||'',telegram_callback_query_id:cb.id};
-if(action==='DONE')return[{json:{...base,route:'complete',stage_id:id}}];if(['SEND','EDIT','HOLD','RETRY_EMAIL','RETRY_TELEGRAM'].includes(action))return[{json:{...base,route:'action',action,queue_id:id}}];if(['SKIP','SNOOZE','CHASE'].includes(action))return[{json:{...base,route:'action',action,stage_id:id}}];if(action==='CANCEL')return[{json:{...base,route:'action',action,turn_id:id}}];return[{json:{...base,route:'ignore'}}];`;
+if(action==='DONE')return[{json:{...base,route:'complete',stage_id:id}}];if(['SEND','SEND_EMAIL','SEND_TELEGRAM','SEND_BOTH','EDIT','HOLD','RETRY_EMAIL','RETRY_TELEGRAM'].includes(action))return[{json:{...base,route:'action',action,queue_id:id}}];if(['SKIP','SNOOZE','CHASE'].includes(action))return[{json:{...base,route:'action',action,stage_id:id}}];if(action==='CANCEL')return[{json:{...base,route:'action',action,turn_id:id}}];return[{json:{...base,route:'ignore'}}];`;
 const managerRouteCode = `return [{json:{...$json,is_health:$json.route==='health',is_complete:$json.route==='complete',is_action:$json.route==='action',is_callback:Boolean($json.telegram_callback_query_id)}}];`;
-const resolveEditQuery = `WITH input AS (SELECT '{{ String($json.action||"").replace(/'/g,"''") }}' action,{{ Number($json.queue_id||0) }}::int queue_id,{{ Number($json.reply_to_message_id||0) }}::bigint reply_id), resolved AS (SELECT q.id FROM outbound_queue q,input i WHERE q.status='editing' AND (q.id=i.queue_id OR (i.queue_id=0 AND (q.manager_message_id=i.reply_id OR i.reply_id=0))) ORDER BY CASE WHEN q.manager_message_id=i.reply_id THEN 0 ELSE 1 END,q.edit_prompted_at DESC NULLS LAST LIMIT 1)
+const resolveEditQuery = `WITH input AS (SELECT '{{ String($json.action||"").replace(/'/g,"''") }}' action,{{ Number($json.queue_id||0) }}::int queue_id,{{ Number($json.reply_to_message_id||0) }}::bigint reply_id), resolved AS (SELECT q.id FROM outbound_queue q,input i WHERE q.status='editing' AND (q.id=i.queue_id OR (i.queue_id=0 AND (q.manager_message_id=i.reply_id::text OR i.reply_id=0))) ORDER BY CASE WHEN q.manager_message_id=i.reply_id::text THEN 0 ELSE 1 END,q.edit_prompted_at DESC NULLS LAST LIMIT 1)
 SELECT '{{ String($json.action||"").replace(/'/g,"''") }}'::text action,COALESCE(NULLIF({{ Number($json.queue_id||0) }},0),(SELECT id FROM resolved),0) queue_id,{{ Number($json.stage_id||0) }} stage_id,{{ Number($json.turn_id||0) }} turn_id,'{{ String($json.edited_text||"").replace(/'/g,"''") }}'::text edited_text,'{{ String($json.actor_id||"manager").replace(/'/g,"''") }}'::text actor_id,'{{ String($json.telegram_chat_id||"").replace(/'/g,"''") }}'::text telegram_chat_id,'{{ String($json.telegram_callback_query_id||"").replace(/'/g,"''") }}'::text telegram_callback_query_id;`;
 function answerCallbackNode(){return {id:"answer",name:"Answer Manager Callback",type:"n8n-nodes-base.telegram",typeVersion:1.2,position:[2860,120],parameters:{resource:"callback",operation:"answerQuery",queryId:"={{ $json.telegram_callback_query_id }}",additionalFields:{text:"={{ $json.outcome || 'Done' }}",show_alert:false}},credentials:{telegramApi:managerTgCred},continueOnFail:true};}
 const managerTrigger={id:"manager-trigger",name:"ManagerTelegramTrigger",type:"n8n-nodes-base.telegramTrigger",typeVersion:1.3,position:[0,0],parameters:{updates:["message","callback_query"],additionalFields:{}},credentials:{telegramApi:managerTgCred}};
@@ -1003,7 +1015,20 @@ const airtableSyncQuery = `WITH rows AS (
 SELECT table_name,entity_type,entity_id,fields,md5(fields::text) payload_hash FROM rows r WHERE NOT EXISTS(SELECT 1 FROM airtable_record_map m WHERE m.entity_type=r.entity_type AND m.entity_id=r.entity_id AND m.payload_hash=md5(r.fields::text)) ORDER BY CASE table_name WHEN 'Vendors' THEN 1 WHEN 'Turns' THEN 2 WHEN 'Stages' THEN 3 WHEN 'Communications' THEN 4 ELSE 5 END,entity_id;`;
 const prepareAirtableSyncCode = `return [{json:{caller:$json||{}}}];`;
 const buildAirtableBatchesCode = `const base='AIRTABLE_BASE_ID_PLACEHOLDER';const caller=$('Prepare Airtable Sync Run').first().json.caller||{};if(base.includes('PLACEHOLDER'))return[{json:{configured:false,caller}}];const groups=new Map();for(const item of $input.all()){const r=item.json;if(!r.table_name)continue;const key=r.table_name+'|'+r.entity_type;if(!groups.has(key))groups.set(key,[]);groups.get(key).push(r);}const out=[];for(const rows of groups.values()){for(let i=0;i<rows.length;i+=10){const chunk=rows.slice(i,i+10);out.push({json:{configured:true,caller,base_id:base,table_name:chunk[0].table_name,entity_type:chunk[0].entity_type,entity_ids:chunk.map(x=>Number(x.entity_id)),payload_hashes:chunk.map(x=>x.payload_hash),request_body:{performUpsert:{fieldsToMergeOn:['External ID']},records:chunk.map(x=>({fields:typeof x.fields==='string'?JSON.parse(x.fields):x.fields}))}}});}}return out.length?out:[{json:{configured:false,caller}}];`;
-const captureAirtableMappingsCode = `const source=$('Build Airtable Batches').item.json;const records=Array.isArray($json.records)?$json.records:[];return records.map((r,i)=>({json:{caller:source.caller,entity_type:source.entity_type,entity_id:Number(source.entity_ids[i]),table_name:source.table_name,record_id:r.id,payload_hash:source.payload_hashes[i]}}));`;
+// Runs once for all items: the upsert node emits one response item per batch, so every
+// batch must be walked here. Reading only $json captured the first batch and silently
+// dropped Stages, Communications, and Approvals mappings.
+const captureAirtableMappingsCode = `const responses=$input.all();const sources=$('Build Airtable Batches').all();const out=[];
+for(let idx=0;idx<responses.length;idx++){
+  const source=(sources[idx]||sources[sources.length-1]||{}).json||{};
+  if(!source.entity_type||!Array.isArray(source.entity_ids))continue;
+  const records=Array.isArray(responses[idx].json.records)?responses[idx].json.records:[];
+  for(let i=0;i<records.length;i++){
+    if(source.entity_ids[i]===undefined)continue;
+    out.push({json:{caller:source.caller,entity_type:source.entity_type,entity_id:Number(source.entity_ids[i]),table_name:source.table_name,record_id:records[i].id,payload_hash:source.payload_hashes[i]}});
+  }
+}
+return out;`;
 const saveAirtableMapQuery = `INSERT INTO airtable_record_map(entity_type,entity_id,airtable_table,airtable_record_id,payload_hash,last_synced_at,last_error) VALUES('{{ String($json.entity_type).replace(/'/g,"''") }}',{{ Number($json.entity_id) }},'{{ String($json.table_name).replace(/'/g,"''") }}','{{ String($json.record_id).replace(/'/g,"''") }}','{{ String($json.payload_hash).replace(/'/g,"''") }}',now(),NULL) ON CONFLICT(entity_type,entity_id) DO UPDATE SET airtable_table=excluded.airtable_table,airtable_record_id=excluded.airtable_record_id,payload_hash=excluded.payload_hash,last_synced_at=now(),last_error=NULL RETURNING true synced;`;
 const returnAirtableCallerCode = `const caller=$('Prepare Airtable Sync Run').first().json.caller||{};return [{json:{...caller,airtable_sync_completed:true}}];`;
 
@@ -1011,7 +1036,8 @@ save("wf-9-airtable-sync.json",wf("wf9-airtable-sync","Airtable Sync",[
  {id:"schedule",name:"FiveMinuteReconciliation",type:"n8n-nodes-base.scheduleTrigger",typeVersion:1.2,position:[0,-100],parameters:{rule:{interval:[{field:"minutes",minutesInterval:5}]}}},
  {id:"trigger",name:"Receive State Change",type:"n8n-nodes-base.executeWorkflowTrigger",typeVersion:1.2,position:[0,100],parameters:{inputSource:"passthrough"}},
  codeNode("prepare","Prepare Airtable Sync Run",200,0,prepareAirtableSyncCode),pgNode("load","Load Changed Airtable Records",460,0,airtableSyncQuery,true),codeNode("batch","Build Airtable Batches",720,0,buildAirtableBatchesCode),ifNode("configured","Airtable Configured?",980,0,"={{ $json.configured === true }}"),
- airtableHttpNode("upsert","Upsert Airtable Batch",1040,-100,"POST","={{ 'https://api.airtable.com/v0/' + $json.base_id + '/' + encodeURIComponent($json.table_name) }}","={{ JSON.stringify($json.request_body) }}"),
+ // Airtable accepts performUpsert only on PATCH/PUT, not record-creation POST.
+ airtableHttpNode("upsert","Upsert Airtable Batch",1040,-100,"PATCH","={{ 'https://api.airtable.com/v0/' + $json.base_id + '/' + encodeURIComponent($json.table_name) }}","={{ JSON.stringify($json.request_body) }}"),
  codeNode("maps","Capture Airtable Record IDs",1300,-100,captureAirtableMappingsCode),pgNode("save-maps","Save Airtable Mappings",1560,-100,saveAirtableMapQuery),codeNode("return","Return Caller Context",1820,0,returnAirtableCallerCode)
 ],{"FiveMinuteReconciliation":{main:[[{node:"Prepare Airtable Sync Run",type:"main",index:0}]]},"Receive State Change":{main:[[{node:"Prepare Airtable Sync Run",type:"main",index:0}]]},"Prepare Airtable Sync Run":{main:[[{node:"Load Changed Airtable Records",type:"main",index:0}]]},"Load Changed Airtable Records":{main:[[{node:"Build Airtable Batches",type:"main",index:0}]]},"Build Airtable Batches":{main:[[{node:"Airtable Configured?",type:"main",index:0}]]},"Airtable Configured?":{main:[[{node:"Upsert Airtable Batch",type:"main",index:0}],[{node:"Return Caller Context",type:"main",index:0}]]},"Upsert Airtable Batch":{main:[[{node:"Capture Airtable Record IDs",type:"main",index:0}]]},"Capture Airtable Record IDs":{main:[[{node:"Save Airtable Mappings",type:"main",index:0}]]},"Save Airtable Mappings":{main:[[{node:"Return Caller Context",type:"main",index:0}]]}}));
 
@@ -1060,10 +1086,15 @@ save("wf-4-turn-intake.json",wf("wf4-turn-intake","Airtable Turn Intake",[
  airtableHttpNode("update","Update Intake Result",1300,0,"PATCH","={{ 'https://api.airtable.com/v0/' + $json.base_id + '/' + encodeURIComponent('Turn Intake') + '/' + $json.airtable_record_id }}","={{ JSON.stringify($json.update_body) }}"),executeNode("sync","Sync New Turn To Airtable",1560,0,"wf9-airtable-sync")
 ],{"PollAirtableIntake":{main:[[{node:"Read New Intake Records",type:"main",index:0}]]},"Read New Intake Records":{main:[[{node:"Normalize Airtable Intake",type:"main",index:0}]]},"Normalize Airtable Intake":{main:[[{node:"Create Turn Idempotently",type:"main",index:0}]]},"Create Turn Idempotently":{main:[[{node:"Build Intake Status Update",type:"main",index:0}]]},"Build Intake Status Update":{main:[[{node:"Update Intake Result",type:"main",index:0}]]},"Update Intake Result":{main:[[{node:"Sync New Turn To Airtable",type:"main",index:0}]]}}));
 
-const manualCompletionCode = `return [{json:{...$json,stage_id:Number($json.stage_id||0),actor_type:'manager',actor_id:String($json.actor_id||'manager'),channel:'telegram',completed_via:$json.override_token?'override':'manual',raw_text:'Manager marked stage complete',classification:{intent:'stage_complete',confidence:1,manager_summary:'Manager completion',suggested_reply:null,safety_flags:[],reply_needed:false},match:{selected:{stage_id:Number($json.stage_id||0)}}}}];`;
+// Stage Update is the shared completion entry point after consolidation. Preserve
+// a vendor router's deterministic match; synthesize one only for manager actions.
+const stageUpdateInputCode = `const selected=($json.match||{}).selected||{};const vendorStageId=Number(selected.stage_id||0);if(vendorStageId>0||$json.sender_ref){const actorType=String($json.actor_type||'vendor');return[{json:{...$json,stage_id:Number(vendorStageId||$json.stage_id||0),actor_id:String($json.sender_ref||$json.actor_id||'vendor'),actor_type:actorType,channel:String($json.channel||'generic'),completed_via:String($json.completed_via||(actorType==='vendor'?'vendor_reply':'manual')),raw_text:String($json.text||$json.raw_text||''),classification:$json.interpretation||$json.classification||{},match:$json.match||{}}}];}const stageId=Number($json.stage_id||0);return[{json:{...$json,stage_id:stageId,actor_type:'manager',actor_id:String($json.actor_id||'manager'),channel:'telegram',completed_via:$json.override_token?'override':'manual',raw_text:'Manager marked stage complete',classification:{intent:'stage_complete',confidence:1,manager_summary:'Manager completion',suggested_reply:null,safety_flags:[],reply_needed:false},match:{selected:{stage_id:stageId}}}}];`;
 save("wf-3-stage-complete-core.json",wf("wf3-stage-complete-core","Stage Complete Core",[
- {id:"trigger",name:"Receive Completion Request",type:"n8n-nodes-base.executeWorkflowTrigger",typeVersion:1.2,position:[0,0],parameters:{inputSource:"passthrough"}},codeNode("normalize","Normalize Manager Completion",280,0,manualCompletionCode),executeNode("shared","Call Shared Completion Handler",560,0,"wf5-vendor-completion-handler")
-],{"Receive Completion Request":{main:[[{node:"Normalize Manager Completion",type:"main",index:0}]]},"Normalize Manager Completion":{main:[[{node:"Call Shared Completion Handler",type:"main",index:0}]]}}));
+ {id:"trigger",name:"Receive Completion Request",type:"n8n-nodes-base.executeWorkflowTrigger",typeVersion:1.2,position:[0,0],parameters:{inputSource:"passthrough"}},codeNode("normalize","Normalize Stage Update Request",280,0,stageUpdateInputCode),executeNode("shared","Call Shared Completion Handler",560,0,"wf5-vendor-completion-handler")
+], {
+ "Receive Completion Request": { main: [[{ node: "Normalize Stage Update Request", type: "main", index: 0 }]] },
+ "Normalize Stage Update Request": { main: [[{ node: "Call Shared Completion Handler", type: "main", index: 0 }]] },
+}));
 
 function attachSync(file,nodeName) {
   const x=load(file); if(!x.nodes.some(n=>n.id==="sync-airtable-side-effect")) x.nodes.push(executeNode("sync-airtable-side-effect","Reconcile Airtable After State Change",9000,0,"wf9-airtable-sync"));

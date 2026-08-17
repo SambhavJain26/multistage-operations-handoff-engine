@@ -1,0 +1,468 @@
+{
+  "id": "demo-monitoring",
+  "name": "Monitoring",
+  "active": false,
+  "nodes": [
+    {
+      "id": "demo-node-1",
+      "name": "Stall POST Stall Watchdog Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        -120
+      ],
+      "webhookId": "wf6-stall-watchdog",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "stall-watchdog",
+        "authentication": "none",
+        "responseMode": "lastNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      }
+    },
+    {
+      "id": "demo-node-2",
+      "name": "Stall Schedule Stall Watchdog",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        120
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "demo-node-3",
+      "name": "Stall Normalize Watchdog Run",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        280,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const query = $json.query || {};\nconst body = $json.body || {};\nreturn [{ json: {\n  now_override: String(body.now_override || query.now_override || ''),\n  force_hour: Number(body.force_hour ?? query.force_hour ?? -1),\n  manager_chat_id: 'stage5-manager-chat-id-missing',\n  cors_origin: '*'\n} }];"
+      }
+    },
+    {
+      "id": "demo-node-4",
+      "name": "Stall Find And Log Stalls",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        560,
+        0
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH input AS (\n  SELECT\n    COALESCE(NULLIF('{{ String($json.now_override || \"\").replace(/'/g, \"''\") }}', '')::timestamptz, now()) AS current_ts,\n    {{ Number($json.force_hour ?? -1) }}::int AS force_hour,\n    '{{ String($json.manager_chat_id || \"\").replace(/'/g, \"''\") }}'::text AS manager_chat_id\n), business AS (\n  SELECT\n    input.*,\n    CASE\n      WHEN input.force_hour BETWEEN 0 AND 23 THEN input.force_hour\n      ELSE EXTRACT(HOUR FROM input.current_ts AT TIME ZONE 'America/Phoenix')::int\n    END AS local_hour\n  FROM input\n), candidates AS (\n  SELECT\n    ts.id AS stage_id,\n    ts.turn_id,\n    ts.stage_name,\n    ts.sla_hours,\n    ts.activated_at,\n    t.unit_label,\n    t.property_address,\n    t.rent_monthly,\n    v.name AS vendor_name,\n    round(extract(epoch FROM ((SELECT current_ts FROM input) - ts.activated_at)) / 3600, 1) AS hours_at_stage,\n    round((t.rent_monthly / 30) * greatest(0, (date((SELECT current_ts FROM input)) - t.moveout_date)))::int AS dollars_burned\n  FROM turn_stage ts\n  JOIN \"turn\" t ON t.id = ts.turn_id\n  JOIN vendor v ON v.id = ts.vendor_id\n  WHERE t.status = 'active'\n    AND ts.status = 'active'\n    AND v.trade <> 'inspect'\n    AND ts.sla_hours > 0\n    AND ts.alerted_at IS NULL\n    AND (ts.snooze_until IS NULL OR ts.snooze_until <= (SELECT current_ts FROM input))\n    AND ts.activated_at + (ts.sla_hours || ' hours')::interval <= (SELECT current_ts FROM input)\n), marked AS (\n  UPDATE turn_stage ts\n  SET alerted_at = (SELECT current_ts FROM input)\n  FROM candidates c, business b\n  WHERE b.local_hour >= 8 AND b.local_hour < 18\n    AND ts.id = c.stage_id\n  RETURNING c.*\n), held AS (\n  INSERT INTO event_log (turn_id, stage_id, actor_type, actor_id, channel, event_type, raw_text, parsed_json, created_at)\n  SELECT c.turn_id, c.stage_id, 'system', 'stage-6-watchdog', 'system', 'stall_alert_held',\n    c.unit_label || ' ' || c.stage_name || ' alert held outside business hours',\n    jsonb_build_object('hours_at_stage', c.hours_at_stage, 'local_hour', (SELECT local_hour FROM business)),\n    (SELECT current_ts FROM input)\n  FROM candidates c, business b\n  WHERE NOT (b.local_hour >= 8 AND b.local_hour < 18)\n    AND NOT EXISTS (\n      SELECT 1 FROM event_log e\n      WHERE e.stage_id = c.stage_id\n        AND e.event_type = 'stall_alert_held'\n        AND e.created_at >= c.activated_at\n    )\n  RETURNING id\n), alert_events AS (\n  INSERT INTO event_log (turn_id, stage_id, actor_type, actor_id, channel, event_type, raw_text, parsed_json, created_at)\n  SELECT m.turn_id, m.stage_id, 'system', 'stage-6-watchdog', 'system', 'stall_alert',\n    m.unit_label || ' ' || m.stage_name || ' is stalled',\n    jsonb_build_object('hours_at_stage', m.hours_at_stage, 'sla_hours', m.sla_hours, 'dollars_burned', m.dollars_burned, 'vendor_name', m.vendor_name),\n    (SELECT current_ts FROM input)\n  FROM marked m\n  RETURNING id\n), lines AS (\n  SELECT string_agg(unit_label || ' - ' || stage_name || ' - ' || hours_at_stage || 'h at stage - $' || dollars_burned || ' burned', E'\\n' ORDER BY hours_at_stage DESC) AS text\n  FROM marked\n)\nSELECT\n  (SELECT count(*) FROM candidates)::int AS candidate_count,\n  (SELECT count(*) FROM marked)::int AS alert_count,\n  (SELECT count(*) FROM held)::int AS held_count,\n  (SELECT local_hour FROM business)::int AS local_hour,\n  ((SELECT count(*) FROM marked) > 0) AS alerted,\n  ((SELECT count(*) FROM held) > 0) AS held,\n  NULLIF((SELECT manager_chat_id FROM input), 'stage5-manager-chat-id-missing') AS manager_chat_id,\n  ((SELECT count(*) FROM marked) > 0 AND (SELECT manager_chat_id FROM input) <> '' AND (SELECT manager_chat_id FROM input) <> 'stage5-manager-chat-id-missing') AS should_notify_manager,\n  COALESCE('Stall alert\\n' || (SELECT text FROM lines), 'No stall alerts.') AS manager_notice_text,\n  '*'::text AS cors_origin;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "cred_make_ready_pg",
+          "name": "Make-Ready Postgres"
+        }
+      }
+    },
+    {
+      "id": "demo-node-5",
+      "name": "Stall Notify Manager About Stalls?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        840,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "notify-manager-about-stalls-condition",
+              "leftValue": "={{ $json.should_notify_manager }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "demo-node-6",
+      "name": "Stall Send Stall Alert",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1120,
+        -120
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $json.manager_chat_id }}",
+        "text": "={{ $json.manager_notice_text }}",
+        "additionalFields": {
+          "disable_web_page_preview": true,
+          "appendAttribution": false
+        }
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "jASZWMlrfp3v2tWH",
+          "name": "Make-Ready Manager Telegram Bot"
+        }
+      }
+    },
+    {
+      "id": "demo-node-7",
+      "name": "Stall Return After Stall Alert",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1400,
+        -120
+      ],
+      "parameters": {
+        "jsCode": "return [$('Stall Find And Log Stalls').first()];"
+      }
+    },
+    {
+      "id": "demo-node-8",
+      "name": "Stall Return Watchdog Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        120
+      ],
+      "parameters": {
+        "jsCode": "return $input.all();"
+      }
+    },
+    {
+      "id": "demo-node-9",
+      "name": "Weekly Call Health Core Load Health Metrics",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        280,
+        0
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH input AS (\n  SELECT\n    '{{ String($json.actor_id || \"manager\").replace(/'/g, \"''\") }}'::text AS actor_id,\n    '{{ String($json.channel || \"system\").replace(/'/g, \"''\") }}'::text AS channel\n), metrics AS (\n  SELECT\n    COALESCE((\n      SELECT round(100.0 * count(*) FILTER (WHERE completed_via = 'vendor_reply') / nullif(count(*), 0))::int\n      FROM turn_stage\n      WHERE vendor_id IS NOT NULL AND status IN ('complete', 'skipped') AND completed_at > now() - interval '30 days'\n    ), 0) AS vendor_reply_rate,\n    COALESCE((\n      SELECT round(100.0 * count(*) FILTER (WHERE event_type = 'stage_complete') / nullif(count(*), 0))::int\n      FROM event_log\n      WHERE actor_type = 'vendor' AND created_at > now() - interval '30 days'\n    ), 0) AS auto_handled_rate\n), operating AS (\n  SELECT count(*)::int AS active_turns,\n         COALESCE(sum(round((t.rent_monthly / 30) * greatest(0, (current_date - t.moveout_date)))), 0)::int AS dollars_burning_now\n  FROM \"turn\" t\n  WHERE t.status = 'active'\n), stalled AS (\n  SELECT count(*)::int AS stalled_vendor_stages\n  FROM turn_stage ts\n  JOIN vendor v ON v.id = ts.vendor_id\n  WHERE ts.status = 'active'\n    AND v.trade <> 'inspect'\n    AND ts.sla_hours > 0\n    AND ts.activated_at + (ts.sla_hours || ' hours')::interval <= now()\n), logged AS (\n  INSERT INTO event_log (actor_type, actor_id, channel, event_type, raw_text, parsed_json)\n  SELECT 'manager', input.actor_id, input.channel, 'health_check', 'manager health check',\n    jsonb_build_object('vendor_reply_rate', metrics.vendor_reply_rate, 'auto_handled_rate', metrics.auto_handled_rate, 'active_turns', operating.active_turns, 'stalled_vendor_stages', stalled.stalled_vendor_stages)\n  FROM input, metrics, operating, stalled\n  RETURNING id\n)\nSELECT\n  metrics.vendor_reply_rate,\n  metrics.auto_handled_rate,\n  operating.active_turns,\n  operating.dollars_burning_now,\n  stalled.stalled_vendor_stages,\n  ('Health check\\nVendor reply rate: ' || metrics.vendor_reply_rate || '%\\nAuto-handled: ' || metrics.auto_handled_rate || '%\\nUnits in turn: ' || operating.active_turns || '\\nBurning now: $' || operating.dollars_burning_now || '\\nStalled vendor stages: ' || stalled.stalled_vendor_stages) AS health_text,\n  '*'::text AS cors_origin\nFROM metrics, operating, stalled;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "cred_make_ready_pg",
+          "name": "Make-Ready Postgres"
+        }
+      }
+    },
+    {
+      "id": "demo-node-10",
+      "name": "Weekly Schedule Weekly Digest",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "triggerAtDay": [
+                1
+              ],
+              "triggerAtHour": 8
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "demo-node-11",
+      "name": "Weekly Prepare Weekly Health Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        280,
+        0
+      ],
+      "parameters": {
+        "jsCode": "return [{ json: { actor_id: 'weekly-digest', channel: 'digest', manager_chat_id: 'stage3-manager-chat-id-missing' } }];"
+      }
+    },
+    {
+      "id": "demo-node-12",
+      "name": "Weekly Format Weekly Digest",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        840,
+        0
+      ],
+      "parameters": {
+        "jsCode": "return [{ json: { ...$json, manager_chat_id: 'stage3-manager-chat-id-missing', weekly_text: 'Weekly make-ready metrics\\n' + $json.health_text } }];"
+      }
+    },
+    {
+      "id": "demo-node-13",
+      "name": "Weekly Log Weekly Digest",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1120,
+        0
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO event_log (actor_type, actor_id, channel, event_type, raw_text, parsed_json) VALUES ('system', 'stage-6-weekly-digest', 'digest', 'weekly_digest', '{{ String($json.weekly_text || \"weekly digest\").replace(/'/g, \"''\") }}', jsonb_build_object('vendor_reply_rate', {{ Number($json.vendor_reply_rate || 0) }}, 'auto_handled_rate', {{ Number($json.auto_handled_rate || 0) }})) RETURNING true AS logged, '{{ String($json.weekly_text || \"\").replace(/'/g, \"''\") }}'::text AS weekly_text, NULLIF('{{ String($json.manager_chat_id || \"\").replace(/'/g, \"''\") }}', 'stage3-manager-chat-id-missing') AS manager_chat_id;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "cred_make_ready_pg",
+          "name": "Make-Ready Postgres"
+        }
+      }
+    },
+    {
+      "id": "demo-node-14",
+      "name": "Weekly Weekly Manager Chat Configured?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1400,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "weekly-manager-chat-configured-condition",
+              "leftValue": "={{ Boolean($json.manager_chat_id) }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "demo-node-15",
+      "name": "Weekly Send Weekly Digest",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1680,
+        -120
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $json.manager_chat_id }}",
+        "text": "={{ $json.weekly_text }}",
+        "additionalFields": {
+          "disable_web_page_preview": true,
+          "appendAttribution": false
+        }
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "jASZWMlrfp3v2tWH",
+          "name": "Make-Ready Manager Telegram Bot"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Stall POST Stall Watchdog Webhook": {
+      "main": [
+        [
+          {
+            "node": "Stall Normalize Watchdog Run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stall Schedule Stall Watchdog": {
+      "main": [
+        [
+          {
+            "node": "Stall Normalize Watchdog Run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stall Normalize Watchdog Run": {
+      "main": [
+        [
+          {
+            "node": "Stall Find And Log Stalls",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stall Find And Log Stalls": {
+      "main": [
+        [
+          {
+            "node": "Stall Notify Manager About Stalls?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stall Notify Manager About Stalls?": {
+      "main": [
+        [
+          {
+            "node": "Stall Send Stall Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Stall Return Watchdog Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stall Send Stall Alert": {
+      "main": [
+        [
+          {
+            "node": "Stall Return After Stall Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Weekly Schedule Weekly Digest": {
+      "main": [
+        [
+          {
+            "node": "Weekly Prepare Weekly Health Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Weekly Prepare Weekly Health Request": {
+      "main": [
+        [
+          {
+            "node": "Weekly Call Health Core Load Health Metrics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Weekly Call Health Core Load Health Metrics": {
+      "main": [
+        [
+          {
+            "node": "Weekly Format Weekly Digest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Weekly Format Weekly Digest": {
+      "main": [
+        [
+          {
+            "node": "Weekly Log Weekly Digest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Weekly Log Weekly Digest": {
+      "main": [
+        [
+          {
+            "node": "Weekly Weekly Manager Chat Configured?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Weekly Weekly Manager Chat Configured?": {
+      "main": [
+        [
+          {
+            "node": "Weekly Send Weekly Digest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": "demo-builder-error-handler"
+  },
+  "staticData": null,
+  "pinData": {},
+  "versionId": "2d857a9c-b984-42e8-b490-25da00646172",
+  "triggerCount": 3,
+  "tags": []
+}

@@ -54,13 +54,14 @@ Because `db/postgres` is mounted into `/docker-entrypoint-initdb.d`, do not put 
 - Do not use Google Sheets or n8n Data Tables for core state.
 - Airtable is the manager-facing mirror and turn-intake form. Postgres remains authoritative; Airtable sync failures must never change sequencing state.
 - Use two Telegram bots: vendor-facing and manager-facing.
-- Vendor messages arrive through Telegram, email, or the generic inbound API. Every approved vendor message is delivered through both Telegram and email.
+- Vendor messages arrive through Telegram, email, or the generic inbound API. The manager chooses the outbound channel per approval with `Email`, `Message`, or `Both`.
 - All manager alerts, approvals, digests, and controls stay in Telegram.
-- A missing vendor email or Telegram destination blocks approval. After one channel succeeds, activate the stage; retry only a failed second channel.
+- Approval cards always show all three channel buttons. Choosing a channel the vendor has no destination for records `configuration_blocked` and alerts the manager; it never sends silently. After one channel succeeds, activate the stage; retry only a failed second channel.
+- Queue finalization must compare sent deliveries against the number of channels actually authorized. Never hardcode a two-channel assumption.
 - Build the generic `/vendor-in` webhook so Telegram is only one channel.
 - Use HTTP Request for OpenAI Responses API calls requiring strict JSON schema, exact model IDs, raw errors, or fallback control.
 - Default model is `gpt-5.6-luna`; use `gpt-5.6-terra` or `gpt-5.4-mini` only if fixture-tested draft quality requires it.
-- Never add autonomous outbound vendor messaging. Draft only; manager approves Send/Edit/Hold.
+- Never add autonomous outbound vendor messaging. Draft only; the manager releases it by choosing a channel. Ignoring a card is a valid decision and leaves the draft as an open approval.
 - Reuse one deterministic sequence guard and one deterministic unit matcher everywhere.
 
 ## n8n Workflow Rules
@@ -118,6 +119,11 @@ Known n8n gotchas to account for:
 - Manager Telegram callback workflows must preserve `telegram_callback_query_id` through any Execute Sub-workflow and SQL result before calling Telegram `answerQuery`; dropping it causes a false `Bad Request: query is too old... or query ID is invalid` error after the state mutation succeeds.
 - One-off `n8n execute` commands can collide with the running task broker. Prefer isolated `docker compose run --rm --no-deps n8n execute ...` or stop the service before CLI execution, then restart it.
 - In PowerShell, piping JSON into native commands can introduce a UTF-8 BOM. If `n8n import:workflow` fails with an unexpected token at the start, verify the file is clean and import through Bash or another BOM-safe path.
+- n8n Code nodes default to run-once-for-all-items. A node that reads `$json` or `$('Node').item` sees only the first input item. When an upstream HTTP node emits one response per batch, walk `$input.all()` and pair against `$('Node').all()` by index, or the later batches are silently dropped.
+- n8n `emailReadImap` in `simple` format exposes raw headers under `metadata`, not `headers` or `headerLines`. Header lookups must check `metadata` or `In-Reply-To` and `Message-ID` read as empty, which makes the single-inbox guard ignore genuine vendor replies.
+- A `trycloudflare` quick tunnel can collapse while `cloudflared` keeps running. The hostname stops resolving, n8n keeps serving the stale `WEBHOOK_URL`, and Telegram callbacks disappear with no error surfaced anywhere. Probe `WEBHOOK_URL/healthz` before any live Telegram step and treat a failed probe, not the user's button press, as the first suspect.
+- `scripts/import-make-ready-workflows.ps1` exits 1 under Windows PowerShell 5.1 even when import and publish succeed, because `docker compose restart` writes progress to stderr and PowerShell wraps it as `NativeCommandError`. Verify activation from the n8n database rather than trusting the exit code.
+- `ConvertFrom-Json -Depth` is PowerShell 7 only. Repo scripts must omit it so they run under Windows PowerShell 5.1.
 - Reset applies migrations in lexical order before fixture cleanup. If a later stage has already written rows with expanded enum/check values, older migrations must not temporarily narrow those constraints during re-application.
 
 ## Testing And Verification
@@ -127,6 +133,7 @@ Use the F01-F20 fixtures in `make-ready-demo-build-plan.md`. Each stage must sat
 Core invariants:
 
 - Manual and vendor completions use the same guard.
+- Before asking the user to press a Telegram control or perform any external action, verify that the exact control/action is currently available in the live destination. Do not infer a newly added control is visible from workflow source alone; confirm it through a live provider result, stored message record, or user-visible evidence.
 - Ambiguous unit matches ask the manager instead of guessing.
 - Duplicate replies do not double-advance or double-draft.
 - OpenAI failure falls back safely.
@@ -146,6 +153,6 @@ Before adding or pulling Docker images, check local images first. Build destruct
 
 Use short imperative or conventional commits, for example `docs: update local tunnel guidance` or `feat: add sequence guard fixtures`.
 
-Before finishing implementation work, decide whether the task exposed a durable command, workaround, gotcha, or rule. If yes, update `AGENTS.md` and `progress-notes.md`. For documentation-only planning edits, do not auto-commit unless the user asks.
+Before finishing implementation work, decide whether the task exposed a durable command, workaround, gotcha, or rule. If yes, update `AGENTS.md`, `CLAUDE.md` (both files must stay identical apart from this note), and `progress-notes.md`. For documentation-only planning edits, do not auto-commit unless the user asks.
 
 After every completed task, commit and push changes to `main`. If push fails because no remote or authentication is configured, report that clearly and include the local commit hash if a commit was created. Never commit secrets, local data, generated temp output, or n8n credential exports.

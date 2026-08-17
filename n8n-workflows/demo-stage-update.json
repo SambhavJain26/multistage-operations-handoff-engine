@@ -1,24 +1,45 @@
 {
-  "id": "wf5-vendor-completion-handler",
-  "name": "Vendor Completion Handler",
+  "id": "demo-stage-update",
+  "name": "Stage Update",
   "active": false,
   "nodes": [
     {
-      "id": "trigger",
-      "name": "Receive Completion Candidate",
-      "type": "n8n-nodes-base.executeWorkflowTrigger",
-      "typeVersion": 1.2,
+      "id": "demo-node-1",
+      "name": "Stage Call Shared Completion Handler Call Sequence Guard Load Stage State For Guard",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
       "position": [
-        0,
+        240,
         0
       ],
       "parameters": {
-        "inputSource": "passthrough"
+        "operation": "executeQuery",
+        "query": "WITH input AS (\n  SELECT\n    {{ Number($json.stage_id || 0) }}::int AS stage_id,\n    '{{ String($json.actor_id || \"manager\").replace(/'/g, \"''\") }}'::text AS actor_id,\n    '{{ String($json.channel || \"telegram\").replace(/'/g, \"''\") }}'::text AS channel,\n    '{{ String($json.actor_type || (($json.envelope || {}).actor_type) || \"manager\").replace(/'/g, \"''\") }}'::text AS actor_type,\n    '{{ String($json.completed_via || (($json.envelope || {}).completed_via) || \"\").replace(/'/g, \"''\") }}'::text AS requested_completed_via,\n    '{{ String($json.override_token || \"\").replace(/'/g, \"''\") }}'::text AS override_token,\n    '{{ String($json.override_reason || \"\").replace(/'/g, \"''\") }}'::text AS override_reason,\n    '{{ String($json.telegram_callback_query_id || \"\").replace(/'/g, \"''\") }}'::text AS telegram_callback_query_id,\n    '{{ String($json.telegram_chat_id || \"\").replace(/'/g, \"''\") }}'::text AS telegram_chat_id,\n    '{{ String($json.raw_text || (($json.envelope || {}).text) || \"\").replace(/'/g, \"''\") }}'::text AS raw_text,\n    '{{ JSON.stringify($json.envelope || {}).replace(/'/g, \"''\") }}'::jsonb AS envelope,\n    '{{ JSON.stringify($json.classification || {}).replace(/'/g, \"''\") }}'::jsonb AS classification,\n    '{{ JSON.stringify($json.match || {}).replace(/'/g, \"''\") }}'::jsonb AS match,\n    '{{ JSON.stringify($json.vendor || {}).replace(/'/g, \"''\") }}'::jsonb AS vendor_context\n), target AS (\n  SELECT\n    ts.id,\n    ts.turn_id,\n    ts.seq,\n    ts.stage_code,\n    ts.stage_name,\n    ts.status,\n    t.unit_label,\n    t.property_address\n  FROM turn_stage ts\n  JOIN \"turn\" t ON t.id = ts.turn_id\n  JOIN input i ON i.stage_id = ts.id\n), stage_rows AS (\n  SELECT\n    s.turn_id,\n    jsonb_agg(jsonb_build_object(\n      'id', s.id,\n      'seq', s.seq,\n      'stage_code', s.stage_code,\n      'stage_name', s.stage_name,\n      'status', s.status\n    ) ORDER BY s.seq) AS stages\n  FROM turn_stage s\n  WHERE s.turn_id = (SELECT turn_id FROM target)\n  GROUP BY s.turn_id\n)\nSELECT\n  input.stage_id AS requested_stage_id,\n  input.actor_id,\n  input.channel,\n  input.actor_type,\n  input.requested_completed_via,\n  input.override_token,\n  input.override_reason,\n  input.telegram_callback_query_id,\n  input.telegram_chat_id,\n  input.raw_text,\n  input.envelope,\n  input.classification,\n  input.match,\n  input.vendor_context,\n  target.id AS stage_id,\n  target.turn_id,\n  target.seq,\n  target.stage_code,\n  target.stage_name,\n  target.status,\n  target.unit_label,\n  target.property_address,\n  COALESCE(stage_rows.stages, '[]'::jsonb) AS stages\nFROM input\nLEFT JOIN target ON TRUE\nLEFT JOIN stage_rows ON stage_rows.turn_id = target.turn_id;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "cred_make_ready_pg",
+          "name": "Make-Ready Postgres"
+        }
       }
     },
     {
-      "id": "normalize-completion",
-      "name": "Normalize Completion Candidate",
+      "id": "demo-node-2",
+      "name": "Stage Call Shared Completion Handler Call Sequence Guard Evaluate Sequence Guard",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const input = $json;\nconst stages = Array.isArray(input.stages) ? input.stages : (input.stages ? JSON.parse(input.stages) : []);\nconst stageByCode = new Map(stages.map(stage => [stage.stage_code, stage]));\nconst targetCode = input.stage_code;\nconst targetSeq = Number(input.seq);\nconst stageId = Number(input.stage_id || input.requested_stage_id || 0);\nconst requestedOverride = String(input.override_token || '').trim();\nconst overrideAccepted = requestedOverride.startsWith('OVR:' + stageId + ':');\nconst satisfied = stage => stage && ['complete', 'skipped'].includes(stage.status);\nconst required = [];\nif (!input.stage_id) {\n  return [{ json: { ...input, allowed: false, blocked_by: [], reason: 'Stage not found.', override_token: null } }];\n}\nif (['complete', 'skipped'].includes(input.status)) {\n  return [{ json: { ...input, allowed: false, blocked_by: [], reason: input.stage_name + ' is already ' + input.status + '.', override_token: null } }];\n}\nif (targetSeq > 2) required.push('MOVEOUT');\nconst ruleMap = {\n  PAINT: ['REPAIRS'],\n  FLOORING: ['PAINT'],\n  DEEP_CLEAN: ['REPAIRS', 'PAINT', 'FLOORING'],\n  QA_PHOTOS: ['DEEP_CLEAN'],\n  RELIST: ['QA_PHOTOS']\n};\nfor (const code of ruleMap[targetCode] || []) {\n  if (!required.includes(code)) required.push(code);\n}\nconst missing = required\n  .map(code => stageByCode.get(code))\n  .filter(stage => !satisfied(stage))\n  .sort((a, b) => Number(a.seq) - Number(b.seq));\nif (missing.length === 0 || overrideAccepted) {\n  return [{ json: {\n    ...input,\n    allowed: true,\n    override: overrideAccepted,\n    blocked_by: missing.map(stage => ({ stage_code: stage.stage_code, stage_name: stage.stage_name, status: stage.status })),\n    reason: overrideAccepted ? 'Manager override accepted.' : 'Sequence guard passed.',\n    completed_via: overrideAccepted ? 'override' : (input.requested_completed_via || (input.actor_type === 'vendor' ? 'vendor_reply' : 'manual'))\n  } }];\n}\nconst first = missing[0];\nlet reason = first.stage_name + ' is still open on ' + input.unit_label + '.';\nif (targetCode === 'DEEP_CLEAN' && first.stage_code === 'REPAIRS') {\n  reason = 'Repairs still open on ' + input.unit_label + '. Cleaning before repairs means cleaning twice.';\n}\nreturn [{ json: {\n  ...input,\n  allowed: false,\n  override: false,\n  blocked_by: missing.map(stage => ({ stage_code: stage.stage_code, stage_name: stage.stage_name, status: stage.status })),\n  reason,\n  override_token: 'OVR:' + stageId + ':' + Date.now()\n} }];"
+      }
+    },
+    {
+      "id": "demo-node-3",
+      "name": "Stage Call Shared Completion Handler Normalize Completion Candidate",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -30,25 +51,8 @@
       }
     },
     {
-      "id": "guard",
-      "name": "Call Sequence Guard",
-      "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1,
-      "position": [
-        520,
-        0
-      ],
-      "parameters": {
-        "source": "database",
-        "workflowId": "wf3-sequence-guard",
-        "options": {
-          "waitForSubWorkflow": true
-        }
-      }
-    },
-    {
-      "id": "guard-passed",
-      "name": "Guard Passed?",
+      "id": "demo-node-4",
+      "name": "Stage Call Shared Completion Handler Guard Passed?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
@@ -81,8 +85,8 @@
       }
     },
     {
-      "id": "complete-and-queue",
-      "name": "Complete Stage And Queue Next",
+      "id": "demo-node-5",
+      "name": "Stage Call Shared Completion Handler Complete Stage And Queue Next",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
@@ -103,8 +107,8 @@
       "alwaysOutputData": false
     },
     {
-      "id": "build-draft",
-      "name": "Build Safe Vendor Draft Request",
+      "id": "demo-node-6",
+      "name": "Stage Call Shared Completion Handler Build Safe Vendor Draft Request",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -116,8 +120,8 @@
       }
     },
     {
-      "id": "has-queue",
-      "name": "Next Vendor Draft Needed?",
+      "id": "demo-node-7",
+      "name": "Stage Call Shared Completion Handler Next Vendor Draft Needed?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
@@ -150,8 +154,8 @@
       }
     },
     {
-      "id": "draft-openai",
-      "name": "Improve Vendor Draft With OpenAI",
+      "id": "demo-node-8",
+      "name": "Stage Call Shared Completion Handler Improve Vendor Draft With OpenAI",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
@@ -179,8 +183,8 @@
       "continueOnFail": true
     },
     {
-      "id": "choose-draft",
-      "name": "Choose AI Or Factual Draft",
+      "id": "demo-node-9",
+      "name": "Stage Call Shared Completion Handler Choose AI Or Factual Draft",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -188,12 +192,12 @@
         -240
       ],
       "parameters": {
-        "jsCode": "const source=$('Build Safe Vendor Draft Request').first().json; let draft=source.queue.deterministic_text; let fallback=true;\ntry { const raw=$json||{}; const text=raw.output_text||(raw.output||[]).flatMap(o=>o.content||[]).find(c=>c.type==='output_text')?.text; const parsed=typeof text==='string'?JSON.parse(text):null; if(parsed&&typeof parsed.draft==='string'&&parsed.draft.trim()){draft=parsed.draft.trim();fallback=false;} } catch(e) {}\nreturn [{json:{...source,draft_text:draft,draft_fallback_used:fallback}}];"
+        "jsCode": "const source=$('Stage Call Shared Completion Handler Build Safe Vendor Draft Request').first().json; let draft=source.queue.deterministic_text; let fallback=true;\ntry { const raw=$json||{}; const text=raw.output_text||(raw.output||[]).flatMap(o=>o.content||[]).find(c=>c.type==='output_text')?.text; const parsed=typeof text==='string'?JSON.parse(text):null; if(parsed&&typeof parsed.draft==='string'&&parsed.draft.trim()){draft=parsed.draft.trim();fallback=false;} } catch(e) {}\nreturn [{json:{...source,draft_text:draft,draft_fallback_used:fallback}}];"
       }
     },
     {
-      "id": "save-draft",
-      "name": "Save Draft",
+      "id": "demo-node-10",
+      "name": "Stage Call Shared Completion Handler Save Draft",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
@@ -214,8 +218,8 @@
       "alwaysOutputData": false
     },
     {
-      "id": "format-card",
-      "name": "Format Manager Approval Card",
+      "id": "demo-node-11",
+      "name": "Stage Call Shared Completion Handler Format Manager Approval Card",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -223,12 +227,12 @@
         -240
       ],
       "parameters": {
-        "jsCode": "const qid=Number($json.queue_id||0); const chat=String($json.manager_chat_id||'');\nreturn [{json:{...$json,should_send_manager_approval:qid>0&&chat&&!chat.includes('missing'),manager_approval_text:'Stage completed. Next vendor handoff is ready.\\n\\n'+String($json.draft_text||'')+'\\n\\nDelivery after approval: Email + Telegram. Nothing has been sent yet.'}}];"
+        "jsCode": "const qid=Number($json.queue_id||0); const chat=String($json.manager_chat_id||'');\nreturn [{json:{...$json,should_send_manager_approval:qid>0&&chat&&!chat.includes('missing'),manager_approval_text:'Stage completed. Next vendor handoff is ready.\\n\\n'+String($json.draft_text||'')+'\\n\\nChoose a delivery channel. Nothing has been sent yet.'}}];"
       }
     },
     {
-      "id": "send-card",
-      "name": "Manager Chat Configured?",
+      "id": "demo-node-12",
+      "name": "Stage Call Shared Completion Handler Manager Chat Configured?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
@@ -261,8 +265,8 @@
       }
     },
     {
-      "id": "manager-card",
-      "name": "Send Manager Approval Card",
+      "id": "demo-node-13",
+      "name": "Stage Call Shared Completion Handler Send Manager Approval Card",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
@@ -281,21 +285,21 @@
               "row": {
                 "buttons": [
                   {
-                    "text": "Send both",
+                    "text": "Email",
                     "additionalFields": {
-                      "callback_data": "={{ 'SEND:' + $json.queue_id }}"
+                      "callback_data": "={{ 'SEND_EMAIL:' + $json.queue_id }}"
                     }
                   },
                   {
-                    "text": "Edit",
+                    "text": "Message",
                     "additionalFields": {
-                      "callback_data": "={{ 'EDIT:' + $json.queue_id }}"
+                      "callback_data": "={{ 'SEND_TELEGRAM:' + $json.queue_id }}"
                     }
                   },
                   {
-                    "text": "Hold",
+                    "text": "Both",
                     "additionalFields": {
-                      "callback_data": "={{ 'HOLD:' + $json.queue_id }}"
+                      "callback_data": "={{ 'SEND_BOTH:' + $json.queue_id }}"
                     }
                   }
                 ]
@@ -316,8 +320,8 @@
       }
     },
     {
-      "id": "store-completion-card",
-      "name": "Store Completion Approval Message",
+      "id": "demo-node-14",
+      "name": "Stage Call Shared Completion Handler Store Completion Approval Message",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
@@ -326,7 +330,7 @@
       ],
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE outbound_queue SET manager_message_id='{{ String($json.message_id || \"\").replace(/'/g,\"''\") }}' WHERE id={{ Number($('Format Manager Approval Card').first().json.queue_id || 0) }} RETURNING true stored;",
+        "query": "UPDATE outbound_queue SET manager_message_id='{{ String($json.message_id || \"\").replace(/'/g,\"''\") }}' WHERE id={{ Number($('Stage Call Shared Completion Handler Format Manager Approval Card').first().json.queue_id || 0) }} RETURNING true stored;",
         "options": {}
       },
       "credentials": {
@@ -338,8 +342,8 @@
       "alwaysOutputData": false
     },
     {
-      "id": "return-completion",
-      "name": "Return Completion Outcome",
+      "id": "demo-node-15",
+      "name": "Stage Call Shared Completion Handler Return Completion Outcome",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -347,12 +351,12 @@
         -160
       ],
       "parameters": {
-        "jsCode": "return [$('Complete Stage And Queue Next').first()];"
+        "jsCode": "return [$('Stage Call Shared Completion Handler Complete Stage And Queue Next').first()];"
       }
     },
     {
-      "id": "log-block",
-      "name": "Log Completion Guard Block",
+      "id": "demo-node-16",
+      "name": "Stage Call Shared Completion Handler Log Completion Guard Block",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
@@ -373,8 +377,8 @@
       "alwaysOutputData": false
     },
     {
-      "id": "sync-airtable-side-effect",
-      "name": "Reconcile Airtable After State Change",
+      "id": "demo-node-17",
+      "name": "Stage Call Shared Completion Handler Reconcile Airtable After State Change",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1,
       "position": [
@@ -383,194 +387,242 @@
       ],
       "parameters": {
         "source": "database",
-        "workflowId": "wf9-airtable-sync",
+        "workflowId": "demo-airtable-workspace",
         "options": {
           "waitForSubWorkflow": true
         }
       }
+    },
+    {
+      "id": "demo-node-18",
+      "name": "Stage Receive Completion Request",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "inputSource": "passthrough"
+      }
+    },
+    {
+      "id": "demo-node-19",
+      "name": "Stage Normalize Stage Update Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        280,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const selected=($json.match||{}).selected||{};const vendorStageId=Number(selected.stage_id||0);if(vendorStageId>0||$json.sender_ref){const actorType=String($json.actor_type||'vendor');return[{json:{...$json,stage_id:Number(vendorStageId||$json.stage_id||0),actor_id:String($json.sender_ref||$json.actor_id||'vendor'),actor_type:actorType,channel:String($json.channel||'generic'),completed_via:String($json.completed_via||(actorType==='vendor'?'vendor_reply':'manual')),raw_text:String($json.text||$json.raw_text||''),classification:$json.interpretation||$json.classification||{},match:$json.match||{}}}];}const stageId=Number($json.stage_id||0);return[{json:{...$json,stage_id:stageId,actor_type:'manager',actor_id:String($json.actor_id||'manager'),channel:'telegram',completed_via:$json.override_token?'override':'manual',raw_text:'Manager marked stage complete',classification:{intent:'stage_complete',confidence:1,manager_summary:'Manager completion',suggested_reply:null,safety_flags:[],reply_needed:false},match:{selected:{stage_id:stageId}}}}];"
+      }
     }
   ],
   "connections": {
-    "Receive Completion Candidate": {
+    "Stage Call Shared Completion Handler Call Sequence Guard Load Stage State For Guard": {
       "main": [
         [
           {
-            "node": "Normalize Completion Candidate",
+            "node": "Stage Call Shared Completion Handler Call Sequence Guard Evaluate Sequence Guard",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Normalize Completion Candidate": {
+    "Stage Call Shared Completion Handler Normalize Completion Candidate": {
       "main": [
         [
           {
-            "node": "Call Sequence Guard",
+            "node": "Stage Call Shared Completion Handler Call Sequence Guard Load Stage State For Guard",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Call Sequence Guard": {
+    "Stage Call Shared Completion Handler Call Sequence Guard Evaluate Sequence Guard": {
       "main": [
         [
           {
-            "node": "Guard Passed?",
+            "node": "Stage Call Shared Completion Handler Guard Passed?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Guard Passed?": {
+    "Stage Call Shared Completion Handler Guard Passed?": {
       "main": [
         [
           {
-            "node": "Complete Stage And Queue Next",
+            "node": "Stage Call Shared Completion Handler Complete Stage And Queue Next",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Log Completion Guard Block",
+            "node": "Stage Call Shared Completion Handler Log Completion Guard Block",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Complete Stage And Queue Next": {
+    "Stage Call Shared Completion Handler Complete Stage And Queue Next": {
       "main": [
         [
           {
-            "node": "Reconcile Airtable After State Change",
+            "node": "Stage Call Shared Completion Handler Reconcile Airtable After State Change",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Build Safe Vendor Draft Request": {
+    "Stage Call Shared Completion Handler Build Safe Vendor Draft Request": {
       "main": [
         [
           {
-            "node": "Next Vendor Draft Needed?",
+            "node": "Stage Call Shared Completion Handler Next Vendor Draft Needed?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Next Vendor Draft Needed?": {
+    "Stage Call Shared Completion Handler Next Vendor Draft Needed?": {
       "main": [
         [
           {
-            "node": "Improve Vendor Draft With OpenAI",
+            "node": "Stage Call Shared Completion Handler Improve Vendor Draft With OpenAI",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Return Completion Outcome",
+            "node": "Stage Call Shared Completion Handler Return Completion Outcome",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Improve Vendor Draft With OpenAI": {
+    "Stage Call Shared Completion Handler Improve Vendor Draft With OpenAI": {
       "main": [
         [
           {
-            "node": "Choose AI Or Factual Draft",
+            "node": "Stage Call Shared Completion Handler Choose AI Or Factual Draft",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Choose AI Or Factual Draft": {
+    "Stage Call Shared Completion Handler Choose AI Or Factual Draft": {
       "main": [
         [
           {
-            "node": "Save Draft",
+            "node": "Stage Call Shared Completion Handler Save Draft",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Save Draft": {
+    "Stage Call Shared Completion Handler Save Draft": {
       "main": [
         [
           {
-            "node": "Format Manager Approval Card",
+            "node": "Stage Call Shared Completion Handler Format Manager Approval Card",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Format Manager Approval Card": {
+    "Stage Call Shared Completion Handler Format Manager Approval Card": {
       "main": [
         [
           {
-            "node": "Manager Chat Configured?",
+            "node": "Stage Call Shared Completion Handler Manager Chat Configured?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Manager Chat Configured?": {
+    "Stage Call Shared Completion Handler Manager Chat Configured?": {
       "main": [
         [
           {
-            "node": "Send Manager Approval Card",
+            "node": "Stage Call Shared Completion Handler Send Manager Approval Card",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Return Completion Outcome",
+            "node": "Stage Call Shared Completion Handler Return Completion Outcome",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Send Manager Approval Card": {
+    "Stage Call Shared Completion Handler Send Manager Approval Card": {
       "main": [
         [
           {
-            "node": "Store Completion Approval Message",
+            "node": "Stage Call Shared Completion Handler Store Completion Approval Message",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Store Completion Approval Message": {
+    "Stage Call Shared Completion Handler Store Completion Approval Message": {
       "main": [
         [
           {
-            "node": "Return Completion Outcome",
+            "node": "Stage Call Shared Completion Handler Return Completion Outcome",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Reconcile Airtable After State Change": {
+    "Stage Call Shared Completion Handler Reconcile Airtable After State Change": {
       "main": [
         [
           {
-            "node": "Build Safe Vendor Draft Request",
+            "node": "Stage Call Shared Completion Handler Build Safe Vendor Draft Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stage Receive Completion Request": {
+      "main": [
+        [
+          {
+            "node": "Stage Normalize Stage Update Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stage Normalize Stage Update Request": {
+      "main": [
+        [
+          {
+            "node": "Stage Call Shared Completion Handler Normalize Completion Candidate",
             "type": "main",
             "index": 0
           }
@@ -580,11 +632,11 @@
   },
   "settings": {
     "executionOrder": "v1",
-    "errorWorkflow": "wf7-error-handler"
+    "errorWorkflow": "demo-builder-error-handler"
   },
   "staticData": null,
   "pinData": {},
-  "versionId": "wf5-vendor-completio-ae-v1",
-  "triggerCount": 0,
+  "versionId": "8c3b56e7-9f8a-4463-b1e2-656394854680",
+  "triggerCount": 1,
   "tags": []
 }
