@@ -206,7 +206,7 @@
       ],
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE outbound_queue SET draft_text='{{ String($json.draft_text || \"\").replace(/'/g,\"''\") }}',approved_text='{{ String($json.draft_text || \"\").replace(/'/g,\"''\") }}',draft_fallback_used={{ $json.draft_fallback_used ? 'true' : 'false' }} WHERE id={{ Number(($json.queue || {}).id || 0) }}\nRETURNING id queue_id,draft_text,email_subject,reply_token,turn_id,stage_id,vendor_id,'stage5-manager-chat-id-missing'::text manager_chat_id;",
+        "query": "UPDATE outbound_queue SET draft_text='{{ String($json.draft_text || \"\").replace(/'/g,\"''\") }}',approved_text='{{ String($json.draft_text || \"\").replace(/'/g,\"''\") }}',draft_fallback_used={{ $json.draft_fallback_used ? 'true' : 'false' }} WHERE id={{ Number(($json.queue || {}).id || 0) }}\nRETURNING id queue_id,draft_text,email_subject,reply_token,turn_id,stage_id,vendor_id,'stage5-manager-chat-id-missing'::text manager_chat_id,\n (SELECT t.unit_label FROM \"turn\" t WHERE t.id=outbound_queue.turn_id) unit_label,\n (SELECT t.property_address FROM \"turn\" t WHERE t.id=outbound_queue.turn_id) property_address,\n (SELECT v.name FROM vendor v WHERE v.id=outbound_queue.vendor_id) next_vendor_name,\n (SELECT ts.stage_name FROM turn_stage ts WHERE ts.id=outbound_queue.stage_id) next_stage_name,\n (SELECT ts.stage_name FROM turn_stage ts WHERE ts.id=outbound_queue.source_stage_id) completed_stage_name,\n (SELECT v2.name FROM vendor v2 JOIN turn_stage ts2 ON ts2.vendor_id=v2.id WHERE ts2.id=outbound_queue.source_stage_id) completed_vendor_name;",
         "options": {}
       },
       "credentials": {
@@ -227,7 +227,7 @@
         -240
       ],
       "parameters": {
-        "jsCode": "const qid=Number($json.queue_id||0); const chat=String($json.manager_chat_id||'');\nreturn [{json:{...$json,should_send_manager_approval:qid>0&&chat&&!chat.includes('missing'),manager_approval_text:'Stage completed. Next vendor handoff is ready.\\n\\n'+String($json.draft_text||'')+'\\n\\nChoose a delivery channel. Nothing has been sent yet.'}}];"
+        "jsCode": "const qid=Number($json.queue_id||0); const chat=String($json.manager_chat_id||'');\nconst unit=String($json.unit_label||''); const addr=String($json.property_address||'');\nconst where=unit?(addr?unit+', '+addr:unit):'this unit';\nconst doneVendor=String($json.completed_vendor_name||'').trim()||'The assigned vendor';\nconst doneStage=String($json.completed_stage_name||'').trim()||'the previous stage';\nconst nextVendor=String($json.next_vendor_name||'').trim()||'the next vendor';\nconst nextStage=String($json.next_stage_name||'').trim()||'the next stage';\nconst lines=[\n '\\u2705 '+doneStage+' complete at '+where,\n doneVendor+' reported this finished.',\n '',\n '\\u27a1\\ufe0f Next: '+nextStage+' - '+nextVendor,\n '',\n 'Draft message to '+nextVendor+':',\n '\"'+String($json.draft_text||'').trim()+'\"',\n '',\n 'Nothing has been sent yet. Choose how to deliver it.'\n];\nreturn [{json:{...$json,should_send_manager_approval:qid>0&&chat&&!chat.includes('missing'),manager_approval_text:lines.join('\\n')}}];"
       }
     },
     {
@@ -321,16 +321,29 @@
     },
     {
       "id": "demo-node-14",
-      "name": "Stage Call Shared Completion Handler Store Completion Approval Message",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
+      "name": "Stage Call Shared Completion Handler Build Approval Card Record",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         3380,
         -340
       ],
       "parameters": {
+        "jsCode": "const pick=o=>String((o&&(o.message_id||(o.result&&o.result.message_id)||(o.message&&o.message.message_id)))||'');\nconst queueId=Number($('Stage Call Shared Completion Handler Format Manager Approval Card').first().json.queue_id||0);\nconst rows=$input.all().map(item=>({json:{queue_id:queueId,manager_message_id:pick(item.json)}}));\nreturn rows.length?rows:[{json:{queue_id:queueId,manager_message_id:''}}];"
+      }
+    },
+    {
+      "id": "demo-node-15",
+      "name": "Stage Call Shared Completion Handler Store Completion Approval Message",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3640,
+        -340
+      ],
+      "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE outbound_queue SET manager_message_id='{{ String($json.message_id || \"\").replace(/'/g,\"''\") }}' WHERE id={{ Number($('Stage Call Shared Completion Handler Format Manager Approval Card').first().json.queue_id || 0) }} RETURNING true stored;",
+        "query": "UPDATE outbound_queue SET manager_message_id=NULLIF('{{ String($json.manager_message_id||\"\").replace(/'/g,\"''\") }}','') WHERE id={{ Number($json.queue_id||0) }} RETURNING true stored;",
         "options": {}
       },
       "credentials": {
@@ -342,12 +355,12 @@
       "alwaysOutputData": false
     },
     {
-      "id": "demo-node-15",
+      "id": "demo-node-16",
       "name": "Stage Call Shared Completion Handler Return Completion Outcome",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3640,
+        3900,
         -160
       ],
       "parameters": {
@@ -355,7 +368,7 @@
       }
     },
     {
-      "id": "demo-node-16",
+      "id": "demo-node-17",
       "name": "Stage Call Shared Completion Handler Log Completion Guard Block",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
@@ -377,7 +390,7 @@
       "alwaysOutputData": false
     },
     {
-      "id": "demo-node-17",
+      "id": "demo-node-18",
       "name": "Stage Call Shared Completion Handler Reconcile Airtable After State Change",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1,
@@ -394,7 +407,7 @@
       }
     },
     {
-      "id": "demo-node-18",
+      "id": "demo-node-19",
       "name": "Stage Receive Completion Request",
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.2,
@@ -407,7 +420,7 @@
       }
     },
     {
-      "id": "demo-node-19",
+      "id": "demo-node-20",
       "name": "Stage Normalize Stage Update Request",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -578,6 +591,17 @@
       "main": [
         [
           {
+            "node": "Stage Call Shared Completion Handler Build Approval Card Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stage Call Shared Completion Handler Build Approval Card Record": {
+      "main": [
+        [
+          {
             "node": "Stage Call Shared Completion Handler Store Completion Approval Message",
             "type": "main",
             "index": 0
@@ -636,7 +660,7 @@
   },
   "staticData": null,
   "pinData": {},
-  "versionId": "8c3b56e7-9f8a-4463-b1e2-656394854680",
+  "versionId": "0f51f54b-7a4c-45f3-a7d7-1e3b48d0fb11",
   "triggerCount": 1,
   "tags": []
 }

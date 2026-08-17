@@ -137,6 +137,16 @@ function telegramSendNode(id, name, x, y, chatId, textExpression) {
   };
 }
 
+// Telegram send results were not readable from the following Postgres node through expressions,
+// so a Code node over $input.all() extracts the message id and queue id as plain fields.
+// The node name must appear as a literal $('...') call so the demo consolidator rewrites it to
+// the prefixed name. Building the name dynamically silently resolves to nothing at runtime.
+const cardRecordCodeFor = (formatNode) => `const pick=o=>String((o&&(o.message_id||(o.result&&o.result.message_id)||(o.message&&o.message.message_id)))||'');
+const queueId=Number($('${formatNode}').first().json.queue_id||0);
+const rows=$input.all().map(item=>({json:{queue_id:queueId,manager_message_id:pick(item.json)}}));
+return rows.length?rows:[{json:{queue_id:queueId,manager_message_id:''}}];`;
+const storeCardQuery = `UPDATE outbound_queue SET manager_message_id=NULLIF('{{ String($json.manager_message_id||"").replace(/'/g,"''") }}','') WHERE id={{ Number($json.queue_id||0) }} RETURNING true stored;`;
+
 function managerApprovalNode(id, name, x, y) {
   return {
     id,
@@ -638,7 +648,9 @@ save("wf-4-vendor-router.json", wf(
     ifNode("route-send-approval", "Manager Reply Approval Needed?", 2520, -60, "={{ $json.should_send_approval === true }}"),
     codeNode("format-route-approval", "Format Manager Reply Approval", 2800, -180, formatRouteApprovalCode),
     managerApprovalNode("send-route-approval", "Send Manager Reply Approval", 3080, -180),
-    pgNode("store-route-card", "Store Manager Approval Message", 3360, -180, "UPDATE outbound_queue SET manager_message_id='{{ String($json.message_id || \"\").replace(/'/g, \"''\") }}' WHERE id={{ Number($('Format Manager Reply Approval').first().json.queue_id || 0) }} RETURNING true AS stored;"),
+    // Read the Telegram send result by node name; $json alone has been observed to lose message_id here.
+    codeNode("route-card-record", "Build Reply Card Record", 3360, -180, cardRecordCodeFor("Format Manager Reply Approval")),
+    pgNode("store-route-card", "Store Manager Approval Message", 3620, -180, storeCardQuery),
     ifNode("route-send-notice", "Manager Notice Needed?", 2800, 60, "={{ $json.should_send_notice === true }}"),
     telegramSendNode("send-route-notice", "Send Manager Review Notice", 3080, 60, "={{ $json.manager_chat_id }}", "={{ $json.manager_notice_text }}"),
     codeNode("prepare-unknown", "Prepare Unknown Sender Review", 840, 180, noVendorCode),
@@ -669,7 +681,8 @@ save("wf-4-vendor-router.json", wf(
       [{ node: "Manager Notice Needed?", type: "main", index: 0 }]
     ] },
     "Format Manager Reply Approval": { main: [[{ node: "Send Manager Reply Approval", type: "main", index: 0 }]] },
-    "Send Manager Reply Approval": { main: [[{ node: "Store Manager Approval Message", type: "main", index: 0 }]] },
+    "Send Manager Reply Approval": { main: [[{ node: "Build Reply Card Record", type: "main", index: 0 }]] },
+    "Build Reply Card Record": { main: [[{ node: "Store Manager Approval Message", type: "main", index: 0 }]] },
     "Store Manager Approval Message": { main: [[{ node: "Return Routed Outcome", type: "main", index: 0 }]] },
     "Manager Notice Needed?": { main: [[{ node: "Send Manager Review Notice", type: "main", index: 0 }], [{ node: "Return Routed Outcome", type: "main", index: 0 }]] },
     "Send Manager Review Notice": { main: [[{ node: "Return Routed Outcome", type: "main", index: 0 }]] },
@@ -761,10 +774,33 @@ try { const raw=$json||{}; const text=raw.output_text||(raw.output||[]).flatMap(
 return [{json:{...source,draft_text:draft,draft_fallback_used:fallback}}];`;
 
 const saveDraftQuery = `UPDATE outbound_queue SET draft_text='{{ String($json.draft_text || "").replace(/'/g,"''") }}',approved_text='{{ String($json.draft_text || "").replace(/'/g,"''") }}',draft_fallback_used={{ $json.draft_fallback_used ? 'true' : 'false' }} WHERE id={{ Number(($json.queue || {}).id || 0) }}
-RETURNING id queue_id,draft_text,email_subject,reply_token,turn_id,stage_id,vendor_id,'stage5-manager-chat-id-missing'::text manager_chat_id;`;
+RETURNING id queue_id,draft_text,email_subject,reply_token,turn_id,stage_id,vendor_id,'stage5-manager-chat-id-missing'::text manager_chat_id,
+ (SELECT t.unit_label FROM "turn" t WHERE t.id=outbound_queue.turn_id) unit_label,
+ (SELECT t.property_address FROM "turn" t WHERE t.id=outbound_queue.turn_id) property_address,
+ (SELECT v.name FROM vendor v WHERE v.id=outbound_queue.vendor_id) next_vendor_name,
+ (SELECT ts.stage_name FROM turn_stage ts WHERE ts.id=outbound_queue.stage_id) next_stage_name,
+ (SELECT ts.stage_name FROM turn_stage ts WHERE ts.id=outbound_queue.source_stage_id) completed_stage_name,
+ (SELECT v2.name FROM vendor v2 JOIN turn_stage ts2 ON ts2.vendor_id=v2.id WHERE ts2.id=outbound_queue.source_stage_id) completed_vendor_name;`;
 
 const completionCardCode = `const qid=Number($json.queue_id||0); const chat=String($json.manager_chat_id||'');
-return [{json:{...$json,should_send_manager_approval:qid>0&&chat&&!chat.includes('missing'),manager_approval_text:'Stage completed. Next vendor handoff is ready.\\n\\n'+String($json.draft_text||'')+'\\n\\nChoose a delivery channel. Nothing has been sent yet.'}}];`;
+const unit=String($json.unit_label||''); const addr=String($json.property_address||'');
+const where=unit?(addr?unit+', '+addr:unit):'this unit';
+const doneVendor=String($json.completed_vendor_name||'').trim()||'The assigned vendor';
+const doneStage=String($json.completed_stage_name||'').trim()||'the previous stage';
+const nextVendor=String($json.next_vendor_name||'').trim()||'the next vendor';
+const nextStage=String($json.next_stage_name||'').trim()||'the next stage';
+const lines=[
+ '\\u2705 '+doneStage+' complete at '+where,
+ doneVendor+' reported this finished.',
+ '',
+ '\\u27a1\\ufe0f Next: '+nextStage+' - '+nextVendor,
+ '',
+ 'Draft message to '+nextVendor+':',
+ '"'+String($json.draft_text||'').trim()+'"',
+ '',
+ 'Nothing has been sent yet. Choose how to deliver it.'
+];
+return [{json:{...$json,should_send_manager_approval:qid>0&&chat&&!chat.includes('missing'),manager_approval_text:lines.join('\\n')}}];`;
 
 save("wf-5-vendor-completion-handler.json", wf("wf5-vendor-completion-handler","Vendor Completion Handler",[
   {id:"trigger",name:"Receive Completion Candidate",type:"n8n-nodes-base.executeWorkflowTrigger",typeVersion:1.2,position:[0,0],parameters:{inputSource:"passthrough"}},
@@ -780,8 +816,11 @@ save("wf-5-vendor-completion-handler.json", wf("wf5-vendor-completion-handler","
   codeNode("format-card","Format Manager Approval Card",2600,-240,completionCardCode),
   ifNode("send-card","Manager Chat Configured?",2860,-240,"={{ $json.should_send_manager_approval === true }}"),
   managerApprovalNode("manager-card","Send Manager Approval Card",3120,-340),
-  pgNode("store-completion-card","Store Completion Approval Message",3380,-340,"UPDATE outbound_queue SET manager_message_id='{{ String($json.message_id || \"\").replace(/'/g,\"''\") }}' WHERE id={{ Number($('Format Manager Approval Card').first().json.queue_id || 0) }} RETURNING true stored;"),
-  codeNode("return-completion","Return Completion Outcome",3640,-160,"return [$('Complete Stage And Queue Next').first()];"),
+  // Expressions reading the Telegram result directly resolved empty here, so extract it in a
+  // Code node over $input.all() and hand plain fields to the update.
+  codeNode("card-record","Build Approval Card Record",3380,-340,cardRecordCodeFor("Format Manager Approval Card")),
+  pgNode("store-completion-card","Store Completion Approval Message",3640,-340,storeCardQuery),
+  codeNode("return-completion","Return Completion Outcome",3900,-160,"return [$('Complete Stage And Queue Next').first()];"),
   pgNode("log-block","Log Completion Guard Block",1040,160,"INSERT INTO event_log(turn_id,stage_id,actor_type,actor_id,channel,event_type,raw_text,parsed_json) VALUES({{ Number($json.turn_id||0) }},{{ Number($json.stage_id||0) }},'{{ String($json.actor_type||($json.envelope||{}).actor_type||'vendor').replace(/'/g,\"''\") }}','{{ String($json.actor_id||'vendor').replace(/'/g,\"''\") }}','{{ String($json.channel||'generic').replace(/'/g,\"''\") }}','guard_blocked','{{ String($json.raw_text||'').replace(/'/g,\"''\") }}',jsonb_build_object('reason','{{ String($json.reason||'blocked').replace(/'/g,\"''\") }}')) RETURNING false accepted,'guard_blocked' outcome;"),
 ],[
 ][0] || {
@@ -797,7 +836,8 @@ save("wf-5-vendor-completion-handler.json", wf("wf5-vendor-completion-handler","
   "Save Draft":{main:[[{node:"Format Manager Approval Card",type:"main",index:0}]]},
   "Format Manager Approval Card":{main:[[{node:"Manager Chat Configured?",type:"main",index:0}]]},
   "Manager Chat Configured?":{main:[[{node:"Send Manager Approval Card",type:"main",index:0}],[{node:"Return Completion Outcome",type:"main",index:0}]]},
-  "Send Manager Approval Card":{main:[[{node:"Store Completion Approval Message",type:"main",index:0}]]},
+  "Send Manager Approval Card":{main:[[{node:"Build Approval Card Record",type:"main",index:0}]]},
+  "Build Approval Card Record":{main:[[{node:"Store Completion Approval Message",type:"main",index:0}]]},
   "Store Completion Approval Message":{main:[[{node:"Return Completion Outcome",type:"main",index:0}]]},
 }));
 
@@ -920,7 +960,13 @@ SELECT q.id queue_id,q.turn_id,q.stage_id,q.vendor_id,q.approved_text delivery_b
  'stage5-manager-chat-id-missing'::text manager_chat_id
 FROM q;`;
 const emailResultCode = `const plan=$('Load Delivery Plan').first().json; const error=$json.error||($json.body&&$json.statusCode>=400?$json.body:null); return [{json:{...plan,delivery_channel:'email',delivery_ok:!error,provider_message_id:String($json.messageId||$json.id||''),delivery_error:error?String(error.message||error):''}}];`;
-const telegramResultCode = `const plan=$('Load Delivery Plan').first().json; const error=$json.error; const providerId=$json.message_id||$json.message?.message_id||$json.result?.message_id||$json.id||''; return [{json:{...plan,delivery_channel:'telegram',delivery_ok:!error,provider_message_id:String(providerId),delivery_error:error?String(error.message||error):''}}];`;
+// Resolve the send result by node name first. On the retry path $json has been observed to
+// arrive without message_id even though Telegram returned one, which left provider_message_id blank.
+const telegramResultCode = `const plan=$('Load Delivery Plan').first().json; const error=$json.error;
+let sent={}; try{ sent=$('Send Vendor Telegram').first().json||{}; }catch(e){ sent={}; }
+const pick=o=>(o&&(o.message_id||(o.message&&o.message.message_id)||(o.result&&o.result.message_id)||o.id))||'';
+const providerId=pick(sent)||pick($json)||'';
+return [{json:{...plan,delivery_channel:'telegram',delivery_ok:!error,provider_message_id:String(providerId),delivery_error:error?String(error.message||error):''}}];`;
 const markDeliveryQuery = `UPDATE outbound_delivery SET status=CASE WHEN {{ $json.delivery_ok ? 'true':'false' }} THEN 'sent' ELSE 'failed' END,attempt_count=attempt_count+1,provider_message_id=NULLIF('{{ String($json.provider_message_id||"").replace(/'/g,"''") }}',''),last_error=NULLIF('{{ String($json.delivery_error||"").replace(/'/g,"''") }}',''),last_attempt_at=now(),sent_at=CASE WHEN {{ $json.delivery_ok ? 'true':'false' }} THEN now() ELSE sent_at END WHERE outbound_queue_id={{ Number($json.queue_id||0) }} AND channel='{{ String($json.delivery_channel||"").replace(/'/g,"''") }}' RETURNING {{ Number($json.queue_id||0) }} queue_id;`;
 const finalizeDeliveryQuery = `WITH states AS (SELECT d.outbound_queue_id,count(*) FILTER(WHERE status='sent') sent_count,count(*) FILTER(WHERE status='failed') failed_count,count(*) planned_count,max(sent_at) sent_at,string_agg(last_error,'; ') FILTER(WHERE status='failed') errors FROM outbound_delivery d WHERE d.outbound_queue_id={{ Number($json.queue_id||0) }} GROUP BY d.outbound_queue_id), updated AS (UPDATE outbound_queue q SET status=CASE WHEN s.sent_count=s.planned_count THEN 'sent' WHEN s.sent_count>0 AND s.failed_count>0 THEN 'partially_sent' WHEN s.failed_count=s.planned_count THEN 'failed' ELSE q.status END,sent_at=CASE WHEN s.sent_count=s.planned_count THEN s.sent_at ELSE q.sent_at END FROM states s WHERE q.id=s.outbound_queue_id RETURNING q.*,s.sent_count,s.failed_count,s.errors), activate AS (UPDATE turn_stage ts SET status='active',activated_at=COALESCE(ts.activated_at,now()) FROM updated u WHERE ts.id=u.stage_id AND u.sent_count>0 AND ts.status IN('awaiting_approval','awaiting_delivery') RETURNING ts.id), communications AS (INSERT INTO communication_message(direction,channel,vendor_id,turn_id,stage_id,outbound_queue_id,provider_message_id,recipient_ref,subject,body_text,normalized_text,status,sent_at) SELECT 'outbound',d.channel,u.vendor_id,u.turn_id,u.stage_id,u.id,d.provider_message_id,d.destination,d.subject,d.body_text,d.body_text,'sent',d.sent_at FROM updated u JOIN outbound_delivery d ON d.outbound_queue_id=u.id AND d.status='sent' ON CONFLICT(channel,provider_message_id) WHERE provider_message_id IS NOT NULL AND provider_message_id<>'' DO NOTHING RETURNING id), events AS (INSERT INTO event_log(turn_id,stage_id,actor_type,actor_id,channel,event_type,raw_text,parsed_json) SELECT u.turn_id,u.stage_id,'system','delivery-dispatcher','system',CASE WHEN u.status='sent' THEN 'delivery_sent' ELSE 'delivery_failed' END,COALESCE(u.errors,u.approved_text),jsonb_build_object('queue_id',u.id,'status',u.status,'sent_count',u.sent_count,'failed_count',u.failed_count) FROM updated u RETURNING id)
 SELECT u.id queue_id,u.status outcome,u.sent_count,u.failed_count,u.errors,u.status IN('partially_sent','failed') should_alert_manager,'stage5-manager-chat-id-missing'::text manager_chat_id,(SELECT d.channel FROM outbound_delivery d WHERE d.outbound_queue_id=u.id AND d.status='failed' ORDER BY d.channel LIMIT 1) failed_channel,CASE WHEN u.status='partially_sent' THEN 'Vendor delivery was partially sent. The successful channel will not be repeated. Use Retry on the failed channel.' WHEN u.status='failed' THEN 'Vendor delivery failed on both channels. Review the errors and retry.' END manager_notice_text FROM updated u;`;

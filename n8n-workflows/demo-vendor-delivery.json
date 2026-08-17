@@ -206,7 +206,7 @@
         -120
       ],
       "parameters": {
-        "jsCode": "const plan=$('Delivery Load Delivery Plan').first().json; const error=$json.error; const providerId=$json.message_id||$json.message?.message_id||$json.result?.message_id||$json.id||''; return [{json:{...plan,delivery_channel:'telegram',delivery_ok:!error,provider_message_id:String(providerId),delivery_error:error?String(error.message||error):''}}];"
+        "jsCode": "const plan=$('Delivery Load Delivery Plan').first().json; const error=$json.error;\nlet sent={}; try{ sent=$('Delivery Send Vendor Telegram').first().json||{}; }catch(e){ sent={}; }\nconst pick=o=>(o&&(o.message_id||(o.message&&o.message.message_id)||(o.result&&o.result.message_id)||o.id))||'';\nconst providerId=pick(sent)||pick($json)||'';\nreturn [{json:{...plan,delivery_channel:'telegram',delivery_ok:!error,provider_message_id:String(providerId),delivery_error:error?String(error.message||error):''}}];"
       }
     },
     {
@@ -540,7 +540,7 @@
   },
   "staticData": null,
   "pinData": {},
-  "versionId": "c704095c-636e-4176-906e-d1ccf396d545",
+  "versionId": "3f120b47-74dd-4ebb-94fc-4d96174c8cfe",
   "triggerCount": 1,
   "tags": []
 }
