@@ -129,12 +129,12 @@ CREATE TEMP TABLE turn_seed (
 ) ON COMMIT DROP;
 
 INSERT INTO turn_seed VALUES
-  ('12B', '418 Maple St', 1450.00, (now() - interval '18 days')::date, (now() - interval '6 days')::date, (now() - interval '1 day')::date, 'PAINT', now() - interval '4 days', ARRAY['NOTICE','PRE_INSPECT','MOVEOUT','INSPECT_PUNCH','TRASHOUT','REPAIRS']),
-  ('14A', '418 Maple St', 1600.00, (now() - interval '16 days')::date, (now() - interval '4 days')::date, (now() + interval '2 days')::date, 'REPAIRS', now() - interval '2 days 6 hours', ARRAY['NOTICE','PRE_INSPECT','MOVEOUT','INSPECT_PUNCH','TRASHOUT']),
-  ('3', '2201 Oak Ave', 1200.00, (now() - interval '9 days')::date, (now() - interval '2 days')::date, (now() + interval '3 days')::date, 'TRASHOUT', now() - interval '30 hours', ARRAY['NOTICE','PRE_INSPECT','MOVEOUT','INSPECT_PUNCH']),
-  ('7', '2201 Oak Ave', 1325.00, (now() - interval '13 days')::date, (now() - interval '5 days')::date, (now() + interval '1 day')::date, 'FLOORING', now() - interval '6 hours', ARRAY['NOTICE','PRE_INSPECT','MOVEOUT','INSPECT_PUNCH','TRASHOUT','REPAIRS','PAINT']),
-  ('12A', '418 Maple St', 1450.00, (now() - interval '21 days')::date, (now() - interval '8 days')::date, now()::date, 'DEEP_CLEAN', now() - interval '30 hours', ARRAY['NOTICE','PRE_INSPECT','MOVEOUT','INSPECT_PUNCH','TRASHOUT','REPAIRS','PAINT','FLOORING']),
-  ('55', '55 Birch Ct', 2100.00, (now() - interval '1 day')::date, (now() + interval '6 days')::date, (now() + interval '10 days')::date, 'NOTICE', now() - interval '1 day', ARRAY[]::TEXT[]);
+  ('12B', '418 Maple St', 1450.00, (now() - interval '18 days')::date, (now() - interval '6 days')::date, (now() - interval '1 day')::date, 'PAINT', now() - interval '54 hours', ARRAY['NOTICE','PRE_INSPECT','MOVEOUT','INSPECT_PUNCH','TRASHOUT','REPAIRS']),
+  ('14A', '418 Maple St', 1600.00, (now() - interval '16 days')::date, (now() - interval '4 days')::date, (now() + interval '2 days')::date, 'REPAIRS', now() - interval '40 hours', ARRAY['NOTICE','PRE_INSPECT','MOVEOUT','INSPECT_PUNCH','TRASHOUT']),
+  ('3', '2201 Oak Ave', 1200.00, (now() - interval '9 days')::date, (now() - interval '2 days')::date, (now() + interval '3 days')::date, 'TRASHOUT', now() - interval '36 hours', ARRAY['NOTICE','PRE_INSPECT','MOVEOUT','INSPECT_PUNCH']),
+  ('7', '2201 Oak Ave', 1325.00, (now() - interval '13 days')::date, (now() - interval '5 days')::date, (now() + interval '1 day')::date, 'FLOORING', now() - interval '20 hours', ARRAY['NOTICE','PRE_INSPECT','MOVEOUT','INSPECT_PUNCH','TRASHOUT','REPAIRS','PAINT']),
+  ('12A', '418 Maple St', 1450.00, (now() - interval '21 days')::date, (now() - interval '8 days')::date, now()::date, 'DEEP_CLEAN', now() - interval '8 hours', ARRAY['NOTICE','PRE_INSPECT','MOVEOUT','INSPECT_PUNCH','TRASHOUT','REPAIRS','PAINT','FLOORING']),
+  ('55', '55 Birch Ct', 2100.00, (now() - interval '1 day')::date, (now() + interval '6 days')::date, (now() + interval '10 days')::date, 'NOTICE', now() - interval '18 hours', ARRAY[]::TEXT[]);
 
 WITH inserted_turns AS (
   INSERT INTO "turn" (
