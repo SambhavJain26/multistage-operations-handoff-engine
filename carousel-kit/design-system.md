@@ -494,6 +494,16 @@ lost half of "cheap part" that way. The stylesheet raises and grows the swipe
 on `.slide--invert` so it clears the cap height. Check any highlight that lands
 on an inverted slide.
 
+**And cap height is not the top of the glyph.** The correction was first set to
+start the swipe at 0.20em, measured against a phrase with no dotted letter in
+it. The tittle of an i or a j sits above cap height, so it fell just outside the
+gold: build 3 post 3's "nothing is watching." lost all three dots and read
+"nothıng ıs watchıng." on the deck's single loudest frame, with no error and
+nothing in the HTML to point at. The swipe now starts at 0.08em and is grown by
+the same 0.12em, so its bottom edge is unchanged at 1.44em and only the headroom
+moved. A highlight whose words happen to have no ascender or tittle will not
+show this, which is why it survived a whole build.
+
 ## Consistency rules
 
 Learned from an audit that found eleven inconsistencies in the first build.

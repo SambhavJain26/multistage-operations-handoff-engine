@@ -169,11 +169,20 @@ html, body {
    a word rather than to enclose it, so on paper the uncovered ascenders are
    still ink on cream and read fine, while on the inverted ground they are dark
    ink on dark navy and vanish. Here the swipe has to clear the cap height, so
-   it is raised and grown to enclose the whole glyph. */
+   it is raised and grown to enclose the whole glyph.
+
+   Cap height is not the top of the glyph, though, and 0.20em was set against a
+   phrase that happened to have no dotted letter in it. The tittle of an i or a
+   j sits above cap height, so it landed just outside the gold and three of them
+   went missing from "nothing is watching." on build 3 post 3 — the word read
+   "nothıng ıs watchıng." with no error and nothing in the HTML to suggest a
+   cause. The top edge is lifted to 0.08em and the swipe grown by the same
+   amount, so the bottom edge stays exactly where it was at 1.44em and only the
+   headroom changes. */
 .slide--invert .hl {
   color: var(--ink);
-  background-position: 0 0.20em;
-  background-size: 100% 1.24em;
+  background-position: 0 0.08em;
+  background-size: 100% 1.36em;
 }
 
 .slide--invert .footer {
