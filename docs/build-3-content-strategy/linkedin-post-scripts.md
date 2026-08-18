@@ -16,132 +16,109 @@ Finished copy for the plan in `linkedin-content-plan.md`. Written in batches by 
 
 ---
 
+---
+
 # Batch 1: The four carousels (posts 1, 3, 5, 14)
 
 These four carry the teaching. Judge them on saves and completion, not likes.
 
+**Rewritten 2026-08-18.** The first draft inverted the format: dense slides and a short caption. On LinkedIn the caption does the persuading and each slide carries one idea. Captions are now 240 to 280 words, matching builds 1 and 2, and every slide is down to about three lines. Document titles were missing entirely and are now specified.
+
 Production rules for all four, from `social/references/carousel-frameworks.md`:
 
 - Upload as PDF, 4:5 or square.
+- **Document titles are capped at 50 characters.** Each carousel below carries its title with a character count.
 - One visual template across every interior slide. Same type scale, same palette.
 - Slide 1 must work as a standalone feed post with no carousel behind it.
 - Text legible at thumbnail size, minimum ~28pt at 1080px wide.
 - One CTA on the final slide, not three.
-- The post text above the document is a second hook. It is written as its own post below, never as "see attached."
+- The post text above the document is a second hook, written as its own post, never "see attached."
 
 ---
 
 ## Post 1. Where the days in a turn actually go
 
-**Format:** document carousel, 9 slides · **Framework:** Hack List, adapted · **Pillar:** turn literacy · **CTA:** none
+**Format:** document carousel, 9 slides. **Framework:** Hack List, adapted. **Pillar:** turn literacy. **CTA:** none.
 
-### Post text
+**Document title (50-char limit):** `Where the days in a turn actually go` (36 characters)
 
-> About half of unit turns take nine days or more.
->
-> The benchmark is three to seven.
->
-> Most of the extra time is not work. It is waiting to find out the last vendor finished, and no report has a field for that.
->
-> Five places the days go, and how to count yours.
+**On the framework.** The plan assigned Problem-Proof, whose slide 1 requires a personal claim with a number and whose last slide requires a receipt. There is no client and no result, so using it would push the draft toward inventing one. Hack List fits a diagnostic honestly: a contrarian opening stat, then named causes, each of which re-earns the swipe.
 
-*(First 210 characters carry the first two lines, which is the visible portion before "more". The claim lands before the fold.)*
+### The post copy that sits above the document
+
+> Half of unit turns take nine days or more. The benchmark is three to seven.
+>
+> The gap is not slow trades. A standard make-ready contains a few days of actual work, and most of the rest of the calendar is coordination lag between one trade and the next.
+>
+> Here is what that looks like on a real unit. A painter finishes Tuesday afternoon. Nobody finds out until Thursday, because he mentioned it to a colleague rather than to anyone tracking the unit. The flooring crew gets called Thursday, comes Monday, and the unit sat empty across a weekend for reasons that had nothing to do with the work.
+>
+> Nothing in that story is a failure anyone records. The painter did his job. The coordinator did hers. The flooring crew came when they were asked. It goes into the file as "turnover took eleven days" and no line anywhere says that two of those days were spent not knowing.
+>
+> That is the part I keep coming back to. Companies that scrutinize every invoice have no field for this, because it is not a cost anybody incurs. It is a cost nobody notices, and you cannot fix what your reporting has no name for.
+>
+> There are five places these days go. None of them are dramatic. They are small, ordinary, and they repeat every single turn.
+>
+> Nine slides, and a way to count your own.
+
+*Word count: 233. Characters: 1260. Em dashes: 0. First 210 characters end inside "A standard make-ready contains a few days of actual work", so the claim lands and the explanation is withheld past the fold.*
 
 ### Slides
 
-**Slide 1 (cover)**
-
-> About half of unit turns take
-> **nine days or more.**
->
+**Slide 1 — Cover**
+> Half of unit turns take nine days or more.
 > The benchmark is three to seven.
->
 > The extra days are mostly not work.
 
-**Slide 2**
-
+**Slide 2 — Reframe the problem**
 > The missing days have no name.
->
-> No report has a field called "days spent not knowing the painter was done."
->
-> So the time gets absorbed into one number: "turnover took 11 days."
->
-> You cannot fix what your reporting has no name for.
+> No report has a field for "days spent not knowing the painter was done."
+> It all becomes "turnover took 11 days."
 
-**Slide 3**
+**Slide 3 — Leak 1**
+> Finished, and nobody said so.
+> The unit is ready and empty at the same time.
+> Nothing arrives to tell you which.
 
-> **Leak 1. Finished, and nobody said so.**
->
-> A vendor completes a stage on Tuesday and mentions it Friday, or not at all.
->
-> Nothing arrives to tell you. The unit sits ready and empty at the same time.
->
-> Cost: however long it takes someone to think to ask.
+**Slide 4 — Leak 2**
+> Waiting on a confirmation.
+> The next vendor has been asked. Nobody has said yes.
+> One operator put this at two to three days per turn.
 
-**Slide 4**
+**Slide 5 — Leak 3**
+> The second visit.
+> Clean before the repairs are finished and you clean again.
+> 20 to 25% of turnover repairs need a second visit.
 
-> **Leak 2. Waiting on a confirmation.**
->
-> The next vendor has been asked but has not said yes.
->
-> One mid-sized operator put this at two to three days per turn, just waiting for vendors to confirm or show up.
+**Slide 6 — Leak 4**
+> The scramble.
+> Recovering lost days means expediting work.
+> That runs 30 to 50% above scheduled rates.
 
-**Slide 5**
+**Slide 7 — Leak 5**
+> The phone tag.
+> 10 to 15 hours a week chasing status by phone.
+> That one lands as salary, not as vacancy.
 
-> **Leak 3. The second visit.**
->
-> Cleaning before the repairs are finished means cleaning again.
->
-> Across the industry, 20 to 25% of turnover repairs need a second visit.
->
-> That is a day, a fee, and a slot in someone's schedule.
-
-**Slide 6**
-
-> **Leak 4. The scramble.**
->
-> Once days are lost, someone pays to recover them.
->
-> Expedited work runs 30 to 50% above scheduled rates.
->
-> The vacancy cost and the premium land in the same month.
-
-**Slide 7**
-
-> **Leak 5. The phone tag.**
->
-> Chasing status by phone and text costs a coordinator 10 to 15 hours a week per portfolio.
->
-> This one does not show up as vacancy. It shows up as salary, which is why nobody counts it against the turn.
-
-**Slide 8**
-
-> **Count yours.**
->
+**Slide 8 — The method**
+> Count yours.
 > Take your last ten turns.
->
-> For each one, split the days into two columns: days someone was working in the unit, and days nobody was.
->
-> The second column is the one you can still get back.
+> Split each one into days worked and days waited.
 
-**Slide 9 (close)**
-
-> 300 units at 40% turnover is roughly 120 turns a year.
->
-> Four wasted days on each is about $24,000.
->
-> That is arithmetic, not a benchmark. Run it with your own numbers and see what you get.
+**Slide 9 — Close**
+> 120 turns a year. Four wasted days on each.
+> About $24,000.
+> That is arithmetic, not a benchmark. Run yours.
 
 ### Discipline check
 
-- The $24,000 is presented as arithmetic to redo, never as a measured result or a promise. Slide 9 says so explicitly.
-- No product mentioned anywhere in nine slides. This post sells nothing and names nothing.
-- "About half" is accurate: the source records 49% at nine days or more.
-- Leak 5 is attributed to a single anonymous operator quote in the research and is written as one operator's figure, not an industry average.
+- The $24,000 is arithmetic offered for the reader to redo, never a measured result. Slide 9 says so.
+- No product named in nine slides or in the caption.
+- "Half" is accurate: the source records 49% at nine days or more.
+- The painter story is illustrative and reads as such. It is not presented as a client incident.
 
 ### Design notes
 
-Cover: the number nine as the dominant element, benchmark underneath at a fraction of the size. No stock photography. Interior slides share one template with the leak number in a fixed corner position.
+Cover: the number nine dominant, benchmark underneath at a fraction of the size. No stock photography. Interior slides share one template with the leak number in a fixed corner.
 
 **Hashtags:** #propertymanagement #propertymanagers #multifamily #maintenance
 
@@ -149,93 +126,87 @@ Cover: the number nine as the dominant element, benchmark underneath at a fracti
 
 ## Post 3. A vendor who finished and said nothing looks exactly like one who never started
 
-**Format:** document carousel, 8 slides · **Framework:** Problem-Proof · **Pillar:** silence as the signal · **CTA:** none
+**Format:** document carousel, 8 slides. **Framework:** Problem-Proof. **Pillar:** silence as the signal. **CTA:** none.
 
-### Post text
+**Document title (50-char limit):** `Silence looks identical either way` (34 characters)
 
-> One unit. Two mornings. Both times, nothing from the painter.
+**On the framework.** Problem-Proof wants a specific claim on slide 1 and a receipt at the end. The claim is the two-mornings problem, and the receipt is the alert design: what the system does with silence, including the three restraints that took longer to decide than the rule itself.
+
+### The post copy that sits above the document
+
+> One unit. Two mornings, a week apart. Both times I opened the inbox first thing and found nothing from the painter. Same empty thread, same unit sitting there, same total absence of news.
 >
-> On one of those mornings the paint had been finished since Tuesday.
+> On the first morning he had not started.
 >
-> Same inbox, same silence, two opposite meanings, and nothing anywhere to tell them apart. This is the most expensive condition in a turn and the one nobody watches.
+> On the second, he had finished two days earlier and never mentioned it to anyone.
+>
+> Same inbox. Same silence. Opposite meanings, and nothing anywhere to tell them apart.
+>
+> Every system a property manager uses is built to record what happened. A message arrives, a status changes, someone ticks a box. Nothing is built to notice the thing that did not happen.
+>
+> Which leaves silence as the most common state in a turn and the only one with no entry anywhere. It costs the same per day as any other delay, roughly monthly rent divided by thirty, and it is the one condition nobody is watching.
+>
+> The fix is not complicated. Give every stage an expected duration, then treat passing that duration with no word as information rather than as nothing.
+>
+> The hard part was restraint, and it took longer to settle than the rule did.
+>
+> It fires once per stage, because an alert that repeats gets muted and a muted alert is the same as no alert. It holds outside business hours, because a stall at 2am is still a stall at 8am and nobody was going to call a flooring crew at 2am anyway. And it can be snoozed, because if you already know why a unit is stuck, being asked again is just noise.
+>
+> Eight slides on treating an absence as an event.
+
+*Word count: 266. Characters: 1446. Em dashes: 0. First 210 characters end inside "On the first morning h", so the second morning, which is the whole point, is withheld past the fold. Verified by measuring the cut, not by estimating it.*
 
 ### Slides
 
-**Slide 1 (cover)**
-
+**Slide 1 — Hook**
 > Nothing from the painter this morning.
->
-> That means one of two things.
->
-> **The paint is finished, or it never started.**
->
+> The paint is finished, or it never started.
 > Your inbox looks identical either way.
 
-**Slide 2**
+**Slide 2 — Reframe the problem**
+> Every system records what happened.
+> A message arrives. A status changes.
+> Nothing notices what did not.
 
-> Every tracking system in this industry records things that happened.
->
-> A message arrives. A status changes. Someone ticks a box.
->
-> Nothing is built to notice the thing that did not happen.
+**Slide 3 — Reframe, sharpened**
+> Silence is the most common state in a turn.
+> It is the only one with no entry anywhere.
+> It costs the same per day as any other delay.
 
-**Slide 3**
+**Slide 4 — The mechanism**
+> So treat the absence as the event.
+> Give every stage an expected duration.
+> Passing it with no word is information.
 
-> The most common state in a turn is the one with no entry anywhere.
->
-> Silence.
->
-> It costs the same per day as any other delay, roughly your monthly rent divided by 30. It is the only one nothing is watching.
+**Slide 5 — The detail**
+> One alert per stage.
+> An alert that repeats gets muted.
+> A muted alert is the same as no alert.
 
-**Slide 4**
+**Slide 6 — The detail**
+> Business hours only.
+> A stall at 2am is still a stall at 8am.
+> Nobody was calling a flooring crew at 2am.
 
-> **So treat the absence as the event.**
->
-> Give every stage an expected duration. Repairs takes about this long. Paint takes about this long.
->
-> When a stage passes it with no word, that is information. Act on it.
+**Slide 7 — The detail**
+> A snooze that means something.
+> If you know why it is stuck, say so.
+> A system you cannot quiet is one you switch off.
 
-**Slide 5**
-
-> Three decisions that took longer than the rule itself:
->
-> **One alert, not a stream.** Once a stage is flagged, it does not flag again.
->
-> An alert people learn to ignore is worse than no alert.
-
-**Slide 6**
-
-> **Business hours only.**
->
-> A stall at 2am is still a stall at 8am, and nobody was going to call a flooring crew at 2am anyway.
->
-> Out of hours it is held and released in the morning.
-
-**Slide 7**
-
-> **A snooze that means something.**
->
-> If you already know why a unit is stuck, say so and it stops asking.
->
-> A system you cannot quiet is a system you will mute permanently, which is the same as switching it off.
-
-**Slide 8 (close)**
-
+**Slide 8 — Close**
 > Track the gaps, not just the events.
->
-> If your process can only tell you what happened, it cannot tell you about the days you are actually losing.
->
-> Those are the days that were never work in the first place.
+> What happened is recorded somewhere already.
+> What did not happen is where the days go.
 
 ### Discipline check
 
-- Build 1 post 6 owns "nobody is obligated to tell you, so you must check." **This post never makes that argument.** Its claim is narrower and different: one silence, two opposite meanings, indistinguishable from the inbox.
-- Build 2 post 11 owns what should not trigger an alert. Slides 5 to 7 are about alert restraint as a design decision, which is adjacent. If build 2 post 11 has already published, cut slide 5's second line and keep the focus on the two-meanings problem.
-- No product named. The mechanism is described as something to do, not something to buy.
+- Build 1 post 6 owns "nobody is obligated to tell you, so you have to check." **This never makes that argument.** Its claim is that one silence carries two opposite meanings and nothing distinguishes them.
+- Build 2 post 11 owns what should not trigger an alert. Slides 5 to 7 are about restraint in alerting, which is adjacent. If build 2 post 11 has already published, tighten slide 5 and keep the focus on the two-meanings problem.
+- No product named.
 
 ### Design notes
 
-Cover slide is the strongest thumbnail in the batch: two possible meanings stacked with an identical empty inbox above them. Slides 5 to 7 share a sub-template so they read as a set of three decisions.
+Cover is the strongest thumbnail in the batch: two possible meanings stacked under an identical empty inbox. Slides 5 to 7 share a sub-template so they read as one set of three decisions.
 
 **Hashtags:** #propertymanagement #propertymanagers #operations #multifamily
 
@@ -243,110 +214,95 @@ Cover slide is the strongest thumbnail in the batch: two possible meanings stack
 
 ## Post 5. Seven ordering rules for a unit turn, and what each one costs
 
-**Format:** document carousel, 10 slides · **Framework:** Value-Stack · **Pillar:** turn literacy · **CTA:** none
+**Format:** document carousel, 10 slides. **Framework:** Value-Stack. **Pillar:** turn literacy. **CTA:** none.
 
-**This is the reference post.** It should be the one a coordinator screenshots and pins up. The count on the cover is exactly seven and exactly seven are delivered.
+**Document title (50-char limit):** `Seven ordering rules for a unit turn` (36 characters)
 
-### Post text
+**This is the reference post.** It should be the one a coordinator screenshots. The cover promises exactly seven and exactly seven are delivered, per the Value-Stack rule about counts being checkable promises.
 
-> The most common sequencing failure in a unit turn is flooring going in before the paint is done.
+### The post copy that sits above the document
+
+> The most common sequencing failure in a unit turn is flooring going in before the paint is finished.
 >
-> It is almost never ignorance. It is material arriving late and someone trying to make up time.
+> It is almost never ignorance. It is material arriving late, a crew with a free slot tomorrow, and somebody trying to claw back two days. Everyone involved knows the right order. The order loses to the schedule.
 >
-> Seven rules, what each one costs when it breaks, and why writing them down beats knowing them.
+> What it costs is floor protection, drip risk, and occasionally replacing flooring that went down the week before.
+>
+> That is one rule. There are seven, and each one exists because somebody paid for the lesson.
+>
+> Clean before the repairs are done and you buy a second clean. Scope repairs before the move-out inspection and you are scoping from memory, then finding the rest on the second visit. Market a unit before anyone has walked it and you apologize to a prospect standing in it.
+>
+> Across the industry, twenty to twenty-five percent of turnover repairs already need a second visit. Sequencing is not the only reason for that number, but it is the reason you can actually remove.
+>
+> The thing I did not expect is that writing the order down beats knowing it. Everyone knows repairs come before paint. Nobody is thinking about that at four on a Friday when the painter has availability and the drywall patch is "basically done."
+>
+> A rule on its own gets overridden by whoever is standing in the unit. A rule with its reason attached usually survives the conversation.
+>
+> Ten slides: the seven rules, and what each one costs when it breaks.
+
+*Word count: 252. Characters: 1439. Em dashes: 0. First 210 characters end inside "It is material arriving late", so the cause is named and the cost is withheld past the fold.*
 
 ### Slides
 
-**Slide 1 (cover)**
-
-> **Seven ordering rules for a unit turn.**
->
+**Slide 1 — Cover**
+> Seven ordering rules for a unit turn.
 > And what each one costs when you break it.
 
-**Slide 2**
+**Slide 2 — The problem**
+> These are not knowledge failures.
+> Everyone knows repairs come before paint.
+> Nobody is thinking about it at 4pm on a Friday.
 
-> Sequencing failures are not knowledge failures.
->
-> Every one of these rules is obvious when you read it. None of them are obvious at 4pm on a Friday when a crew has a free slot tomorrow morning.
->
-> They are memory failures under time pressure. That is why writing the order down beats knowing it.
+**Slide 3 — Rule 1**
+> Trash-out waits for move-out.
+> Break it and the crew cannot clear the unit.
+> You pay for the visit anyway.
 
-**Slide 3**
+**Slide 4 — Rule 2**
+> Repairs wait for move-out.
+> You cannot scope what you cannot see.
+> Break it and you find the rest on visit two.
 
-> **1. Trash-out waits for move-out.**
->
-> Obvious, and still the most common bottleneck in the whole turn.
->
-> Break it and the crew arrives to a unit they cannot clear, and you pay for the visit anyway.
+**Slide 5 — Rule 3**
+> Paint waits for repairs.
+> Patch after painting and you paint that wall twice.
+> This one is broken by good intentions.
 
-**Slide 4**
+**Slide 6 — Rule 4**
+> Flooring waits for paint.
+> The most common sequencing failure in turnover.
+> Protection, drips, and sometimes new flooring replaced.
 
-> **2. Repairs wait for move-out.**
->
-> You cannot scope what you cannot see. The punch list comes out of the move-out inspection.
->
-> Break it and you scope from memory, then discover the rest on the second visit.
-
-**Slide 5**
-
-> **3. Paint waits for repairs.**
->
-> Patch after paint means painting that wall twice.
->
-> This is the rule most often broken by good intentions: the painter has availability and the repair is "small."
-
-**Slide 6**
-
-> **4. Flooring waits for paint.**
->
-> The single most common sequencing failure in unit turnover.
->
-> Costs: floor protection, drip risk, and sometimes replacing flooring you have just paid to install.
-
-**Slide 7**
-
-> **5. The clean waits for all three.**
->
-> Repairs, paint and flooring, all done, then the clean.
->
+**Slide 7 — Rule 5**
+> The clean waits for all three.
+> Repairs, paint, flooring, then clean.
 > Break it and you buy a second clean.
->
-> Second visits are common enough already: 20 to 25% of turnover repairs need one.
 
-**Slide 8**
+**Slide 8 — Rule 6**
+> QA waits for the clean.
+> Photos taken before the final clean cannot be listed.
+> That costs a day rather than a fee.
 
-> **6. QA waits for the clean.**
->
-> Photos taken before the final clean are photos you cannot list with.
->
-> Break it and you reshoot, which usually costs a day rather than a fee.
+**Slide 9 — Rule 7**
+> Relist waits for QA.
+> A unit marketed before anyone walked it
+> is a showing you apologize for.
 
-**Slide 9**
-
-> **7. Relist waits for QA.**
->
-> The last rule is the one that protects the listing.
->
-> A unit marketed before anyone has walked it is a showing you will apologize for.
-
-**Slide 10 (close)**
-
-> Write your order down once, with the reason next to each rule.
->
-> The rule on its own gets overridden by whoever is standing in the unit.
->
-> The rule with the reason attached usually survives.
+**Slide 10 — Close**
+> Write your order down once.
+> Put the reason next to each rule.
+> The rule alone gets overridden. The reason survives.
 
 ### Discipline check
 
-- **Slide 6 must not read as a law of construction.** Trade forums disagree openly, and flooring-first is defensible in new build. It is written as the order a *turn* runs in, with the failure named as a turnover failure specifically. Do not strengthen this slide in editing.
-- Exactly seven rules promised, exactly seven delivered. No padding, per the Value-Stack rule.
-- No product named in ten slides. This works for a reader who never hires anyone.
-- Skipping a stage is a decision, not a violation. If a slide gets added in revision, that nuance belongs on it, not squeezed into an existing rule.
+- **Slide 6 must not read as a law of construction.** Trade forums disagree openly and flooring-first is defensible in new build. It is written as a *turnover* failure specifically. Do not strengthen it in editing.
+- Exactly seven promised, exactly seven delivered. No padding.
+- No product named in ten slides or in the caption.
+- Skipping a stage is a decision, not a violation. If a slide is added in revision, that nuance goes on it.
 
 ### Design notes
 
-Cover carries the numeral seven at full weight. Each rule slide uses the same two-part layout: the rule as a short imperative on top, the cost underneath in a lighter weight. The dependency chain could run as a thin progress strip along the bottom of slides 3 to 9, filling as it goes.
+Cover carries the numeral seven at full weight. Each rule slide uses the same two-part layout: the rule as a short imperative on top, the cost underneath in a lighter weight. A thin progress strip along the bottom of slides 3 to 9 can fill as the sequence advances.
 
 **Hashtags:** #propertymanagement #multifamily #propertymaintenance #propertymanagers
 
@@ -354,122 +310,88 @@ Cover carries the numeral seven at full weight. Each rule slide uses the same tw
 
 ## Post 14. Most turn software is not built for a portfolio your size
 
-**Format:** document carousel, 8 slides · **Framework:** Value-Stack with a contrarian cover · **Pillar:** proof and market · **CTA:** none
+**Format:** document carousel, 8 slides. **Framework:** Value-Stack with a contrarian cover. **Pillar:** proof and market. **CTA:** none.
 
-**This post has to be genuinely useful to someone who never hires me.** Recommendations are sincere. If a reader closes it and buys a competitor, the post worked.
+**Document title (50-char limit):** `Which turn software is actually for you` (39 characters)
 
-### Post text
+**This post has to be genuinely useful to someone who never hires me.** If a reader closes it and buys a competitor, the post worked.
 
-> One of the better make-ready products publishes a 500-unit minimum.
+### The post copy that sits above the document
+
+> One of the better make-ready products publishes a five hundred unit minimum.
 >
-> That single line ends the conversation for most property managers, and it is not because anyone forgot they exist.
+> If you run two hundred doors scattered across a metro, that single line ends the conversation before it starts, and it is not because anybody forgot you exist.
 >
-> Here is who each of these tools is actually built for, including the ones you should buy instead of talking to me.
+> This category is real and it is mature. Make Ready Manager, TurnTrack, AppWorks, SuiteSpot, HappyCo, and Rent Manager ships a make-ready module inside the PMS itself. Several of them already enforce stage order. Nobody needs me to tell them turns are slow.
+>
+> Almost all of it was built for large multifamily. One property, hundreds of doors, an on-site maintenance team. Two assumptions follow from that, and both of them break for scattered-site portfolios.
+>
+> The first is per-unit pricing with a floor under it. Sensible at eight hundred units on one site. At two hundred doors across a city it either prices you out or refuses you at the door.
+>
+> The second is the on-site crew. If your trades are employees who see each other every day, the handoff problem mostly does not exist. If they are five separate companies with their own schedules and their own other clients, the handoff is the entire problem.
+>
+> So this is a map rather than a pitch. Who each product is genuinely for, and what to buy if you are not in the band I work with.
+>
+> If you already pay for a PMS module, try that before anything else. If your vendors will adopt a portal, buy a portal.
+>
+> Eight slides, including the ones that end with "buy theirs."
+
+*Word count: 256. Characters: 1447. Em dashes: 0. First 210 characters end inside "that single line ends the conversation", so the exclusion lands and the explanation is withheld.*
 
 ### Slides
 
-**Slide 1 (cover)**
-
-> A leading make-ready product
-> starts at a
-> **500-unit minimum.**
->
+**Slide 1 — Cover**
+> A leading make-ready product starts at a 500-unit minimum.
 > Most property managers are below it.
 
-**Slide 2**
+**Slide 2 — The reframe**
+> This category is not empty and not lazy.
+> It was built for large multifamily.
+> One property, hundreds of doors, an on-site team.
 
-> This category is not empty, and nobody in it missed the problem.
->
-> It was built for large multifamily: one property, hundreds of doors, an on-site maintenance team.
->
-> Two assumptions follow from that, and both break for scattered-site portfolios.
+**Slide 3 — Assumption one**
+> Per-unit pricing with a floor.
+> Sensible at 800 units on one site.
+> At 200 scattered doors it prices you out.
 
-**Slide 3**
+**Slide 4 — Assumption two**
+> An on-site crew.
+> If your trades see each other daily, handoffs are easy.
+> If they are five companies, handoffs are the problem.
 
-> **Assumption one: per-unit pricing with a floor.**
->
-> Sensible at 800 units on one site. At 200 doors across a metro, you are under the floor before price is even discussed.
+**Slide 5 — Who should buy enterprise**
+> Buy the enterprise tools if you fit them.
+> HappyCo, SuiteSpot and similar are strong and supported.
+> Large sites with on-site teams: that is the right shelf.
 
-**Slide 4**
+**Slide 6 — Check first**
+> Check what you already pay for.
+> Rent Manager ships a Make Ready module.
+> If you are paying for one, try it first.
 
-> **Assumption two: an on-site crew.**
->
-> If your trades are employees who see each other daily, the handoff problem mostly does not exist.
->
-> If they are five separate companies with their own schedules, it is the whole problem.
+**Slide 7 — Purpose-built**
+> Purpose-built make-ready boards.
+> Make Ready Manager, TurnTrack, AppWorks.
+> One question decides it: will your vendors use the portal?
 
-**Slide 5**
-
-> **Buy the enterprise tools if you fit them.**
->
-> HappyCo and SuiteSpot are built for exactly this, and have been for years.
->
-> If you run large sites with on-site teams, that is the right shelf. Do not let anyone talk you out of it.
-
-**Slide 6**
-
-> **Check what you already pay for first.**
->
-> Rent Manager ships a Make Ready module. Other PMS platforms have their own.
->
-> If you are already paying for one, try it before you buy anything else. It may be enough, and it is already funded.
-
-**Slide 7**
-
-> **Purpose-built make-ready boards.**
->
-> Make Ready Manager, TurnTrack and AppWorks all do this properly, with boards and vendor access.
->
-> One question decides it: will your vendors actually use the portal or app? That is where these deployments live or die.
-
-**Slide 8 (close)**
-
-> Work out which of these you are a customer of before you talk to anyone, including me.
->
-> If you already pay for a module, start there.
->
-> If your vendors will use a portal, buy a portal.
+**Slide 8 — Close**
+> Work out which of these you are a customer of.
+> Before you talk to anyone, including me.
 
 ### Discipline check
 
-- Sequencing enforcement is **not** claimed anywhere in this post. Several of these products already do it.
-- No competitor is disparaged. Slide 5 tells qualifying readers to buy them and not be talked out of it.
-- Every product claim is traceable to `customer-language.md` sources. HappyCo's minimum comes from their published pricing page.
-- Slide 7's closing question is the honest pivot to my own difference without stating it. **Do not add a slide that answers it.** The vendor-adoption argument belongs to post 13, and making it here turns a buyer's guide into an advertisement.
-- Lula and Property Meld were cut for space and because both are a different purchase. If the carousel is extended, they go in as one combined slide, not two.
+- Sequencing enforcement is **not** claimed as unique anywhere. Several of these already do it, and the caption says so.
+- No competitor is disparaged. Slide 5 tells qualifying readers to buy them.
+- Every product claim traces to `customer-language.md`. The 500-unit minimum comes from HappyCo's published pricing.
+- Slide 7 ends on a question and **does not answer it.** The vendor-adoption argument belongs to post 13. Answering it here turns a buyer's guide into an advertisement.
+- Lula and Property Meld were cut for space and because both are a different purchase. If extended, they go in as one combined slide.
 
 ### Design notes
 
-Cover: the number 500 dominant, with the qualifier small underneath. Slides 5 to 7 use a consistent "who this is for" band at the top so the guide structure is visible at a glance. No competitor logos, since using them implies a relationship that does not exist.
+Cover: 500 dominant, qualifier small underneath. Slides 5 to 7 carry a consistent "who this is for" band at the top so the guide structure is visible at a glance. No competitor logos, since using them implies a relationship that does not exist.
 
 **Hashtags:** #propertymanagement #propertytech #multifamily #propertymanagers
 
----
-
-## Batch 1 self-check
-
-Run against `seo-audit/references/ai-writing-detection.md` and the plan's constraints.
-
-| Check | Result |
-|---|---|
-| Em dashes in post copy and slides | Zero. One appears in this file's H1 title only, matching the convention in builds 1 and 2 |
-| Banned voice terms (my software, my platform, the board, the dashboard) | Zero |
-| Exclamation points | Zero |
-| AI tell openers ("In today's", "At its core", "It's worth noting") | Zero |
-| Overused verbs (delve, leverage, streamline, optimise, foster) | Zero |
-| Structural tells ("Whether you're X, Y, or Z", "It's not just X, it's Y") | Zero |
-| Hook libraries used | None. Every hook comes from the material |
-| Engagement-bait closers | None. No "what's your experience" |
-| Numbers unsourced | None **after correction**. The first draft of post 1 slide 3 carried an invented "one to three days" figure that appears in no source. Caught in the Prove It sweep and removed. See the sweeps log |
-| Client results implied | None. Post 1 slide 9 explicitly labels its figure as arithmetic |
-| Products named in the teaching carousels (1, 3, 5) | None |
-| Sequencing claimed as unique | No. Post 14 explicitly avoids it |
-| Count promised vs delivered (post 5) | Seven promised, seven delivered |
-
-**Still to do on this batch:** slide design in `image` plus `high-end-visual-design`, then a Seven Sweeps pass in `copy-editing` once the copy has been read aloud and rewritten where it sounds like writing rather than talking.
-
-
----
 
 # Batch 2: The demo video (post 2)
 
