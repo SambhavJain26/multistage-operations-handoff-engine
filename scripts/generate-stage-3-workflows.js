@@ -947,12 +947,6 @@ workflowFiles.push([
                         callback_data: "={{ $json.buttons[0].callback_data }}",
                       },
                     },
-                  ],
-                },
-              },
-              {
-                row: {
-                  buttons: [
                     {
                       text: "={{ $json.buttons[1].text }}",
                       additionalFields: {
@@ -971,12 +965,6 @@ workflowFiles.push([
                         callback_data: "={{ $json.buttons[2].callback_data }}",
                       },
                     },
-                  ],
-                },
-              },
-              {
-                row: {
-                  buttons: [
                     {
                       text: "={{ $json.buttons[3].text }}",
                       additionalFields: {
@@ -995,12 +983,6 @@ workflowFiles.push([
                         callback_data: "={{ $json.buttons[4].callback_data }}",
                       },
                     },
-                  ],
-                },
-              },
-              {
-                row: {
-                  buttons: [
                     {
                       text: "={{ $json.buttons[5].text }}",
                       additionalFields: {

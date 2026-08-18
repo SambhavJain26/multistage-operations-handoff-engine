@@ -714,6 +714,13 @@ const completeAndQueueQuery = `WITH input AS (
 ), completed AS (
   UPDATE turn_stage ts SET status='complete',completed_at=now(),completed_via=input.completed_via,completed_by=input.actor_id
   FROM input,target WHERE ts.id=target.id AND ts.status='active' RETURNING ts.*
+), cancel_stage_queues AS (
+  -- A chase or other open draft for the stage that just completed is now obsolete. Cancel it so
+  -- the manager cannot later send "checking in on Paint" for work already finished.
+  UPDATE outbound_queue oq SET status='cancelled',decided_at=now()
+  FROM completed c WHERE oq.stage_id=c.id AND oq.status IN('awaiting_approval','editing','held','configuration_blocked') RETURNING oq.id
+), cancel_stage_deliveries AS (
+  UPDATE outbound_delivery d SET status='cancelled' FROM cancel_stage_queues q WHERE d.outbound_queue_id=q.id AND d.status IN('pending','retry_pending') RETURNING d.id
 ), inbound AS (
   UPDATE communication_message cm SET vendor_id=target.vendor_id,turn_id=target.turn_id,stage_id=target.id,
     intent=input.interpretation->>'intent',ai_confidence=NULLIF(input.interpretation->>'confidence','')::numeric,
@@ -782,7 +789,8 @@ RETURNING id queue_id,draft_text,email_subject,reply_token,turn_id,stage_id,vend
  (SELECT v.name FROM vendor v WHERE v.id=outbound_queue.vendor_id) next_vendor_name,
  (SELECT ts.stage_name FROM turn_stage ts WHERE ts.id=outbound_queue.stage_id) next_stage_name,
  (SELECT ts.stage_name FROM turn_stage ts WHERE ts.id=outbound_queue.source_stage_id) completed_stage_name,
- (SELECT v2.name FROM vendor v2 JOIN turn_stage ts2 ON ts2.vendor_id=v2.id WHERE ts2.id=outbound_queue.source_stage_id) completed_vendor_name;`;
+ (SELECT v2.name FROM vendor v2 JOIN turn_stage ts2 ON ts2.vendor_id=v2.id WHERE ts2.id=outbound_queue.source_stage_id) completed_vendor_name,
+ (SELECT ts.completed_via FROM turn_stage ts WHERE ts.id=outbound_queue.source_stage_id) completed_via;`;
 
 const completionCardCode = `const qid=Number($json.queue_id||0); const chat=String($json.manager_chat_id||'');
 const unit=String($json.unit_label||''); const addr=String($json.property_address||'');
@@ -791,9 +799,14 @@ const doneVendor=String($json.completed_vendor_name||'').trim()||'The assigned v
 const doneStage=String($json.completed_stage_name||'').trim()||'the previous stage';
 const nextVendor=String($json.next_vendor_name||'').trim()||'the next vendor';
 const nextStage=String($json.next_stage_name||'').trim()||'the next stage';
+const via=String($json.completed_via||'').trim();
+const creditLine = via==='manual' ? 'Marked complete by the manager.'
+  : via==='override' ? 'Marked complete by the manager as an override.'
+  : via==='skip' ? 'This stage was skipped.'
+  : doneVendor+' reported this finished.';
 const lines=[
  '\\u2705 '+doneStage+' complete at '+where,
- doneVendor+' reported this finished.',
+ creditLine,
  '',
  '\\u27a1\\ufe0f Next: '+nextStage+' - '+nextVendor,
  '',

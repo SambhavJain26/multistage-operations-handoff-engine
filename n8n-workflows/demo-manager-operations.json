@@ -570,7 +570,7 @@
         0
       ],
       "parameters": {
-        "jsCode": "const rows = $input.all().map(item => item.json);\nconst now = new Date();\nfunction parseStages(value) { if (Array.isArray(value)) return value; if (!value) return []; try { return JSON.parse(value); } catch { return []; } }\nfunction hoursSince(value) { if (!value) return 0; return Math.max(0, (now.getTime() - new Date(value).getTime()) / 36e5); }\nfunction healthFor(hours, slaHours, status) { if (status === 'awaiting_approval') return 'amber'; const sla = Number(slaHours || 0); if (sla <= 0) return 'green'; if (hours / sla >= 1) return 'red'; if (hours / sla >= 0.5) return 'amber'; return 'green'; }\nconst rank = { red: 3, amber: 2, green: 1 };\nconst turns = rows.map(row => {\n  const hours = hoursSince(row.current_activated_at);\n  const moveout = new Date(String(row.moveout_date).slice(0, 10) + 'T00:00:00Z');\n  const today = new Date(now.toISOString().slice(0, 10) + 'T00:00:00Z');\n  return {\n    stage_id: Number(row.current_stage_id),\n    turn_id: Number(row.turn_id),\n    unit_label: row.unit_label,\n    current_stage_name: row.current_stage_name,\n    current_vendor_name: row.current_vendor_name || 'Unassigned',\n    hours_at_stage: Math.round(hours * 10) / 10,\n    health: healthFor(hours, row.current_sla_hours, row.current_stage_status),\n    dollars_burned: Math.round((Number(row.rent_monthly || 0) / 30) * Math.max(0, Math.floor((today - moveout) / 864e5))),\n    stages: parseStages(row.stages)\n  };\n}).sort((a, b) => (rank[b.health] - rank[a.health]) || (b.hours_at_stage - a.hours_at_stage));\nconst activeCount = turns.length;\nconst dollars = turns.reduce((sum, turn) => sum + turn.dollars_burned, 0);\nconst vendorReply = rows[0] ? Number(rows[0].vendor_reply_rate || 0) : 0;\nconst autoHandled = rows[0] ? Number(rows[0].auto_handled_rate || 0) : 0;\nconst lines = turns.map((turn, index) => {\n  const age = turn.hours_at_stage >= 24 ? (Math.round((turn.hours_at_stage / 24) * 10) / 10) + 'd' : turn.hours_at_stage + 'h';\n  return (index + 1) + '. ' + turn.unit_label + ' - ' + turn.current_stage_name + ' - ' + age + ' - $' + turn.dollars_burned + ' burned';\n});\nconst first = turns[0] || {};\nconst second = turns[1] || {};\nconst buttons = [\n  { text: first.stage_id ? 'Done ' + first.unit_label : 'No unit', callback_data: first.stage_id ? 'DONE:' + first.stage_id : 'NOOP' },\n  { text: first.stage_id ? 'Skip ' + first.unit_label : 'No unit', callback_data: first.stage_id ? 'SKIP:' + first.stage_id : 'NOOP' },\n  { text: first.stage_id ? 'Snooze ' + first.unit_label : 'No unit', callback_data: first.stage_id ? 'SNOOZE:' + first.stage_id : 'NOOP' },\n  { text: first.stage_id ? 'Chase ' + first.unit_label : 'No unit', callback_data: first.stage_id ? 'CHASE:' + first.stage_id : 'NOOP' },\n  { text: first.turn_id ? 'Cancel ' + first.unit_label : 'No unit', callback_data: first.turn_id ? 'CANCEL:' + first.turn_id : 'NOOP' },\n  { text: second.stage_id ? 'Done ' + second.unit_label : 'No unit', callback_data: second.stage_id ? 'DONE:' + second.stage_id : 'NOOP' }\n];\nreturn [{ json: {\n  chat_id: 'stage3-manager-chat-id-missing',\n  digest_text: 'Daily make-ready digest\\n' + activeCount + ' units in turn - $' + dollars + ' burning right now\\nVendor reply rate ' + vendorReply + '% - Auto-handled ' + autoHandled + '% (30 days)\\n\\n' + lines.join('\\n'),\n  buttons\n} }];"
+        "jsCode": "const rows = $input.all().map(item => item.json);\nconst now = new Date();\nfunction parseStages(value) { if (Array.isArray(value)) return value; if (!value) return []; try { return JSON.parse(value); } catch { return []; } }\nfunction hoursSince(value) { if (!value) return 0; return Math.max(0, (now.getTime() - new Date(value).getTime()) / 36e5); }\nfunction healthFor(hours, slaHours, status) { if (status === 'awaiting_approval') return 'amber'; const sla = Number(slaHours || 0); if (sla <= 0) return 'green'; if (hours / sla >= 1) return 'red'; if (hours / sla >= 0.5) return 'amber'; return 'green'; }\nconst rank = { red: 3, amber: 2, green: 1 };\nconst turns = rows.map(row => {\n  const hours = hoursSince(row.current_activated_at);\n  const moveout = new Date(String(row.moveout_date).slice(0, 10) + 'T00:00:00Z');\n  const today = new Date(now.toISOString().slice(0, 10) + 'T00:00:00Z');\n  return {\n    stage_id: Number(row.current_stage_id),\n    turn_id: Number(row.turn_id),\n    unit_label: row.unit_label,\n    display_label: String(row.unit_label) + ' ' + String(row.property_address || '').split(' ').slice(1).join(' ').trim(),\n    current_stage_name: row.current_stage_name,\n    current_vendor_name: row.current_vendor_name || 'Unassigned',\n    hours_at_stage: Math.round(hours * 10) / 10,\n    health: healthFor(hours, row.current_sla_hours, row.current_stage_status),\n    dollars_burned: Math.round((Number(row.rent_monthly || 0) / 30) * Math.max(0, Math.floor((today - moveout) / 864e5))),\n    stages: parseStages(row.stages)\n  };\n}).sort((a, b) => (rank[b.health] - rank[a.health]) || (b.hours_at_stage - a.hours_at_stage));\nconst activeCount = turns.length;\nconst dollars = turns.reduce((sum, turn) => sum + turn.dollars_burned, 0);\nconst vendorReply = rows[0] ? Number(rows[0].vendor_reply_rate || 0) : 0;\nconst autoHandled = rows[0] ? Number(rows[0].auto_handled_rate || 0) : 0;\nconst lines = turns.map((turn, index) => {\n  const age = turn.hours_at_stage >= 24 ? (Math.round((turn.hours_at_stage / 24) * 10) / 10) + 'd' : turn.hours_at_stage + 'h';\n  return (index + 1) + '. ' + turn.display_label + ' - ' + turn.current_stage_name + ' - ' + age + ' - $' + turn.dollars_burned + ' burned';\n});\nconst first = turns[0] || {};\nconst second = turns[1] || {};\n// Demo digest exposes only Done and Chase. Skip, Snooze and Cancel remain supported by the\n// manager action core and its callback data; they are simply not surfaced as digest buttons.\nconst third = turns[2] || {};\nconst pair = (t) => [\n  { text: t.stage_id ? 'Done: ' + t.unit_label + ' ' + t.current_stage_name : '-', callback_data: t.stage_id ? 'DONE:' + t.stage_id : 'NOOP' },\n  { text: t.stage_id ? 'Chase: ' + t.unit_label + ' ' + t.current_stage_name : '-', callback_data: t.stage_id ? 'CHASE:' + t.stage_id : 'NOOP' }\n];\nconst buttons = [].concat(pair(first), pair(second), pair(third));\nreturn [{ json: {\n  chat_id: 'stage3-manager-chat-id-missing',\n  digest_text: 'Daily make-ready digest\\n' + activeCount + ' units in turn - $' + dollars + ' burning right now\\nVendor reply rate ' + vendorReply + '% - Auto-handled ' + autoHandled + '% (30 days)\\n\\n' + lines.join('\\n'),\n  buttons\n} }];"
       }
     },
     {
@@ -598,13 +598,7 @@
                     "additionalFields": {
                       "callback_data": "={{ $json.buttons[0].callback_data }}"
                     }
-                  }
-                ]
-              }
-            },
-            {
-              "row": {
-                "buttons": [
+                  },
                   {
                     "text": "={{ $json.buttons[1].text }}",
                     "additionalFields": {
@@ -622,13 +616,7 @@
                     "additionalFields": {
                       "callback_data": "={{ $json.buttons[2].callback_data }}"
                     }
-                  }
-                ]
-              }
-            },
-            {
-              "row": {
-                "buttons": [
+                  },
                   {
                     "text": "={{ $json.buttons[3].text }}",
                     "additionalFields": {
@@ -646,13 +634,7 @@
                     "additionalFields": {
                       "callback_data": "={{ $json.buttons[4].callback_data }}"
                     }
-                  }
-                ]
-              }
-            },
-            {
-              "row": {
-                "buttons": [
+                  },
                   {
                     "text": "={{ $json.buttons[5].text }}",
                     "additionalFields": {
@@ -951,7 +933,7 @@
   },
   "staticData": null,
   "pinData": {},
-  "versionId": "04fa26a1-e0b6-4d77-a5da-903433e916e4",
+  "versionId": "01c5248f-565c-446e-86cf-07c88806c9a1",
   "triggerCount": 3,
   "tags": []
 }

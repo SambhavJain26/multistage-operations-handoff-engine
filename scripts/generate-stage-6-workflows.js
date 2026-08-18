@@ -1059,6 +1059,7 @@ const turns = rows.map(row => {
     stage_id: Number(row.current_stage_id),
     turn_id: Number(row.turn_id),
     unit_label: row.unit_label,
+    display_label: String(row.unit_label) + ' ' + String(row.property_address || '').split(' ').slice(1).join(' ').trim(),
     current_stage_name: row.current_stage_name,
     current_vendor_name: row.current_vendor_name || 'Unassigned',
     hours_at_stage: Math.round(hours * 10) / 10,
@@ -1073,18 +1074,18 @@ const vendorReply = rows[0] ? Number(rows[0].vendor_reply_rate || 0) : 0;
 const autoHandled = rows[0] ? Number(rows[0].auto_handled_rate || 0) : 0;
 const lines = turns.map((turn, index) => {
   const age = turn.hours_at_stage >= 24 ? (Math.round((turn.hours_at_stage / 24) * 10) / 10) + 'd' : turn.hours_at_stage + 'h';
-  return (index + 1) + '. ' + turn.unit_label + ' - ' + turn.current_stage_name + ' - ' + age + ' - $' + turn.dollars_burned + ' burned';
+  return (index + 1) + '. ' + turn.display_label + ' - ' + turn.current_stage_name + ' - ' + age + ' - $' + turn.dollars_burned + ' burned';
 });
 const first = turns[0] || {};
 const second = turns[1] || {};
-const buttons = [
-  { text: first.stage_id ? 'Done ' + first.unit_label : 'No unit', callback_data: first.stage_id ? 'DONE:' + first.stage_id : 'NOOP' },
-  { text: first.stage_id ? 'Skip ' + first.unit_label : 'No unit', callback_data: first.stage_id ? 'SKIP:' + first.stage_id : 'NOOP' },
-  { text: first.stage_id ? 'Snooze ' + first.unit_label : 'No unit', callback_data: first.stage_id ? 'SNOOZE:' + first.stage_id : 'NOOP' },
-  { text: first.stage_id ? 'Chase ' + first.unit_label : 'No unit', callback_data: first.stage_id ? 'CHASE:' + first.stage_id : 'NOOP' },
-  { text: first.turn_id ? 'Cancel ' + first.unit_label : 'No unit', callback_data: first.turn_id ? 'CANCEL:' + first.turn_id : 'NOOP' },
-  { text: second.stage_id ? 'Done ' + second.unit_label : 'No unit', callback_data: second.stage_id ? 'DONE:' + second.stage_id : 'NOOP' }
+// Demo digest exposes only Done and Chase. Skip, Snooze and Cancel remain supported by the
+// manager action core and its callback data; they are simply not surfaced as digest buttons.
+const third = turns[2] || {};
+const pair = (t) => [
+  { text: t.stage_id ? 'Done: ' + t.unit_label + ' ' + t.current_stage_name : '-', callback_data: t.stage_id ? 'DONE:' + t.stage_id : 'NOOP' },
+  { text: t.stage_id ? 'Chase: ' + t.unit_label + ' ' + t.current_stage_name : '-', callback_data: t.stage_id ? 'CHASE:' + t.stage_id : 'NOOP' }
 ];
+const buttons = [].concat(pair(first), pair(second), pair(third));
 return [{ json: {
   chat_id: 'stage3-manager-chat-id-missing',
   digest_text: 'Daily make-ready digest\\n' + activeCount + ' units in turn - $' + dollars + ' burning right now\\nVendor reply rate ' + vendorReply + '% - Auto-handled ' + autoHandled + '% (30 days)\\n\\n' + lines.join('\\n'),
