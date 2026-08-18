@@ -272,6 +272,23 @@ stating a consequence rather than being doubted, so the fix was the underline
 the sentence actually wanted, not a wider loop. Look at the rendered slide
 before keeping any inline circle above turn size.
 
+**A circle is limited by glyph width, not character count, and a deck may end
+up with none.** The five-character guidance kept failing on words that counted
+five: "again" at `.claim`, "2am" at three, "small" at five. What they share is a
+wide glyph, an m or a digit, so the loop stretches past a true circle and lands
+across the letterforms. Before keeping any inline circle, look at the rendered
+slide rather than counting.
+
+Build 3 post 5 ships with no circle at all, and that is the right answer rather
+than a gap. Its one candidate was a word the copy had already put in quotation
+marks, so the doubt was written into the sentence and a circle said the same
+thing twice. Four devices still appear across that deck. The tally note below is
+about not letting a *second device* vanish, not about fielding all five.
+
+**A `.pen` takes its own line box, so punctuation beside it can strand.** The
+same slide left an opening quotation mark at the end of one line while the
+circled word wrapped to the next. Wrap the quotes and their word in `.nb`.
+
 **A circle goes on one word.** Stretched over a phrase it flattens into a wide
 ellipse that overshoots the last word and cuts through the first, and it stops
 looking drawn. Two of post 7's circles were pulled back to a single word for
