@@ -1,144 +1,188 @@
 # Product Marketing Context
 
-**Document version:** v1
-**Last updated:** 2026-08-04
+**Document version:** v2
+**Last updated:** 2026-08-18
+
+> **v1 is superseded and must not be used.** It described a build that no longer exists: a custom visualization board (since deleted) and a Send / Edit / Hold approval card (replaced by Email / Message / Both). Any draft written from v1 will describe software the client would have to open, which is the opposite of the positioning.
 
 ## Product Overview
-**One-liner:** Custom AI automation, built inside a property management company's existing make-ready process, that shows every vacant unit's turnover status live and drafts vendor handoffs for a manager to approve.
 
-**What it does:** Tracks each unit through an 11-stage make-ready sequence (notice through relist), blocks stages from being marked done out of order (for example, deep clean before repairs), and drafts the next vendor's message the moment a vendor reports a stage finished — a manager presses Send, Edit, or Hold before anything goes out. A board shows every unit in turn, sorted worst-first, with live vacancy-cost math.
+**One-liner:** Custom AI automation, built inside a property management company's existing tools, that watches every vacant unit's make-ready sequence, notices when a handoff has gone quiet, and drafts the next vendor's message for a manager to release.
 
-**Product category:** None. This is not a named software product, SaaS, or app. It is a custom automation build delivered as a service, comparable to hiring someone to build and run an internal tool — not to buying a subscription.
+**What it does:** Tracks each unit through an 11-stage make-ready sequence from notice to relist. It refuses to let a stage be completed out of order, including when the manager is the one asking. When a vendor reports a stage finished, by email, by Telegram, or through a generic inbound webhook, it matches the message to the right unit and stage, checks the order, marks the stage complete, and drafts the next vendor's handoff. Nothing reaches a vendor until the manager chooses a delivery channel. Everything the manager sees lives in Airtable and Telegram, both of which the client already owns.
 
-**Product type:** Consulting / service delivery. Each client gets their own automation built on their own infrastructure (their VPS, their n8n instance, their database). There is no multi-tenant platform and no shared account system across clients.
+**Product category:** None. Not a named software product, not SaaS, not an app. There is nothing to install, nothing to log into, and no seats. It is a custom automation build delivered as a service, closer to hiring someone to build and run an internal process than to buying a subscription.
 
-**Business model:** One-time setup fee plus a monthly fee for the client's own instance. Setup $1,000-1,800, monthly $350-600 (first two clients priced lower: $600 setup, $300/month while the model is unproven). Priced against recovered rent, not against hours worked.
+**Product type:** Consulting / service delivery. Each client gets their own automation on their own infrastructure: their n8n instance, their database, their Airtable base, their mailbox. No multi-tenant platform, no shared accounts across clients.
+
+**Business model:** One-time setup fee plus a monthly fee for the client's own instance. Setup $1,000-1,800, monthly $350-600. First two clients priced lower ($600 setup, $300/month) while the model is unproven. Priced against recovered rent, not hours worked.
+
+## What the manager actually touches
+
+There is no dashboard in this build. This matters more than any feature claim, because it is the proof that nothing is being sold as software.
+
+| Surface | What happens there | Who owns it |
+|---|---|---|
+| Airtable | Turns, stages, vendors, communications, approvals and delivery results. Also the only place a manager types a new turn in | The client |
+| Telegram | Alerts, approval cards, the daily digest, and the manager controls | The client |
+| Vendor's own email or messaging app | Vendors receive handoffs and reply, with nothing to install and no account to create | The vendor |
+| Postgres | The authoritative record. The manager never sees it | The client's server |
+
+A custom board was built during development and then deleted. The client already had a better surface, and adding one more thing to open would have made this a product.
 
 ## Target Audience
-**Target companies:** US residential property management companies, 250-600 doors, 30%+ annual turnover, using outside vendors (not an all in-house maintenance team) for at least some make-ready trades.
 
-**Decision-makers:** Owner or principal. This is a P&L conversation, not a facilities-department purchase — the buyer feels vacancy loss directly.
+**Target companies:** US residential property management companies, roughly 150-600 doors, 30%+ annual turnover, using outside vendors for at least some make-ready trades rather than an all in-house crew.
 
-**Primary use case:** Knowing, without asking anyone, which vacant units are stuck in turnover, at what stage, and for how long — and stopping vendors from working stages out of order.
+**Why that size band.** Above it, enterprise make-ready products are a genuine fit and should usually be bought instead. HappyCo, for one, publishes a 500-unit minimum. Below roughly 30 turns a year there is not enough repetition to justify any of this.
+
+**Decision-makers:** Owner or principal. This is a P&L conversation. The maintenance coordinator or ops manager is the daily user and the internal champion, but rarely the signer.
+
+**Primary use case:** Knowing which vacant units are stuck, at what stage, and for how long, without asking anyone, and being told when a handoff has gone quiet.
 
 **Jobs to be done:**
-- Recover rent currently lost to gaps between one vendor finishing and the next one being told to start.
-- See every unit in turn on one screen instead of reconstructing status from texts, memory, or a whiteboard.
-- Stop paying for rework caused by stages completed out of sequence (for example, cleaning before drywall repair).
-
-**Use cases:**
-- A maintenance coordinator opens one screen each morning to see which units are stalled and by how much.
-- A vendor texts "done" the way they already text the company today; the next vendor's message is drafted automatically and waits for a human to send it.
-- A manager gets an alert only when a stage has actually stalled past its allotted time, not a constant stream of updates.
+- Recover rent lost in the gap between one vendor finishing and the next one being told to start.
+- Stop paying twice for work done out of order.
+- Find out that a stage is stalled without having to remember to check.
 
 ## Personas
-| Persona | Cares about | Challenge | Value we promise |
+
+| Persona | Cares about | Challenge | Value promised |
 |---|---|---|---|
-| Owner / principal (buyer) | Rent lost to vacancy, P&L impact | Can't see where turns are stuck without asking someone | A screen that shows dollars burning per unit, live, without asking |
-| Maintenance coordinator / manager (daily user) | Not getting blindsided by a stalled vendor, not double-booking cleaning before repairs | Currently tracks turns by memory, spreadsheet, or a whiteboard | One board, worst-first, plus a guard that blocks the expensive mistake |
+| Owner / principal (buyer) | Rent lost to vacancy, P&L impact | Suspects turns are slow but cannot point to where the days go | Days per stage and dollars burned computed from real timestamps, not from memory |
+| Maintenance coordinator (daily user) | Not being blindsided, not booking cleaning before repairs are done | Tracks turns by memory, spreadsheet, or whiteboard | One ranked list each morning, plus a rule that blocks the expensive mistake |
 
 ## Problems & Pain Points
-**Core problem:** Every day a unit sits empty is rent that never comes back, and most of those days are not work — they are waiting for someone to find out the previous vendor finished.
+
+**Core problem:** Most of a turn's calendar is not work. It is waiting to find out the previous vendor finished. A vendor who finished and said nothing looks exactly like a vendor who never started, and both cost the same per day.
+
+**What it costs them:**
+- Roughly rent-monthly divided by 30 per vacant day, per unit.
+- A second visit when stages run out of order. Industry reporting puts 20-25% of turnover repairs as needing a second visit.
+- A 30-50% premium when work has to be expedited to make up lost days.
 
 **Why alternatives fall short:**
-- Manual tracking (whiteboard, spreadsheet, memory) has no enforcement — a stage can be marked done out of order and nobody notices until it costs a second visit.
-- Property Meld requires vendors to accept an email invite and set up an account before they are in the system.
-- A property management system (PMS) like Buildium is not built for live per-turn sequencing and its open API sits behind a Premium-tier paywall.
+- Whiteboards, spreadsheets and memory have no enforcement and no way to notice silence.
+- Enterprise make-ready platforms carry unit minimums that exclude this segment.
+- Portal-based tools require the vendor to accept an invite, register and create a password before they can respond at all.
+- A PMS is not built for live per-turn sequencing, and its API often sits behind a higher pricing tier.
 
-**What it costs them:** Rent at roughly rent-monthly ÷ 30 per day per empty unit, plus rework cost (a second clean, a second visit) when stages get done out of order.
-
-**Emotional tension:** The owner suspects turns are slower than they should be but cannot point to where the time goes, and doesn't fully trust that a vendor's "done" text was ever actually acted on by anyone.
+**Emotional tension:** The owner cannot tell the difference between a slow trade and a missed message, and does not fully trust that a vendor's "done" was ever acted on.
 
 ## Competitive Landscape
-**Direct:** Property Meld — vendors must accept an email invite and create an account before they can respond; does not block a downstream stage (like cleaning) from being marked done while an upstream stage (like repairs) is still open.
 
-**Secondary:** Hiring a coordinator / VA — genuinely better than this automation at most day-to-day judgment calls, but has working hours and can't answer "which of my units is stuck right now" at 6pm.
+**Say plainly that this category is occupied.** It is, by capable products. Any copy implying nobody has noticed this problem is false and a property manager will know it.
 
-**Indirect:** Managed make-ready services (for example Lula, operating in a defined set of metros) — a different approach entirely: outsourcing the make-ready work itself, not coordinating the client's own existing vendors.
+| Competitor | What it is | Honest read |
+|---|---|---|
+| HappyCo | Real-time turn boards, multifamily operations | Strong product. 500-unit minimum puts it above this ICP |
+| Make Ready Manager | Cloud make-ready boards with a vendor mobile app | Direct category match. Requires vendors to use the app |
+| TurnTrack | Role-based make-ready workflows with photo documentation | Direct category match, purpose-built |
+| AppWorks / SuiteSpot | Make-ready boards and turn management with vendor portals | Direct category match |
+| Rent Manager | Make Ready module inside the PMS | If already on Rent Manager, this may be enough |
+| Property Meld | Maintenance platform. Vendors must accept an emailed invite and register before they can respond | Registration friction is real and documented by them |
+| Lula | Does the make-ready work itself, 72-hour turns, defined metros | A different purchase entirely. If they operate in the client's metro, sometimes the better answer |
+
+**Sequencing enforcement is not a differentiator.** Automated turnover systems already advertise preventing progression until prior stages are complete. Do not claim to be alone in this.
+
+**What is actually different:**
+1. Vendors do nothing new. They reply from email or the messaging app they already use. No invite, no account, no download.
+2. It fits a portfolio below the enterprise unit minimums.
+3. It lives inside Airtable and Telegram the client already owns, rather than adding a system to open.
+4. The client owns the instance and the infrastructure. If the builder disappears, any n8n developer can maintain it.
 
 ## Differentiation
+
 **Key differentiators:**
-- A deterministic sequence guard blocks out-of-order stage completion (for example, deep clean while repairs are still open) with a plain-language reason, not a silent allow.
-- Vendors need nothing installed — they reply to a text the way they already communicate; there is no account to create.
-- Every outbound vendor message is drafted, never sent automatically. A human always presses Send, Edit, or Hold.
-- The visibility board delivers value even at a 0% vendor reply rate, since a manager can advance stages manually through the same guard.
-- Runs entirely beside the client's PMS with zero integration; the client owns the instance and infrastructure it runs on.
+- A deterministic sequence guard blocks out-of-order completion and states the reason in plain language. It blocks the manager too, and the override is recorded.
+- A stage can only be completed by the vendor it was actually handed to. Work that was never released cannot be reported finished.
+- Every outbound vendor message is drafted, never sent. The manager chooses Email, Message, or Both, per message.
+- Ignoring an approval is a valid decision. The draft stays open and nothing goes out.
+- Silence is treated as a signal. A stage that goes quiet past its expected duration raises an alert, once, during business hours.
 
-**How we do it differently:** The system is built once, for one client's actual stage sequence and vendors, on infrastructure that client owns — not a shared product with generic defaults.
-
-**Why that's better:** No account setup for vendors, no PMS integration risk or cost, and no dependency on the builder staying available, since the client owns the running system.
-
-**Why customers choose us:** They get proof the mechanism works (a live pilot, or a walkthrough using their own numbers) before paying anything, and an explicit offer to say "this isn't for you" if vendor reply rate turns out too low.
+**Why customers choose us:** They see the mechanism run against their own numbers before paying, and get told plainly if their vendor reply rate makes it a bad fit.
 
 ## Objections
+
 | Objection | Response |
 |---|---|
-| "My vendors won't use an app." | Agreed — they reply to a text or send a photo, exactly what they already do. Nothing to install, no account. |
-| "I already know what's happening with my units." | Probably true for the ones thought about this morning. Ask about one specific unit's stage and age instead. |
-| "We tried a system like this and vendors ignored it." | That is the real risk. Offer to test with a small number of vendors first and look at the reply rate before any commitment. |
-| "What happens if you disappear?" | Everything runs on infrastructure in the client's name, on their account. If the builder disappears, the client keeps the system and any n8n developer can maintain it. |
+| "My vendors won't use an app." | They don't have to. They reply by email or the app they already use. Nothing to install, no account. |
+| "Doesn't Property Meld or HappyCo already do this?" | For some operators, yes, and say so. HappyCo starts at 500 units. Property Meld needs vendors to register. If either fits, buy it. |
+| "I already know what's happening with my units." | Probably for the ones thought about this morning. Ask about one specific unit's stage and how long it has been there. |
+| "We tried something like this and vendors ignored it." | That is the real risk. Test with a few vendors and look at the reply rate before committing. Below roughly 30% reply rate this is a bad purchase. |
+| "What happens if you disappear?" | Everything runs on infrastructure in the client's name. They keep it, and any n8n developer can maintain it. |
 
-**Anti-persona:** An in-house-only maintenance team with no outside vendor handoffs to coordinate; a company doing fewer than roughly 30 turns a year; vendors who do not text; a company already using a managed make-ready service in their metro.
+**Anti-persona:** An all in-house maintenance crew with no vendor handoffs; fewer than roughly 30 turns a year; a portfolio large enough that an enterprise platform fits properly; a company already using a managed make-ready service in their metro.
 
 ## Switching Dynamics
-**Push:** Rent lost to invisible gaps between vendor handoffs, and rework costs from stages completed out of sequence.
 
-**Pull:** A live board that answers "which unit is stuck and for how long" instantly, plus a guard rail that makes the expensive mistake structurally harder to make.
+**Push:** Rent lost in invisible gaps between handoffs, and paying twice when stages run out of order.
 
-**Habit:** Calling or texting vendors individually and tracking status by memory or a whiteboard feels lower-effort to keep doing than it actually is.
+**Pull:** A ranked morning list answering which unit is stuck and for how long, and a rule that makes the expensive mistake structurally harder.
 
-**Anxiety:** Whether vendors will actually reply to a text (the automation is worthless if they don't, though the board still has value); trusting a solo builder with no track record; adding one more "system" to keep alive.
+**Habit:** Texting vendors individually and holding status in memory feels cheaper than it is.
+
+**Anxiety:** Whether vendors will actually reply; trusting a solo builder with no track record; keeping one more thing alive.
 
 ## Customer Language
+
 **How they describe the problem:**
-- "When my painter finishes a unit, how do I find out?" (posed as the qualifying question in `03-make-ready-coordination.md`)
+- "When my painter finishes a unit, how do I find out?"
 - "How many units are in turn right now, and how long has each been sitting?"
 
-**How they describe us:**
-- No customer language exists yet — no client has used the system. Do not fabricate quotes; this section stays empty until real usage exists.
+**How they describe us:** No customer language exists. No client has used this. Do not fabricate quotes.
 
-**Words to use:** the board, the automation, the intake workflow, the manager, the vendor, the manager's approval, your own infrastructure/instance.
+**Words to use:** the automation, the sequence rule, the handoff, the approval, the manager, the vendor, your Airtable, your own instance.
 
-**Words to avoid:** my platform, my tool, my product, the app, users, sign up, onboard onto, subscribers. This UI exists only so a human can see what the automation did; it is never described as software someone logs into.
+**Words to avoid:** my platform, my tool, my product, my software, the app, the dashboard, the board, users, sign up, onboard, subscribers. There is no board in this build and no software anyone logs into.
 
 **Glossary:**
+
 | Term | Meaning |
 |---|---|
-| Turn / make-ready | The full process of preparing a vacated unit for a new tenant |
-| Stage | One step in the 11-step sequence (for example Paint, Deep Clean) |
-| Sequence guard | The deterministic rule set blocking out-of-order stage completion |
-| Awaiting approval | A drafted vendor message sitting in the manager's queue, not yet sent |
-| Vendor reply rate | The percentage of vendor completions logged automatically vs. by hand |
-| Auto-handled rate | The percentage of stage advances the automation completed without a manager typing anything |
+| Turn / make-ready | Preparing a vacated unit for the next resident |
+| Stage | One step of the 11-step sequence, for example Paint or Deep clean |
+| Handoff | The message telling the next vendor the unit is ready for them |
+| Sequence rule / guard | The deterministic check that blocks out-of-order completion |
+| Awaiting approval | A drafted handoff sitting with the manager, not sent |
+| Stall | A stage that has passed its expected duration with no word |
+| Vendor reply rate | Share of completions reported by the vendor rather than entered by hand |
 
 ## Brand Voice
-**Tone:** Understated, incident-report register. Short declaratives, real numbers, first person, US spelling. No hype vocabulary, no exclamation points, at most one em dash across a given document and zero is better.
 
-**Style:** Direct and specific — every capability claim names the exact part of the system responsible for it rather than describing the system as a whole. Limitations are stated before a prospect finds them, not defended when asked.
+**Tone:** Understated, incident-report register. Short declaratives, real numbers, first person, US spelling. No hype, no exclamation points, at most one em dash per document and zero is better.
 
-**Personality:** Honest, unhurried, structurally cautious, willing to disqualify itself, allergic to guarantees it can't back up.
+**Style:** Every capability claim names the specific part of the automation responsible. Limits are stated before a prospect finds them.
+
+**Personality:** Honest, unhurried, structurally cautious, willing to disqualify itself, and willing to name the competitor a prospect should buy instead.
 
 ## Proof Points
-**Metrics:** None yet from a real client. Internal fixture testing (F01-F20) has verified the mechanism works against synthetic data; this is a testing result, not a customer result, and must never be presented as one.
 
-**Customers:** None yet. This would be the first client in property management for this builder — say so plainly rather than implying otherwise.
+**Metrics:** None from a real client. The mechanism has been verified live against synthetic fixtures: vendor completions over Telegram and email, ordering enforcement, ambiguity resolution when one vendor holds two units at the same stage, duplicate and double-send protection, and single-channel and dual-channel delivery. **This is testing, not a customer result, and must never be presented as one.**
 
-**Testimonials:** None yet.
+**Customers:** None yet. This would be the first. Say so plainly.
+
+**Testimonials:** None.
 
 **Value themes:**
+
 | Theme | Proof |
 |---|---|
-| Rent recovery is computable, not vague | Live board computes days-vacant × daily rent per unit from real timestamps |
-| Out-of-order rework is a real, named failure mode | Sequence guard has a specific blocked reason for the repairs-before-cleaning case |
-| Nothing goes to a vendor without a human | Manager approval queue (Send/Edit/Hold) sits in front of every outbound draft |
+| Lost days are computable, not vague | Days at stage and dollars burned are derived from real timestamps |
+| Out-of-order rework is a named failure with a price | The rule has a specific blocked reason, and industry reporting prices second visits at 20-25% of turnover repairs |
+| Nothing reaches a vendor without a person | Every handoff waits for a channel choice, and ignoring it sends nothing |
+| Silence gets noticed | A quiet stage raises one alert rather than waiting to be discovered |
 
 ## Goals
-**Primary business goal:** Land a first paying pilot client in the target ICP (250-600 doors, 30%+ turnover, vendors who already text).
 
-**Key conversion action:** For the recorded demo video specifically, a low-pressure invitation to reach out and walk through the mechanism with the viewer's own numbers — not a hard CTA, no link or handle fabricated where none exists yet.
+**Primary business goal:** Land a first paying pilot in the target band.
 
-**Current metrics:** None from real usage. Internal fixture-test coverage (F01-F20) and local Stage 1-8 verification are implementation-readiness signals, not customer metrics, and should not be blended with the two.
+**Key conversion action:** A low-pressure invitation to walk through the mechanism using the prospect's own numbers. No fabricated links or handles.
+
+**Current metrics:** None from real usage. Local verification is an implementation-readiness signal and must not be blended with customer outcomes.
 
 ## Changelog
-*Newest first. One line per revision: what changed and why.*
-- v1 (2026-08-04) — Initial context, drafted from `03-make-ready-coordination.md` (ICP, positioning, objections, pricing) and `make-ready-demo-build-plan.md` §11 (honesty boundary) ahead of writing `docs/how-the-system-works.md` and `docs/demo-script.md`.
+
+*Newest first.*
+- **v2 (2026-08-18)** — Rewritten for the current build. Removed the visualization board, which was deleted from the project, and the Send / Edit / Hold approval card, replaced by Email / Message / Both. Added Airtable and Telegram as the manager surfaces, email as a first-class vendor channel, the ordering rule that a stage can only be completed by the vendor it was handed to, and stall detection. Rebuilt the competitive section from live research: HappyCo's 500-unit minimum, Property Meld's vendor registration requirement, and the fact that sequencing enforcement already exists in the category and cannot be claimed as unique.
+- v1 (2026-08-04) — Initial context from `03-make-ready-coordination.md` and `make-ready-demo-build-plan.md`. **Superseded.**
