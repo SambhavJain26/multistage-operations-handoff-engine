@@ -418,6 +418,22 @@ does not account for it. On a payoff slide it put the stroke nine pixels off the
 footer rule while every measurement said the block fitted. Look at the rendered
 slide; the numbers will not tell you.
 
+**Measure the fit before looking, with `scripts/check-fit.py`.** It renders each
+deck headless and reports, per slide, the clearance between the content block
+and the eyebrow above it and the footer or byline below it. Two things it
+settled that the eye kept arguing about.
+
+The band is not the limit. Content taller than the 918px band overflows the
+centred block symmetrically, and the 192px between the band edge and the footer
+absorbs a good deal of it, so a slide can measure "overset" against the band and
+still be correct on the page. What matters is the clearance to the furniture:
+below about 24px the last line starts crowding the footer rule.
+
+And it finds what a contact sheet hides. Build 3 post 5 had three slides
+genuinely overset before the first render, all fixed in one pass instead of three
+rounds of look-and-nudge. Run it after any type or layout change; keep looking at
+the slides afterwards, because it says nothing about where a mark landed.
+
 **Content centers in a bounded band** between the eyebrow and the footer.
 Slide copy runs from 8 words to 24, so a fixed top anchor strands short
 slides in the upper third with a dead page underneath.
