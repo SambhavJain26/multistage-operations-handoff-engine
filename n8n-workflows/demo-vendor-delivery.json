@@ -22,7 +22,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        260,
+        320,
         0
       ],
       "parameters": {
@@ -44,7 +44,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        520,
+        640,
         0
       ],
       "parameters": {
@@ -78,8 +78,8 @@
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
       "position": [
-        780,
-        -120
+        960,
+        0
       ],
       "parameters": {
         "fromEmail": "Make-Ready <VENDOR_EMAIL_FROM_PLACEHOLDER>",
@@ -106,8 +106,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1040,
-        -120
+        1280,
+        0
       ],
       "parameters": {
         "jsCode": "const plan=$('Delivery Load Delivery Plan').first().json; const error=$json.error||($json.body&&$json.statusCode>=400?$json.body:null); return [{json:{...plan,delivery_channel:'email',delivery_ok:!error,provider_message_id:String($json.messageId||$json.id||''),delivery_error:error?String(error.message||error):''}}];"
@@ -119,8 +119,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        1300,
-        -120
+        1600,
+        0
       ],
       "parameters": {
         "operation": "executeQuery",
@@ -141,7 +141,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        1560,
+        1920,
         0
       ],
       "parameters": {
@@ -175,8 +175,8 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        1820,
-        -120
+        2240,
+        0
       ],
       "parameters": {
         "resource": "message",
@@ -202,8 +202,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2080,
-        -120
+        2560,
+        0
       ],
       "parameters": {
         "jsCode": "const plan=$('Delivery Load Delivery Plan').first().json; const error=$json.error;\nlet sent={}; try{ sent=$('Delivery Send Vendor Telegram').first().json||{}; }catch(e){ sent={}; }\nconst pick=o=>(o&&(o.message_id||(o.message&&o.message.message_id)||(o.result&&o.result.message_id)||o.id))||'';\nconst providerId=pick(sent)||pick($json)||'';\nreturn [{json:{...plan,delivery_channel:'telegram',delivery_ok:!error,provider_message_id:String(providerId),delivery_error:error?String(error.message||error):''}}];"
@@ -215,8 +215,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        2340,
-        -120
+        2880,
+        0
       ],
       "parameters": {
         "operation": "executeQuery",
@@ -237,7 +237,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        2600,
+        3200,
         0
       ],
       "parameters": {
@@ -259,7 +259,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        2860,
+        3840,
         0
       ],
       "parameters": {
@@ -293,8 +293,8 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        3120,
-        -120
+        4160,
+        0
       ],
       "parameters": {
         "resource": "message",
@@ -332,7 +332,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3380,
+        4480,
         0
       ],
       "parameters": {
@@ -345,7 +345,7 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1,
       "position": [
-        9000,
+        3520,
         0
       ],
       "parameters": {
@@ -540,7 +540,7 @@
   },
   "staticData": null,
   "pinData": {},
-  "versionId": "49a68acd-dbb7-4fad-9385-fc24fddeb9da",
+  "versionId": "f6c1db7c-da4b-465e-9306-b123df83f66d",
   "triggerCount": 1,
   "tags": []
 }

@@ -10,7 +10,7 @@
       "typeVersion": 2.1,
       "position": [
         0,
-        -120
+        0
       ],
       "webhookId": "wf6-stall-watchdog",
       "parameters": {
@@ -30,7 +30,7 @@
       "typeVersion": 1.2,
       "position": [
         0,
-        120
+        350
       ],
       "parameters": {
         "rule": {
@@ -49,7 +49,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        280,
+        320,
         0
       ],
       "parameters": {
@@ -62,7 +62,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        560,
+        640,
         0
       ],
       "parameters": {
@@ -83,7 +83,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        840,
+        960,
         0
       ],
       "parameters": {
@@ -117,8 +117,8 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        1120,
-        -120
+        1280,
+        0
       ],
       "parameters": {
         "resource": "message",
@@ -143,8 +143,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1400,
-        -120
+        1600,
+        0
       ],
       "parameters": {
         "jsCode": "return [$('Stall Find And Log Stalls').first()];"
@@ -156,8 +156,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1120,
-        120
+        1280,
+        130
       ],
       "parameters": {
         "jsCode": "return $input.all();"
@@ -169,8 +169,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        280,
-        0
+        640,
+        570
       ],
       "parameters": {
         "operation": "executeQuery",
@@ -191,7 +191,7 @@
       "typeVersion": 1.2,
       "position": [
         0,
-        0
+        570
       ],
       "parameters": {
         "rule": {
@@ -213,8 +213,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        280,
-        0
+        320,
+        570
       ],
       "parameters": {
         "jsCode": "return [{ json: { actor_id: 'weekly-digest', channel: 'digest', manager_chat_id: 'stage3-manager-chat-id-missing' } }];"
@@ -226,8 +226,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        840,
-        0
+        960,
+        570
       ],
       "parameters": {
         "jsCode": "return [{ json: { ...$json, manager_chat_id: 'stage3-manager-chat-id-missing', weekly_text: 'Weekly make-ready metrics\\n' + $json.health_text } }];"
@@ -239,8 +239,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        1120,
-        0
+        1280,
+        570
       ],
       "parameters": {
         "operation": "executeQuery",
@@ -260,8 +260,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        1400,
-        0
+        1600,
+        570
       ],
       "parameters": {
         "conditions": {
@@ -294,8 +294,8 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        1680,
-        -120
+        1920,
+        570
       ],
       "parameters": {
         "resource": "message",
@@ -462,7 +462,7 @@
   },
   "staticData": null,
   "pinData": {},
-  "versionId": "73531e78-7487-4cf5-86e6-6f3f2c308eaa",
+  "versionId": "fa8f7e6b-2201-4d75-9b39-831a2ae36303",
   "triggerCount": 3,
   "tags": []
 }

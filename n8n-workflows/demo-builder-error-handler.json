@@ -20,7 +20,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        280,
+        320,
         0
       ],
       "parameters": {
@@ -33,7 +33,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        560,
+        640,
         0
       ],
       "parameters": {
@@ -54,7 +54,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        840,
+        960,
         0
       ],
       "parameters": {
@@ -88,8 +88,8 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        1120,
-        -120
+        1280,
+        0
       ],
       "parameters": {
         "resource": "message",
@@ -114,8 +114,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1120,
-        120
+        1280,
+        130
       ],
       "parameters": {
         "jsCode": "return $input.all();"
@@ -180,7 +180,7 @@
   },
   "staticData": null,
   "pinData": {},
-  "versionId": "00fdb2be-c3e6-47bd-93da-f8aef85c9f71",
+  "versionId": "a2bbc377-bd1a-4293-9c1f-da8ea668c548",
   "triggerCount": 1,
   "tags": []
 }

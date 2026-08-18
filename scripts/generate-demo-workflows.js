@@ -255,7 +255,110 @@ const specifications = [
   },
 ];
 
+// Lay out nodes so the editor is readable.
+//
+// Consolidation inlines several source workflows into one and keeps each source's original
+// coordinates, so three copies of the same router land on identical positions. Vendor
+// Communications had 62 nodes sitting exactly on top of another node before this ran.
+//
+// Layered left-to-right layout:
+//   x  comes from depth, the longest path from any entry node
+//   y  comes from which entry node owns the branch, then a slot within that lane
+// Lanes keep the Email, Telegram and API copies of the router in separate horizontal bands
+// rather than interleaved.
+function layoutWorkflow(workflow) {
+  const nodes = workflow.nodes;
+  const byName = new Map(nodes.map((n) => [n.name, n]));
+  const outgoing = new Map(nodes.map((n) => [n.name, []]));
+  const indegree = new Map(nodes.map((n) => [n.name, 0]));
+
+  for (const [source, conn] of Object.entries(workflow.connections || {})) {
+    for (const branch of conn.main || []) {
+      for (const link of branch || []) {
+        if (!byName.has(link.node) || !outgoing.has(source)) continue;
+        outgoing.get(source).push(link.node);
+        indegree.set(link.node, indegree.get(link.node) + 1);
+      }
+    }
+  }
+
+  // Entry nodes: anything nothing points at. Triggers first so lanes come out in a sane order.
+  const isTrigger = (n) => /trigger/i.test(n.type) || n.type.endsWith(".webhook");
+  const roots = nodes
+    .filter((n) => indegree.get(n.name) === 0)
+    .sort((a, b) => (isTrigger(b) ? 1 : 0) - (isTrigger(a) ? 1 : 0));
+  if (roots.length === 0) roots.push(nodes[0]);
+
+  // Depth by longest path, so a node always sits right of everything feeding it.
+  const depth = new Map(nodes.map((n) => [n.name, 0]));
+  const order = [];
+  const pending = new Map(indegree);
+  const queue = roots.map((n) => n.name);
+  const queued = new Set(queue);
+  while (queue.length) {
+    const name = queue.shift();
+    order.push(name);
+    for (const next of outgoing.get(name) || []) {
+      depth.set(next, Math.max(depth.get(next), depth.get(name) + 1));
+      pending.set(next, pending.get(next) - 1);
+      if (pending.get(next) <= 0 && !queued.has(next)) {
+        queued.add(next);
+        queue.push(next);
+      }
+    }
+  }
+  // Cycles or unreachable nodes keep depth 0; place them after their earliest predecessor.
+  for (const n of nodes) {
+    if (!queued.has(n.name) && !roots.includes(n)) {
+      const preds = nodes.filter((p) => (outgoing.get(p.name) || []).includes(n.name));
+      const best = preds.reduce((acc, p) => Math.max(acc, depth.get(p.name) + 1), 0);
+      depth.set(n.name, best);
+    }
+  }
+
+  // Lane ownership: first root to reach a node claims it.
+  const lane = new Map();
+  roots.forEach((root, index) => {
+    const stack = [root.name];
+    while (stack.length) {
+      const name = stack.pop();
+      if (lane.has(name)) continue;
+      lane.set(name, index);
+      for (const next of outgoing.get(name) || []) if (!lane.has(next)) stack.push(next);
+    }
+  });
+  for (const n of nodes) if (!lane.has(n.name)) lane.set(n.name, roots.length);
+
+  const COL = 320;
+  const ROW = 130;
+  const LANE_GAP = 90;
+
+  // Slot nodes within (lane, depth), then stack lanes vertically with a gap between them.
+  const laneIds = [...new Set(nodes.map((n) => lane.get(n.name)))].sort((a, b) => a - b);
+  let laneTop = 0;
+  for (const id of laneIds) {
+    const members = nodes.filter((n) => lane.get(n.name) === id);
+    const columns = new Map();
+    for (const n of members) {
+      const d = depth.get(n.name);
+      if (!columns.has(d)) columns.set(d, []);
+      columns.get(d).push(n);
+    }
+    let laneHeight = 0;
+    for (const [d, column] of columns) {
+      column.sort((a, b) => a.position[1] - b.position[1] || a.name.localeCompare(b.name));
+      column.forEach((n, row) => {
+        n.position = [d * COL, laneTop + row * ROW];
+      });
+      laneHeight = Math.max(laneHeight, column.length * ROW);
+    }
+    laneTop += laneHeight + LANE_GAP;
+  }
+  return workflow;
+}
+
 const consolidated = specifications.map(createAssembler);
+consolidated.forEach(layoutWorkflow);
 for (const file of fs.readdirSync(workflowDir).filter((entry) => entry.endsWith(".json"))) {
   fs.unlinkSync(path.join(workflowDir, file));
 }

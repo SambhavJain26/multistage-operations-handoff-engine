@@ -9,7 +9,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        240,
+        960,
         0
       ],
       "parameters": {
@@ -30,7 +30,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        480,
+        1280,
         0
       ],
       "parameters": {
@@ -43,7 +43,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        260,
+        640,
         0
       ],
       "parameters": {
@@ -56,7 +56,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        780,
+        1600,
         0
       ],
       "parameters": {
@@ -90,8 +90,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        1040,
-        -140
+        1920,
+        0
       ],
       "parameters": {
         "operation": "executeQuery",
@@ -112,8 +112,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1300,
-        -140
+        2560,
+        0
       ],
       "parameters": {
         "jsCode": "const q=typeof $json.outbound_queue==='string'?JSON.parse($json.outbound_queue):$json.outbound_queue;\nconst next=typeof $json.next_stage==='string'?JSON.parse($json.next_stage):$json.next_stage;\nif(!q) return [{json:{...$json,has_queue:false}}];\nconst openai_request={\n  model:'gpt-5.6-luna',\n  input:[\n    {role:'system',content:[{type:'input_text',text:'Rewrite the factual vendor handoff to be concise and professional. Preserve every fact. Add no promises, dates, prices, or instructions. Return only JSON.'}]},\n    {role:'user',content:[{type:'input_text',text:q.deterministic_text}]}\n  ],\n  text:{format:{type:'json_schema',name:'vendor_draft',strict:true,schema:{type:'object',additionalProperties:false,required:['draft'],properties:{draft:{type:'string',minLength:1,maxLength:1000}}}}}\n};\nreturn [{json:{...$json,has_queue:true,queue:q,next_stage:next,openai_request}}];"
@@ -125,8 +125,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        1560,
-        -140
+        2880,
+        0
       ],
       "parameters": {
         "conditions": {
@@ -159,8 +159,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1820,
-        -240
+        3200,
+        0
       ],
       "parameters": {
         "method": "POST",
@@ -188,8 +188,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2080,
-        -240
+        3520,
+        0
       ],
       "parameters": {
         "jsCode": "const source=$('Stage Call Shared Completion Handler Build Safe Vendor Draft Request').first().json; let draft=source.queue.deterministic_text; let fallback=true;\ntry { const raw=$json||{}; const text=raw.output_text||(raw.output||[]).flatMap(o=>o.content||[]).find(c=>c.type==='output_text')?.text; const parsed=typeof text==='string'?JSON.parse(text):null; if(parsed&&typeof parsed.draft==='string'&&parsed.draft.trim()){draft=parsed.draft.trim();fallback=false;} } catch(e) {}\nreturn [{json:{...source,draft_text:draft,draft_fallback_used:fallback}}];"
@@ -201,8 +201,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        2340,
-        -240
+        3840,
+        0
       ],
       "parameters": {
         "operation": "executeQuery",
@@ -223,8 +223,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2600,
-        -240
+        4160,
+        0
       ],
       "parameters": {
         "jsCode": "const qid=Number($json.queue_id||0); const chat=String($json.manager_chat_id||'');\nconst unit=String($json.unit_label||''); const addr=String($json.property_address||'');\nconst where=unit?(addr?unit+', '+addr:unit):'this unit';\nconst doneVendor=String($json.completed_vendor_name||'').trim()||'The assigned vendor';\nconst doneStage=String($json.completed_stage_name||'').trim()||'the previous stage';\nconst nextVendor=String($json.next_vendor_name||'').trim()||'the next vendor';\nconst nextStage=String($json.next_stage_name||'').trim()||'the next stage';\nconst via=String($json.completed_via||'').trim();\nconst creditLine = via==='manual' ? 'Marked complete by the manager.'\n  : via==='override' ? 'Marked complete by the manager as an override.'\n  : via==='skip' ? 'This stage was skipped.'\n  : doneVendor+' reported this finished.';\nconst lines=[\n '\\u2705 '+doneStage+' complete at '+where,\n creditLine,\n '',\n '\\u27a1\\ufe0f Next: '+nextStage+' - '+nextVendor,\n '',\n 'Draft message to '+nextVendor+':',\n '\"'+String($json.draft_text||'').trim()+'\"',\n '',\n 'Nothing has been sent yet. Choose how to deliver it.'\n];\nreturn [{json:{...$json,should_send_manager_approval:qid>0&&chat&&!chat.includes('missing'),manager_approval_text:lines.join('\\n')}}];"
@@ -236,8 +236,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        2860,
-        -240
+        4480,
+        0
       ],
       "parameters": {
         "conditions": {
@@ -270,8 +270,8 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        3120,
-        -340
+        4800,
+        0
       ],
       "parameters": {
         "resource": "message",
@@ -325,8 +325,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3380,
-        -340
+        5120,
+        0
       ],
       "parameters": {
         "jsCode": "const pick=o=>String((o&&(o.message_id||(o.result&&o.result.message_id)||(o.message&&o.message.message_id)))||'');\nconst queueId=Number($('Stage Call Shared Completion Handler Format Manager Approval Card').first().json.queue_id||0);\nconst rows=$input.all().map(item=>({json:{queue_id:queueId,manager_message_id:pick(item.json)}}));\nreturn rows.length?rows:[{json:{queue_id:queueId,manager_message_id:''}}];"
@@ -338,8 +338,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        3640,
-        -340
+        5440,
+        0
       ],
       "parameters": {
         "operation": "executeQuery",
@@ -360,8 +360,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3900,
-        -160
+        5760,
+        0
       ],
       "parameters": {
         "jsCode": "return [$('Stage Call Shared Completion Handler Complete Stage And Queue Next').first()];"
@@ -373,8 +373,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        1040,
-        160
+        1920,
+        130
       ],
       "parameters": {
         "operation": "executeQuery",
@@ -395,7 +395,7 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1,
       "position": [
-        9000,
+        2240,
         0
       ],
       "parameters": {
@@ -425,7 +425,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        280,
+        320,
         0
       ],
       "parameters": {
@@ -660,7 +660,7 @@
   },
   "staticData": null,
   "pinData": {},
-  "versionId": "d4150889-b037-45ed-9fa3-4fbb1686e0cc",
+  "versionId": "f5fcf696-c1e4-4e45-8ab5-b7e9c4a7bc49",
   "triggerCount": 1,
   "tags": []
 }

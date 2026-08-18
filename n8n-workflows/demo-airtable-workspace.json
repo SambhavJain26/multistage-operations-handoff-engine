@@ -9,7 +9,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        200,
+        1920,
         0
       ],
       "parameters": {
@@ -22,7 +22,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        460,
+        2240,
         0
       ],
       "parameters": {
@@ -44,7 +44,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        720,
+        2560,
         0
       ],
       "parameters": {
@@ -57,7 +57,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        980,
+        2880,
         0
       ],
       "parameters": {
@@ -91,8 +91,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1040,
-        -100
+        3200,
+        0
       ],
       "parameters": {
         "method": "PATCH",
@@ -119,8 +119,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1300,
-        -100
+        3520,
+        0
       ],
       "parameters": {
         "jsCode": "const responses=$input.all();const sources=$('Intake Sync New Turn To Airtable Build Airtable Batches').all();const out=[];\nfor(let idx=0;idx<responses.length;idx++){\n  const source=(sources[idx]||sources[sources.length-1]||{}).json||{};\n  if(!source.entity_type||!Array.isArray(source.entity_ids))continue;\n  const records=Array.isArray(responses[idx].json.records)?responses[idx].json.records:[];\n  for(let i=0;i<records.length;i++){\n    if(source.entity_ids[i]===undefined)continue;\n    out.push({json:{caller:source.caller,entity_type:source.entity_type,entity_id:Number(source.entity_ids[i]),table_name:source.table_name,record_id:records[i].id,payload_hash:source.payload_hashes[i]}});\n  }\n}\nreturn out;"
@@ -132,8 +132,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        1560,
-        -100
+        3840,
+        0
       ],
       "parameters": {
         "operation": "executeQuery",
@@ -154,7 +154,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1820,
+        4160,
         0
       ],
       "parameters": {
@@ -187,7 +187,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        260,
+        320,
         0
       ],
       "parameters": {
@@ -212,7 +212,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        520,
+        640,
         0
       ],
       "parameters": {
@@ -225,7 +225,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        780,
+        960,
         0
       ],
       "parameters": {
@@ -247,7 +247,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1040,
+        1280,
         0
       ],
       "parameters": {
@@ -260,7 +260,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1300,
+        1600,
         0
       ],
       "parameters": {
@@ -289,7 +289,7 @@
       "typeVersion": 1.2,
       "position": [
         0,
-        -100
+        220
       ],
       "parameters": {
         "rule": {
@@ -309,7 +309,7 @@
       "typeVersion": 1.2,
       "position": [
         0,
-        100
+        440
       ],
       "parameters": {
         "inputSource": "passthrough"
@@ -321,8 +321,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        200,
-        0
+        320,
+        220
       ],
       "parameters": {
         "jsCode": "return [{json:{caller:$json||{}}}];"
@@ -334,8 +334,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        460,
-        0
+        640,
+        220
       ],
       "parameters": {
         "operation": "executeQuery",
@@ -356,8 +356,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        720,
-        0
+        960,
+        220
       ],
       "parameters": {
         "jsCode": "const base='AIRTABLE_BASE_ID_PLACEHOLDER';const caller=$('Sync Prepare Airtable Sync Run').first().json.caller||{};if(base.includes('PLACEHOLDER'))return[{json:{configured:false,caller}}];const groups=new Map();for(const item of $input.all()){const r=item.json;if(!r.table_name)continue;const key=r.table_name+'|'+r.entity_type;if(!groups.has(key))groups.set(key,[]);groups.get(key).push(r);}const out=[];for(const rows of groups.values()){for(let i=0;i<rows.length;i+=10){const chunk=rows.slice(i,i+10);out.push({json:{configured:true,caller,base_id:base,table_name:chunk[0].table_name,entity_type:chunk[0].entity_type,entity_ids:chunk.map(x=>Number(x.entity_id)),payload_hashes:chunk.map(x=>x.payload_hash),request_body:{performUpsert:{fieldsToMergeOn:['External ID']},records:chunk.map(x=>({fields:typeof x.fields==='string'?JSON.parse(x.fields):x.fields}))}}});}}return out.length?out:[{json:{configured:false,caller}}];"
@@ -369,8 +369,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        980,
-        0
+        1280,
+        220
       ],
       "parameters": {
         "conditions": {
@@ -403,8 +403,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1040,
-        -100
+        1600,
+        220
       ],
       "parameters": {
         "method": "PATCH",
@@ -431,8 +431,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1300,
-        -100
+        1920,
+        220
       ],
       "parameters": {
         "jsCode": "const responses=$input.all();const sources=$('Sync Build Airtable Batches').all();const out=[];\nfor(let idx=0;idx<responses.length;idx++){\n  const source=(sources[idx]||sources[sources.length-1]||{}).json||{};\n  if(!source.entity_type||!Array.isArray(source.entity_ids))continue;\n  const records=Array.isArray(responses[idx].json.records)?responses[idx].json.records:[];\n  for(let i=0;i<records.length;i++){\n    if(source.entity_ids[i]===undefined)continue;\n    out.push({json:{caller:source.caller,entity_type:source.entity_type,entity_id:Number(source.entity_ids[i]),table_name:source.table_name,record_id:records[i].id,payload_hash:source.payload_hashes[i]}});\n  }\n}\nreturn out;"
@@ -444,8 +444,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        1560,
-        -100
+        2240,
+        220
       ],
       "parameters": {
         "operation": "executeQuery",
@@ -466,8 +466,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1820,
-        0
+        2560,
+        220
       ],
       "parameters": {
         "jsCode": "const caller=$('Sync Prepare Airtable Sync Run').first().json.caller||{};return [{json:{...caller,airtable_sync_completed:true}}];"
@@ -738,7 +738,7 @@
   },
   "staticData": null,
   "pinData": {},
-  "versionId": "86cce9ba-0f13-4f19-8e8e-3f7c3a381618",
+  "versionId": "74fa8d10-e2b6-4b6f-a288-924db1ad59c8",
   "triggerCount": 3,
   "tags": []
 }
