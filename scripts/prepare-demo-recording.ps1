@@ -165,7 +165,15 @@ if ($SkipAirtable) {
 Step "Verifying"
 
 $active = (docker exec make-ready-postgres psql -U postgres -d n8n -t -A -c "SELECT count(*) FILTER (WHERE active) FROM workflow_entity;").Trim()
-if ($active -eq "7") { Ok "7 of 7 workflows active" } else { Fail "$active of 7 workflows active" }
+if ($active -eq "7") {
+  Ok "7 of 7 workflows active"
+} else {
+  # Name the offenders. An inactive workflow is silent: vendor messages and button
+  # presses simply do nothing, and the n8n log says nothing because it never tried.
+  $idle = (docker exec make-ready-postgres psql -U postgres -d n8n -t -A -c "SELECT string_agg(id, ', ' ORDER BY id) FROM workflow_entity WHERE NOT active;").Trim()
+  Fail "$active of 7 workflows active. Inactive: $idle"
+  Write-Host "        Fix: docker compose exec n8n n8n publish:workflow --id=<id>, then docker compose restart n8n" -ForegroundColor DarkGray
+}
 
 $leftovers = (Invoke-DemoSql "SELECT (SELECT count(*) FROM outbound_queue) + (SELECT count(*) FROM outbound_delivery) + (SELECT count(*) FROM turn WHERE NOT is_fixture);").Trim()
 if ($leftovers -eq "0") { Ok "No leftover approvals, deliveries or non-fixture turns" } else { Warn "$leftovers leftover rows across approvals, deliveries and non-fixture turns" }

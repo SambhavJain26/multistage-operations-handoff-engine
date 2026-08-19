@@ -565,3 +565,17 @@ This file is the running handoff record for future sessions. Read it before star
 - Post-redesign runtime audit on 2026-08-15: the local Compose stack runs only `make-ready-n8n` and `make-ready-postgres`; the Caddy/production template is inert and does not affect the demo. The current saved `WEBHOOK_URL` is a temporary tunnel value, so Telegram workflows must remain inactive until a fresh HTTPS tunnel is started and n8n is recreated with that URL.
 - Telegram inventory on 2026-08-15: `scripts/read-telegram-chat-ids.ps1` now uses Telegram `getChat` for configured IDs rather than `getUpdates`, which Telegram rejects while a webhook is active. Confirmed vendor bot `@make_ready_vendor_demo_bot` in Stage7 Rivera, Marias, Dale, and Statewide groups; manager bot `@make_ready_manager_demo_bot` has the direct manager chat and Stage7 Builder alert group. QuickHaul has not yet been configured.
 - Single-inbox email demo support on 2026-08-15: all fixture vendors may use `sambhavn8n@gmail.com` and that same Gmail may be the IMAP/SMTP account. `Vendor Email Ingest` now ignores a self-originated email without `In-Reply-To`; Gmail Reply messages retain the header and are accepted. This is explicitly local-demo-only, with fixture E16 and a generated-workflow simulation confirming outbound copy ignored and threaded reply accepted.
+
+## Recording Prep Run, 2026-08-19
+
+- `prepare-demo-recording.ps1` correctly reported NOT READY on a run where `demo-vendor-communications` was inactive. Every other check passed: reset, vendor contacts, both Airtable reconciliation passes, no leftovers, healthy tunnel.
+- Root cause was a workflow left inactive in `workflow_entity`. The n8n log showed nothing, because n8n only logs workflows it attempts to activate. Fixed with `n8n publish:workflow --id=demo-vendor-communications` plus a restart; all seven then activated cleanly.
+- The prep script now names the inactive workflow IDs on failure and prints the fix command, instead of reporting only a count.
+- Verified after the fix, without asking the user to press anything:
+  - Seven of seven workflows active in `workflow_entity`.
+  - Four webhook rows registered, including `demo-vendor-telegram-hook/webhook` and `demo-manager-telegram-hook/webhook`.
+  - Tunnel `WEBHOOK_URL/healthz` returns 200.
+  - Both Telegram trigger routes return 403 to an unsigned POST through the tunnel, which is n8n's secret-token rejection and proves the route is registered. An inactive or unregistered route returns 404.
+  - A manual digest execution of `demo-manager-operations` finished with status success, which means the Telegram send node returned OK. This is live proof of manager outbound over the current tunnel.
+- Not verified this run: Telegram's stored webhook URL was not read back with `getWebhookInfo`, because the bot tokens live in n8n credentials and decrypted credential export was blocked. Inbound is evidenced by route registration and by clean activation after the tunnel change, not by a read of Telegram's own record. The first manager button press confirms it.
+- Two `stall_alert` rows fired at 20:00 after the reset, so the manager chat holds two stall alerts. Keep one for demo clip 9 and delete the other before recording.
