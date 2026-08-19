@@ -387,14 +387,48 @@ ellipse; every circle that failed in build 2 was a single stroke. Length is not
 what limits the *loop* at payoff size, because the word stands alone on its
 line: "evidence." at nine characters and "knows." at six both hold.
 
-**The measure limits the word itself, and it is nine characters.** Measured, not
-estimated: "evidence." fills the 888px column with about 16px to spare and
-"emergency." at ten clips off the right edge. This is what actually decides
-whether a deck can have a payoff, so test the candidate before building the
-slide around it. There is one `.pay` size, 192px, and no smaller step — if a
-deck's landing word is genuinely longer and worth having, that is a new size in
-the scale (a multiple of 24 for its leading, plus its `.slide--invert` colours),
-not something to solve on the slide.
+**The measure limits the word itself, and it is a width, not a character
+count.** This was written here as "about nine characters" from a single
+measurement of "evidence.", and build 3 post 3 proved it wrong twice in one
+session: "anywhere." and "happened." are both nine characters and both overrun,
+one clipping off the page and one running 90px outside the column. Measure the
+candidate with `scripts/check-payoff-width.py` before building the slide.
+
+| Word | Width at 192px | Against the 888px column |
+|---|---|---|
+| `alert.` | 501px | 387px spare |
+| `delay.` | 574px | 314px spare |
+| `name.` | 583px | 305px spare |
+| `portal.` | 636px | 252px spare |
+| `Silence.` | 714px | 174px spare |
+| `nothing.` | 793px | 95px spare |
+| `survives.` | 839px | 49px spare |
+| `evidence.` | 865px | 23px spare |
+| `duration.` | 887px | 1px spare |
+| `happened.` | 978px | **90px over** |
+| `anywhere.` | 1007px | **119px over** |
+| `emergency.` | 1090px | **202px over** |
+
+There is one `.pay` size, 192px, and no smaller step. If a deck's landing word
+is genuinely wider and worth having, that is a new size in the scale (a multiple
+of 24 for its leading, plus its `.slide--invert` colours), not something to solve
+on the slide.
+
+**A deck can legitimately have no payoff, and build 3 post 3 is the case.** Its
+rewrite moved "Silence" to the front of a sentence, which removed the one-word
+sentence the earlier build landed on. Every remaining sentence-ending word in
+those eight slides is either too wide or a function word carrying nothing on its
+own: `delay.`, `alert.`, `off.`, `go.`, `way.` Zodiak stays out. Say so when
+handing the deck over rather than setting a word that is not the one the post
+lands on.
+
+**The circle has the same problem and it is worse at payoff size.** "happened."
+was circled before it was underlined, and the loop came out as a wide ring
+around the word with its left stroke through the h. The note above that length
+does not limit the loop at payoff size was measured on the eight-character
+"nothing."; a word approaching the column width has more than a loop can close
+around.
+
 
 **On the dark ground the pen goes gold**, so an inverted payoff is a gold circle
 or a gold underline. The kit's post 1 example is the reference for this: its
