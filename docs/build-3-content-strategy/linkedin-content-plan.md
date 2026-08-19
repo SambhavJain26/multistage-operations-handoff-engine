@@ -145,22 +145,27 @@ Numbered for reference, not for publishing order.
 
 ## 2. The demo — a turn moves, and nothing reaches a vendor without a person
 
-**Format:** native video, 3-4 minutes · **Framework:** scene structure from `docs/operating-guide.md` · **Pillar:** proof · **CTA:** soft — offer to walk through it
+**Format:** native video, about 6 minutes 30 seconds · **Framework:** scene structure from `docs/operating-guide.md` · **Pillar:** proof · **CTA:** soft, offer to walk through it
 
-**Why not the short-form template:** at 3-4 minutes this sits outside short-form video, where the 0-3 second hook rules apply.
+**Why not the short-form template:** at this length it sits outside short-form video, where the 0-3 second hook rules apply. Builds 1 and 2 ran their demos at 2:40 and above, and this build has more mechanism to show.
+
+**This is the only shoot in the plan.** Every short-form video post is cut from this recording, carrying its original audio with no new voiceover. The script in `linkedin-post-scripts.md` is therefore written as ten numbered clips with shoot rules, not as a continuous walkthrough.
 
 **Hook angle:** Open on the morning list and immediately do the thing. No preamble, no introduction, no face.
 
 **The turn:** Everything the viewer sees happens because a vendor sent an ordinary message in ordinary words. Nobody logged into anything. Nobody filled in a form. And at the one moment where a decision mattered, the automation stopped and waited for a person.
 
-**Scope — this video must cover the whole mechanism.** Six beats, in order:
+**Four surfaces must appear at least once:** Airtable, a workflow open in the n8n editor, Telegram, and a vendor mailbox. "Built inside tools you already have" is a claim, and those four frames are the evidence for it.
+
+**Scope — this video must cover the whole mechanism.** Beats, in order:
 
 1. **The morning list.** Six units ranked worst-first, with days at stage and rent burned. Point out that the unit at the top is not the unit that has cost the most, and say why.
 2. **A full loop on one unit.** A vendor replies in plain language. It is matched to the right unit and stage, the order is checked, the stage completes, the next vendor's handoff is drafted, and it stops. Then the channel choice — Email, Message, or Both — and the vendor receives it. Airtable updates behind it.
 3. **The block.** Attempt a stage out of order and let it refuse, on screen, with the plain-language reason.
 4. **The ambiguity.** One vendor holding two units at the same stage says "done." Show how the reply resolves to the right one, and say plainly what happens when it cannot.
 5. **The silence.** A stall alert for a unit where nothing happened. Nothing arrived; that is the point.
-6. **The limits, unhurried.** Twenty seconds, no defensiveness: it does not write to your PMS, it does not choose the vendor, it does not tell the resident anything, and it will not message a vendor without a tap.
+6. **Inside the workflows.** Open n8n: seven workflows, the single node where a model is asked anything, and the two nodes that are the entire outbound surface.
+7. **The limits, unhurried.** Twenty seconds, no defensiveness: it does not write to your PMS, it does not choose the vendor, it does not tell the resident anything, and it will not message a vendor without a tap.
 
 **Evidence:** Live fixture data on screen. The channel buttons. The refusal reason. The stall alert landing on a phone.
 
@@ -168,7 +173,7 @@ Numbered for reference, not for publishing order.
 
 **Framing discipline:** "Here's something I built for a property management company's turnover process." Never "here's my product." No dashboard appears in this video because none exists.
 
-**Capture note:** Synthetic fixtures only, stated on screen. Run the full cleanup first so the board opens in its known state, and check the Airtable view sort before recording — see the operating guide.
+**Capture note:** Synthetic fixtures only, stated on screen. Run `scripts/prepare-demo-recording.ps1` first so the demo opens in its known state, and check the Airtable view sort before recording. See the operating guide, and the shoot rules and capture checklist in `linkedin-post-scripts.md`.
 
 ---
 
@@ -324,15 +329,15 @@ Numbered for reference, not for publishing order.
 
 ## 12. There is no dashboard
 
-**Format:** native video, 45-60 seconds, cut from the demo recording · **Pillar:** failure lessons, reframed to positioning · **CTA:** none
+**Format:** native video, roughly 65 seconds, cut from the demo recording · **Pillar:** failure lessons, reframed to positioning · **CTA:** none
 
-**Rebuilt 2026-08-18.** The original version was about a board that was built during development and later removed. That post is not being made: no board is being filmed or shown, and the short videos are cuts from the demo rather than separate shoots. The post keeps its job, which is to prove "this is not a product" through an action rather than a claim, and takes a different action to prove it.
+**Rebuilt 2026-08-18.** The original version was about a board that was built during development and later removed. That post is not being made: no board is being filmed or shown, and the short videos are cuts from the demo rather than separate shoots, carrying the demo's own audio with no new voiceover. The post keeps its job, which is to prove "this is not a product" through an action rather than a claim, and takes a different action to prove it.
 
 **Hook angle:** Open on the manager's Airtable, mid-frame, with the line from the demo: this is their base, not something I built for them to open.
 
 **The turn:** Everything this automation produces lands in tools the company already pays for. There is no screen that exists only because I exist. That is the whole difference between an automation and a product, and it is visible rather than asserted: the video ends by listing what the automation refuses to do, including messaging a vendor without a person tapping a button.
 
-**Evidence:** The Airtable frame from demo beat 2, showing turns, stages and vendors in the client's own base. The limits frame from demo beat 7. The concrete consequences: nothing to log into, no seats, and if the builder disappears the client keeps everything and any n8n developer can maintain it.
+**Evidence:** Demo clip 4, the Airtable frame showing turns, stages and vendors in the company's own base. Demo clip 10, the limits. Both clips are scripted in `linkedin-post-scripts.md` to stand alone and to say out loud everything this post needs, so the assembly is two cuts and one title card. The concrete consequences: nothing to log into, no seats, and records anybody can open, sort, filter and export without the builder.
 
 **Takeaway:** Before paying anyone to automate part of your business, ask where the output lands. If it lands on a screen only they can maintain, that is software with extra steps.
 
