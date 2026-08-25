@@ -579,3 +579,20 @@ This file is the running handoff record for future sessions. Read it before star
   - A manual digest execution of `demo-manager-operations` finished with status success, which means the Telegram send node returned OK. This is live proof of manager outbound over the current tunnel.
 - Not verified this run: Telegram's stored webhook URL was not read back with `getWebhookInfo`, because the bot tokens live in n8n credentials and decrypted credential export was blocked. Inbound is evidenced by route registration and by clean activation after the tunnel change, not by a read of Telegram's own record. The first manager button press confirms it.
 - Two `stall_alert` rows fired at 20:00 after the reset, so the manager chat holds two stall alerts. Keep one for demo clip 9 and delete the other before recording.
+
+## Documentation Rewrite, 2026-08-19
+
+Rewrote `docs/how-the-system-works.md` and created `docs/build-technical-notes.md`. Every figure in both was measured from the committed build or from a recorded run; nothing was carried over from memory.
+
+**`how-the-system-works.md` was rewritten, not patched.** Four of its claims had been reversed by later decisions rather than merely aged:
+
+- It said managers "skip, snooze, chase, cancel, or mark work done" in Telegram. The digest has offered only `Done` and `Chase` since 2026-08-18. `SKIP`, `SNOOZE` and `CANCEL` still parse in `Manager Parse Manager Update` and still work through `Apply Manager Action`, but no surface renders them, so the sentence described controls a manager cannot reach.
+- It listed **Caddy** in "What Each Service Does" alongside Airtable, Telegram and Postgres. Caddy appears only in `docker-compose.production.yml`, which is inert. The local stack is two containers. In a client-facing table this reads as a component of the running system.
+- It described a "typical handoff" in nine steps ending at Airtable, with no refusal, no ambiguity escalation, no unknown-sender path and no stall alert. The refusals are the most defensible part of the build and the document omitted them entirely.
+- Its closing pilot section listed seven measures with no statement that the vendor reply rate is the variable that decides whether the automation is viable at all, and no statement that fixture verification is not a customer result.
+
+**Irreversible-action audit.** Of **201 nodes across seven workflows, exactly two can contact a vendor**: `Delivery Send Vendor Email` (the only `emailSend` node in the build) and `Delivery Send Vendor Telegram`. Both are in Vendor Delivery, which has no trigger of its own; its sole caller is `Manager Call Vendor Delivery Dispatcher`, whose inbound chain traces unbroken to `manager-managertelegramtrigger`. Of the 21 Telegram nodes, 17 send to `manager_chat_id`, one is `answerQuery`, one alerts `builder_chat_id`, one is an inbound photo `get`, and one reaches a vendor. `Delivery Send Failed Channel Retry` is a manager alert despite its name.
+
+Two supporting audits: all ten HTTP Request nodes resolve to exactly two hosts (`api.openai.com`, four calls; Airtable, six). There is no PMS node, no PMS credential, and no SMS node of any kind.
+
+**Not measured, and therefore stated as absent in both documents:** end-to-end latency, token usage and model cost (the stage-7 report's `$0.00` is an absence of measurement, not a measurement of zero), model accuracy as a rate, and behaviour above six turns.
