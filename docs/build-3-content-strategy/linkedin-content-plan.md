@@ -62,13 +62,13 @@ The subject explains itself: a rental sits empty between tenants, and someone ha
 | Format | Count | Posts |
 |---|---|---|
 | Document carousel | 4 | 1, 3, 5, 14 |
-| Native video | 1 | 2 (demo) |
+| Native video | 2 | 2 (demo), 12 |
 | Single image | 2 | 8, 11 |
-| Text | 8 | 4, 6, 7, 9, 10, 12, 13, 15 |
+| Text | 7 | 4, 6, 7, 9, 10, 13, 15 |
 
 **Revised 2026-08-18.** The short videos are cuts from the demo recording, not separate shoots, so a post can only be video if that moment exists in the demo footage. Post 10 moved to text because the demo does not contain the defect it describes. Post 12 was rewritten around the Airtable and limits footage.
 
-**Revised again 2026-08-29, after the demo was recorded.** The recording took a different route from the script and does not contain the two clips post 12 was rebuilt on, so **post 12 is now text as well and the demo is the only video in the set.** What the recording does and does not contain is written down in batch 2 of `linkedin-post-scripts.md`, and no post may claim a beat that is not on the tape. An optional forty-second pickup, specified in post 12, would restore the video version.
+**Revised again 2026-08-29, after the demo was recorded.** The recording took a different route from the script and contains neither of the clips post 12 had been rebuilt on. **Post 12 stays a video and was rebuilt a second time on footage that does exist**, which turned out to be a better version of the same argument. The split is unchanged. What the recording does and does not contain is written down in batch 2 of `linkedin-post-scripts.md`, and **no post may claim a beat that is not on the tape.**
 
 **Carousels carry the four highest-teaching posts in the set, and video carries the rest of the value.** This is deliberate and was set as a requirement: on LinkedIn, carousels and video are where people expect to receive something worth keeping. Positioning and proof go in text, where lower reach costs nothing.
 
@@ -172,7 +172,7 @@ Numbered for reference, not for publishing order.
 9. **The loop repeats.** The same unit goes round a third time.
 10. **Inside the workflow.** n8n executions for Vendor Communications, and the OpenAI node output.
 
-**Four beats that were planned are not on the tape:** the refusal, the stall alert, a demonstrated ambiguity resolution, and the spoken limits. They exist in the build and several are fixture-verified. They are absent from this recording, which is why post 12 is now text and why nothing anywhere may say the video shows them.
+**Four beats that were planned are not on the tape:** the refusal, the stall alert, a demonstrated ambiguity resolution, and the spoken limits. They exist in the build and several are fixture-verified. They are absent from this recording. Post 12 was rebuilt on footage that does exist rather than changed to text, and nothing anywhere may say the video shows a beat that is not on the tape.
 
 **Evidence:** Live fixture data on screen. The Done and Chase buttons. The three channel buttons on every approval. Deliveries arriving in two vendor groups and an inbox. Airtable advancing three times on one unit.
 
@@ -182,7 +182,7 @@ Numbered for reference, not for publishing order.
 
 **Framing discipline:** "Here's something I built for a property management company's turnover process." Never "here's my product." No dashboard appears in this video because none exists.
 
-**Capture note, now retrospective.** Synthetic fixtures only, stated on screen, **plus the single-mailbox line on every email frame.** The recording is made; the shoot rules and capture checklist are kept in `linkedin-post-scripts.md` for the optional pickup and for any future re-record. Before any short is cut from this tape: transcribe it, fill in the timecodes, and test each segment for back-references and sentences running across its edges. Those rules were written to make clips liftable and were not applied to this take, so which segments actually stand alone is an open question about the footage rather than something this plan can assert.
+**Capture note, now retrospective.** Synthetic fixtures only, stated on screen, **plus the single-mailbox line on every email frame.** The recording is made and nothing is being re-shot; the shoot rules and capture checklist are kept in `linkedin-post-scripts.md` for any future recording. Before any short is cut from this tape: transcribe it, fill in the timecodes, and test each segment for back-references and sentences running across its edges. Those rules were written to make clips liftable and were not applied to this take, so which segments actually stand alone is an open question about the footage rather than something this plan can assert.
 
 ---
 
@@ -342,21 +342,21 @@ Numbered for reference, not for publishing order.
 
 ## 12. There is no dashboard
 
-**Format:** text, 250-300 words · **Pillar:** failure lessons, reframed to positioning · **CTA:** none
+**Format:** native video, roughly 60 seconds, cut from the demo recording · **Pillar:** failure lessons, reframed to positioning · **CTA:** none
 
-**Rebuilt 2026-08-18, then moved to text 2026-08-29.** The original version was about a board built during development and later removed; no board is filmed or shown, so that post is not being made. It was rebuilt as two cuts from the demo, clip 4 where the output lands and clip 10 the limits. **The recording contains neither.** The post keeps its job, which is to prove "this is not a product" through something other than a claim, and makes the argument in text, which needs no footage because both halves are properties of the build rather than claims about a tape.
+**Rebuilt twice.** The original version was about a board built during development and later removed; no board is filmed or shown, so that post is not being made. It was rebuilt on 2026-08-18 as two cuts from the demo, clip 4 where the output lands and clip 10 the limits. **The recording contains neither**, so on 2026-08-29 it was rebuilt again on footage that does exist. It remains a video, assembled only from the main demo with no pickup and no new audio.
 
-**A forty-second pickup would restore the video version**, and is worth recording regardless: volunteering limits on camera is the thing almost nobody in this category does. Specified in `linkedin-post-scripts.md`.
+**The third version is the strongest.** The planned cut would have told the viewer that the base belongs to the company and then told them what the automation refuses to do. The recording instead shows a manager who never opens anything custom, vendors who never open anything at all, and an approval that stops the machine every time it wants to send. Actions rather than sentences, which is what this post was always meant to be.
 
-**Hook angle:** Open on the question, not on a screen. Before you look at what an automation does, ask where its output lands.
+**Hook angle:** Open on the question over the company's own Airtable. Before you look at what an automation does, ask where its output lands.
 
 **The turn:** Everything this automation produces lands in tools the company already pays for. There is no screen that exists only because I exist. That is the whole difference between an automation and a product, and it is visible rather than asserted: the video ends by listing what the automation refuses to do, including messaging a vendor without a person tapping a button.
 
-**Evidence:** Where the records live, which is Airtable plus Telegram, both already paid for. The concrete consequences: nothing to log into, no seats, and records anybody can open, sort, filter and export without the builder. Then the limits: it does not write to the PMS, does not choose the vendor, does not talk to the resident, and will not message a vendor without a tap. **All of these are properties of the build, stated directly, rather than claims about footage.**
+**Evidence:** Three demo segments and four cards. Airtable with a stage advancing, the two vendor Telegram groups receiving their messages, and the approval carrying Email, Message and Both. Every surface a viewer sees is one the company already paid for, and the pause before anything sends happens on screen. The limits are carried as on-screen text and post copy: it does not write to the PMS, does not choose the vendor, does not talk to the resident, and will not message a vendor without a tap. **Three of those four are not demonstrated on the tape and are stated as properties of the build. The fourth, the tap, is shown repeatedly and is the beat the edit is built on.**
 
 **Takeaway:** Before paying anyone to automate part of your business, ask where the output lands. If it lands on a screen only they can maintain, that is software with extra steps.
 
-**Discipline:** This carries the positioning that "I don't sell software" carries in builds 1 and 2, and **that post is not repeated here.** Never state the slogan. Do not disparage anyone who builds dashboards; the claim is about where output belongs, not about a category of tool. **No board is shown, mentioned, or implied.** There is no client, so any possessive about the base describes the delivery model rather than a live account. **The limits are stated as what the build does, not as something the video shows**, because the recording does not contain them.
+**Discipline:** This carries the positioning that "I don't sell software" carries in builds 1 and 2, and **that post is not repeated here.** Never state the slogan. Do not disparage anyone who builds dashboards; the claim is about where output belongs, not about a category of tool. **No board is shown, mentioned, or implied.** There is no client, so any possessive about the base describes the delivery model rather than a live account. **Three of the four limits are stated as what the build does, never as something the video shows**, because the recording does not contain them. **No Gmail frame in the default cut**, which keeps it clear of the single-mailbox disclosure; adding one makes that disclosure mandatory.
 
 ---
 

@@ -448,11 +448,11 @@ Written down because three posts were built on the assumption that it did, and b
 | The refusal. A stage marked done that the order does not allow, refused on screen with its reason | **Not recorded** | No post may claim the video shows it. The refusal still exists in the build; it is simply not on this tape |
 | The stall alert. A unit where nothing arrived at all | **Not recorded** | Post 3 is a carousel and does not depend on footage, so it is unaffected |
 | The ambiguity. One vendor with two units at the same stage replying "done" | **Not recorded** as a demonstrated resolution. Rivera Painting does hold both 12B and 14A on screen, so the *setup* is visible, but no ambiguous reply is sent and no resolution is narrated | **Post 11's still does not exist.** See batch 5 |
-| The limits. "What it does not do", spoken over a static frame | **Not recorded** | **This is what breaks post 12.** See batch 3 |
+| The limits. "What it does not do", spoken over a static frame | **Not recorded** | Post 12 was rebuilt without it. The limits are stated there as authored on-screen text and post copy, never as something the video demonstrates. One of the four, the tap before anything sends, is on the tape repeatedly |
 | Seven workflows visible in the n8n list, the policy node, and the two outbound send nodes | **Not recorded.** Only the Vendor Communications executions and the OpenAI node output | No post may say "two nodes are the entire outbound surface" on the strength of this video |
 | The ranking argument, that the unit at the top of the list is not the one that has cost the most | **Unconfirmed.** The digest and its numbers are explained, but this specific claim is not reported as spoken | Check the audio before cutting anything that needs it. **Post 8 depends on it** |
 
-**Nothing here is a defect in the build.** Every one of these behaviours exists and several are verified in fixtures. They are absent from one recording, which is a different problem with a different fix: either they get a pickup recording, or the posts that need them stop being video posts.
+**Nothing here is a defect in the build.** Every one of these behaviours exists and several are verified in fixtures. They are absent from one recording, which is a different problem and has three possible fixes rather than two: re-record the beat, drop the post to a format that needs no footage, or find the footage on the tape that makes the same argument another way. **Post 12 took the third and came out better for it**, so try that one first.
 
 ---
 
@@ -479,15 +479,15 @@ What can be cut from the recording. **Standalone status is marked "check" for ev
 | A. The morning list | S1 | short | check | spare, and the likeliest strong one |
 | B. The sequence, in Airtable | S2 | short | check | spare |
 | C. The coordination problem today | S3 | short | check | spare |
-| D. Acting from the digest | S4 to S7 | medium | check | spare |
-| E. Where the deliveries land | S8 to S10 | medium | check | spare, **needs the mailbox disclosure** |
+| D. Acting from the digest | S4 to S7 | medium | check | **post 12, the approval beat, S6 to S7** |
+| E. Where the deliveries land | S8 to S10 | medium | check | **post 12, S8 and S9 only.** The full clip needs the mailbox disclosure; post 12 avoids the Gmail frame |
 | F. A vendor replies and the next stage drafts | S11 to S12 | medium | check | spare, the most valuable minute on the tape |
-| G. The record updates | S13 | short | check | spare |
+| G. The record updates | S13 | short | check | **post 12, opening.** S16 is the same view later and is an equivalent take |
 | H. Inbound by email, and the loop ending | S14 to S15 | medium | check | spare, **needs the mailbox disclosure** |
 | I. The loop repeating on one unit | S17 to S18 | medium | check | spare |
 | J. Inside the workflow | S19 | medium | check | spare, builder audience |
 
-**Every clip is currently a spare.** Post 12 was the only short assigned to this recording and it no longer has its footage. See batch 3.
+**Post 12 takes three of these**, S13 for where the output lands, S8 and S9 for the surfaces the vendors already had, and S6 to S7 for the approval that stops everything. The rest are spares, which is eight unused segments in a set containing exactly two videos. At least one more short is worth cutting once the tape is transcribed.
 
 **Three segments are stronger than anything in the original plan**, and they are worth saying out loud because they were not designed, they happened:
 
@@ -574,7 +574,7 @@ The first two lines are what shows before "show more".
 
 ## If the demo is ever re-recorded
 
-These rules were written for the original shoot and were not applied to the take that exists. They are kept because they are the difference between a recording that yields shorts and one that does not, and because the pickup described in batch 3 should follow them.
+These rules were written for the original shoot and were not applied to the take that exists. They are kept because they are the difference between a recording that yields shorts and one that does not. Nothing in the current plan asks for another shoot; these apply if one is ever wanted.
 
 1. **Start and end every clip on a still frame.** Two seconds with nothing moving and the cursor parked in a corner, before you speak and after you stop.
 2. **Never let a sentence cross a clip boundary.** Finish the sentence, stop talking, stop moving, then leave three full seconds of silence.
@@ -604,21 +604,21 @@ These rules were written for the original shoot and were not applied to the take
 **Hashtags for LinkedIn:** #propertymanagement #propertymanagers #automation #multifamily
 
 
-# Batch 3: Posts 12 and 10, both now text
+# Batch 3: Post 12 (a cut from the demo) and post 10 (now text)
 
-**Constraint that rebuilt this batch:** the short videos are **cuts from the main demo recording**, not new shoots, and they carry no new voiceover. A post can only be a video if that moment already exists in the footage, saying out loud what the post needs said.
-
-That constraint has now removed the video format from both posts in this batch, in two separate passes:
+**Constraint that governs this batch:** the short videos are **cuts from the main demo recording**, not new shoots, and they carry no new voiceover. A post can only be a video if the moment it needs already exists in the footage.
 
 | Post | Needed footage | Verdict |
 |---|---|---|
 | 10, the attribution bug | A card crediting a vendor who said nothing | The demo never shows that defect. **Format changed to text, 2026-08-18** |
 | 12, the deleted dashboard | The old board | No board is shown and none is filmed. **Rewritten as a different argument, 2026-08-18** |
-| 12, rewritten | Demo clips 4 and 10, where the output lands and the limits | **Neither is in the recording that was made. Format changed to text, 2026-08-29** |
+| 12, rewritten | Demo clips 4 and 10, where the output lands and the limits | Neither is in the recording that was made. **Rebuilt again on footage that is, 2026-08-29. Still a video** |
 
-**Post 12 kept its job and lost its story, twice.** Its job is to prove "this is not a product" through something other than a claim. The deleted board was one way. The demo was meant to be the second: the manager surface is a base the company owns, and the video ends by listing what the automation refuses to do. The recording contains neither of those things said out loud, so the argument is made in text instead, which needs no footage because both halves are properties of the build rather than claims about a tape.
+**Post 12 kept its job and changed its evidence, twice.** Its job is to prove "this is not a product" through something other than a claim. The deleted board was one way. A narrated Airtable frame plus a spoken list of limits was the second, and the recording contains neither.
 
-**A forty-second pickup would restore the video version.** It is specified inside post 12 below, along with the reason to record it regardless of what this post ends up being.
+**The third version is the strongest of them, and it is an accident of how the demo was actually shot.** The planned cut would have told you the base belongs to the company and then told you what the automation refuses to do. The recording instead shows a manager who never opens anything custom, vendors who never open anything at all, and an approval that stops the machine every single time it wants to send something. Actions rather than sentences, which is what this post was always meant to be. It is assembled from segments S6 to S9 and S13, with cards carrying the argument over the demo audio.
+
+**No pickup is recorded and no new audio exists anywhere in this batch.**
 
 **No board, no dashboard, and no reference to either being deleted** appears anywhere below.
 
@@ -626,43 +626,81 @@ That constraint has now removed the video format from both posts in this batch, 
 
 ## Post 12. There is no dashboard
 
-**Format:** text, 250 to 300 words · **Pillar:** failure lessons, reframed to positioning · **CTA:** none
+**Format:** native video, roughly 60 seconds, cut from the demo · **Pillar:** failure lessons, reframed to positioning · **CTA:** none
 
-**Format changed 2026-08-29, from video to text.** This is the second time this post has lost its footage, and the reason is worth keeping rather than quietly fixing.
+**No shoot, no pickup, no new audio.** This post is cuts from the main demo recording only, carrying their original audio, exactly as recorded.
 
-The video version was two cuts from the demo: clip 4, where the output lands, and clip 10, the limits. **Neither exists in the recording that was made.** The limits segment was not recorded at all, and the Airtable frames that were recorded are about how a turn is sequenced, not about who owns the base. The post needs both halves said out loud, the rule for short-form posts is that they carry no new voiceover, and a cut cannot say something the tape does not.
+**Rebuilt 2026-08-29 against the recording that exists.** The previous version was demo clips 4 and 10, where the output lands and the limits. Neither is on the tape. The post keeps its job and changes which moments prove it, because the recording proves the same thing with different footage.
 
-So it follows post 10 and becomes text. **The argument does not need footage.** Both halves are properties of the build rather than claims about a recording: where the records live, and what the automation refuses to do. Text states them directly and costs nothing.
+**What changed in the argument, and why it is not a downgrade.** The planned version proved "this is not a product" by narrating it: a line over the Airtable frame saying the base belongs to the company, then a spoken list of limits. The recording proves it by *doing* it. Across the whole video the manager never opens anything custom, and the vendors never open anything at all. The surfaces are Telegram, Gmail and Airtable, and the automation stops at an approval every single time it wants to send something. That is the argument made in actions rather than in sentences, which is what the post was always supposed to be.
 
-**The alternative, if you would rather have the video.** Record one pickup, about forty seconds, one static frame, following the shoot rules in batch 2. Just the limits, spoken slowly with a beat between each sentence:
+### Assembly
 
-> What this does not do. It does not write into your property management system. It does not choose which vendor gets the job. It does not tell the resident anything. And it will not message a vendor without a person tapping a button. Ignoring the card is a valid answer. Nothing goes out.
+Four segments and four cards. Roughly 60 seconds.
 
-That single pickup would restore the video version of this post and would also be the most reusable forty seconds in the whole set, because volunteering limits is the thing almost nobody in this category does. **Recommendation: record it when convenient, ship the text version now.** They do not conflict, and the text below is written to stand on its own either way.
+| Order | Source | Runtime | On-screen text |
+|---|---|---|---|
+| 1 | Title card | 1.5s | `Where does the output land?` |
+| 2 | Segment S13 or S16, Airtable Stages with the status advanced | about 15s | `Airtable. Already paid for.` held over the first 4s |
+| 3 | Segments S8 and S9, the two vendor Telegram groups receiving their messages | about 15s | `Telegram. The vendors were already in it.` held over the first 4s |
+| 4 | Title card, hard cut both sides | 1.5s | `And where does it stop?` |
+| 5 | Segments S6 to S7, the three approval cards, then a channel pressed | about 20s | `It drafts. Then it waits.` held over the first 4s |
+| 6 | Closing card | 4s | `It does not write to your PMS. It does not choose the vendor. It does not talk to your resident.` |
+| 7 | Closing card | 4s | `And nothing goes out until somebody taps.` |
 
-### The post
+**Use S8 and S9 only, not S10.** Two Telegram groups make the point on their own, and leaving the Gmail frame out keeps the cut clear of the single-mailbox disclosure. If you do want the email delivery in, the disclosure line from batch 2 becomes mandatory on that frame.
 
-> Before you look at what an automation does, ask where its output lands.
+### The audio question, which decides this edit
+
+**This document does not know what was said over these segments,** because the recording was not made from a dictated script. That is not a hedge, it is the one thing to settle before cutting.
+
+**The test.** Play segments 2, 3 and 5 with the picture off and listen. Three outcomes:
+
+- **The audio supports the cards.** Most likely: over Airtable the narration is about a stage advancing, over the vendor groups it is about delivery, over the approvals it is about choosing a channel. None of that fights the argument. It demonstrates while the cards assert. **Cut as specified.**
+- **The audio is neutral or thin.** Also fine. The cards carry it.
+- **The audio actively fights a card**, for example a sentence in segment 2 that is entirely about sequencing dependencies. **Move the card off that beat rather than rewriting it**, or swap S13 for S16, which is the same Airtable view later in the recording and gives you a second take of the same shot for free.
+
+**The fallback, and it is a real one rather than a consolation.** If none of the audio serves this post, run the cut muted with the cards and subtitles carrying everything. Most LinkedIn video is watched muted anyway, so a silent cut with burned-in text is the normal case for a sixty-second post, not a compromise. What is not allowed is recording something new over it.
+
+### Edit notes
+
+- **Original demo audio only, or none.** Nothing is recorded over this footage under any circumstances.
+- The three surfaces have to be legible at a glance, because the whole argument is that a viewer recognises them. If a frame needs a crop to be readable, crop it.
+- Subtitles burned in wherever there is audio. Two lines maximum, three to five words per line.
+- Hard cuts at every join. No fades.
+- Original audio only. No trending sound, no music bed.
+- If the vertical crop is needed, crop the Airtable frame to the record rather than the full table; the table does not survive 9:16 legibly.
+- **Cards 6 and 7 state what the build does, not what the video shows.** Three of those four limits are not demonstrated anywhere in this recording. The fourth one is: the approval in segment 5 is the tap, on screen, which is why it is the beat the cards land on.
+
+### LinkedIn post text
+
+> If you are paying somebody to automate part of your business, ask where the output lands.
 >
-> If the answer is a screen the builder made, you are buying software with extra steps. You pay for it, your team gets trained on it, and the day that person stops answering their phone it becomes a screen nobody can maintain.
+> If the answer is a screen they built, you are buying software with extra steps. You pay for it, your team gets trained on it, and the day that person stops answering their phone it becomes a screen nobody can maintain.
 >
-> The make-ready build I have been posting about has no screen of mine in it. The turns are in Airtable. So are the stages, the vendors, every message and every approval. Ordinary records anybody can open, sort, filter and export with me nowhere in the room. The manager works in Airtable and Telegram, and both of those were paid for before I arrived.
+> There is no screen of mine in this one. The turns, the stages, the vendors, the messages and the approvals are all in Airtable. The manager works in Airtable and Telegram. The vendors reply in the group chat they were already in, or by email. Every surface in this clip is one the company was already paying for before I turned up.
 >
-> Nothing new to log into. No seats. No screen only I understand.
+> Nothing new to log into. No seats. Nothing anybody has to be trained on.
 >
 > Then ask the second question, which is where it stops.
 >
-> It does not write into your property management system. It does not choose which vendor gets the job. It does not tell the resident anything. And it will not message a vendor without a person tapping a button. Ignoring the approval is a valid answer, and nothing goes out.
+> It drafts the next vendor's message and waits. Every time. That pause is the whole design, and it is the reason the automation cannot embarrass you: it does not write into your property management system, it does not choose which vendor gets the job, it does not tell the resident anything, and it will not message a vendor until somebody taps.
 >
-> Those two questions are worth more than a feature list. Where does it land, and where does it stop. The first tells you whether you own the result when the engagement ends. The second tells you what it does when nobody is watching.
+> Ignoring the approval is a valid answer. Nothing goes out.
+>
+> Ask both questions when somebody shows you an automation. Where does it land, and where does it stop. The first tells you whether you own the result when the engagement ends. The second tells you what it does when nobody is watching.
+>
+> Synthetic fixtures throughout. Test units, test vendors, nobody real contacted.
 
 ### Discipline check
 
 - **The slogan "I don't sell software" is never stated.** That post belongs to builds 1 and 2 and is not repeated here.
 - Nobody who builds dashboards is disparaged. The claim is about where output belongs, not about a category of tool.
 - No board is shown, mentioned, or implied.
-- **The limits are stated as properties of the build, which they are, and not as something the video shows.** The recording does not contain them. If the pickup above is filmed, that changes, and this post can go back to video with no rewriting of the argument.
-- "Before I arrived" describes the delivery model. It does not claim a live client account, because there is not one.
+- **The limits appear as authored text and as post copy, never as something the video demonstrates.** Three of the four are not on the tape. The fourth, the tap before anything sends, is on the tape repeatedly and is the beat the edit is built on. Keep that distinction if anyone asks in the comments.
+- **No Gmail frame in the default cut**, so the single-mailbox disclosure does not apply. It becomes mandatory the moment one is added.
+- "Before I turned up" describes the delivery model. It does not claim a live client account, because there is not one.
+- **The assembly is unverified until the tape is transcribed.** Segment boundaries and the audio test in this section are the gate, not this document.
 
 **Hashtags:** #propertymanagement #automation #propertymanagers
 
@@ -707,23 +745,23 @@ That single pickup would restore the video version of this post and would also b
 
 Recorded here so `linkedin-content-plan.md` can be updated to match.
 
-**Format split, after two passes.** Post 10 moved to text on 2026-08-18. Post 12 moved to text on 2026-08-29, once the recording turned out not to contain either of the clips it was built on:
+**Format split.** Post 10 moved to text on 2026-08-18 and has stayed there. Post 12 stays video:
 
-| Format | Planned | After 08-18 | Now | Posts |
-|---|---|---|---|---|
-| Document carousel | 4 | 4 | 4 | 1, 3, 5, 14 |
-| Native video | 3 | 2 | **1** | 2 |
-| Single image | 2 | 2 | 2 | 8, 11 |
-| Text | 6 | 7 | **8** | 4, 6, 7, 9, 10, 12, 13, 15 |
+| Format | Was | Now | Posts |
+|---|---|---|---|
+| Document carousel | 4 | 4 | 1, 3, 5, 14 |
+| Native video | 3 | **2** | 2, 12 |
+| Single image | 2 | 2 | 8, 11 |
+| Text | 6 | **7** | 4, 6, 7, 9, 10, 13, 15 |
 
-Still fifteen posts. **The demo is now the only video in the set**, which puts more weight on it and is a reason to cut at least one short from the spares in batch 2 once the tape has been transcribed.
+Still fifteen posts. Post 12 was briefly moved to text on 2026-08-29 when the clips it was built on turned out not to exist, and moved back the same day once the recording was read for what it does contain rather than for what it was missing. **The lesson is worth keeping:** the first response to absent footage was to change the format, and the better response was to find the footage that makes the same argument. Batch 2 lists eight further segments that nothing is using yet.
 
 **Posts 8 and 11 are affected differently, and only one of them still has its still.**
 
 - **Post 8, the ranked morning list.** The digest is on the tape with six units and their numbers explained. The still exists. What is not confirmed is the post's actual argument, that the unit at the top is not the one that has cost the most. **Check the digest against the fixtures before building the image**, because if the recorded digest does not happen to show that comparison the post needs a fresh capture with fixtures that do.
 - **Post 11, one vendor with two units.** Unaffected, and the earlier note in this plan that it was "a still the demo already contains" was wrong even before the recording. Its image is a **composed graphic**, a message bubble over two simplified unit cards, not a frame lifted from anything. It needs no footage. The recording happens to contain the setup, since Rivera Painting holds both 12B and 14A, but the post never needed it. The behaviour the copy describes is fixture-verified, which is what that copy rests on.
 
-**One video moment no longer traces to footage**, and that is post 12's. It is text now. Nothing else in the plan asks for a second shoot, and the one pickup that is worth recording is optional and specified in post 12.
+**Every video moment in the plan traces to footage that exists.** Post 12 lost the two clips it was built on and was rebuilt from segments S6 to S9 and S13 rather than losing its format. Nothing in this plan asks for a second shoot or for a frame of new audio.
 
 ---
 
