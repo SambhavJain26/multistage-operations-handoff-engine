@@ -397,411 +397,228 @@ Cover: 500 dominant, qualifier small underneath. Slides 5 to 7 carry a consisten
 
 ## Post 2. The demo, a turn moves and nothing reaches a vendor without a person
 
-**Format:** native video on LinkedIn, about 6 minutes 30 seconds, plus a YouTube upload · **Pillar:** proof · **CTA:** soft
+**Format:** native video on LinkedIn, plus a YouTube upload · **Pillar:** proof · **CTA:** soft
 
-**Not scripted from `short-form-video.md`.** At this length the 0 to 3 second hook rules do not apply. The structure below is scene-based, taken from `docs/operating-guide.md`.
+**Recorded 2026-08-29. This section now describes the recording that exists, not the one that was planned.**
 
-**This recording is the only shoot in the entire plan.** Every short-form video post is cut from it, carrying its original audio, with no new voiceover. That constraint changed how this script is written. It is a list of clips, each built to stand alone with its own audio, rather than a continuous walkthrough that gets chopped up afterwards.
+The original script called ten clips with exact timecodes and exact lines to say. The recording took a different route, and it is the recording that is real. Everything below has been rewritten to describe what is on the tape, so that clips can be cut from it and no post claims something the footage does not show.
 
-**Two surfaces, one file.** LinkedIn native video and YouTube. The footage is identical. The post text and the YouTube title and description are written separately below, because the two audiences arrive differently: LinkedIn readers are scrolling, YouTube viewers are searching.
+**Two things follow from that, and both are load-bearing.**
+
+First, **the spoken lines are no longer written here.** They were spoken live and this document did not dictate them. Nothing in this file should be treated as a transcript. Before any clip is cut, transcribe the segment and check that its audio says what the post using it needs said.
+
+Second, **no timecodes appear below.** The ones in the previous version described a video that was never made. Fill them in from the recording, once, and they become real.
 
 ---
 
-## What has to appear on screen
+## What was actually recorded
 
-Four surfaces, each at least once, because "built inside the tools a company already has" is a claim and these are the evidence for it.
+In order, as it happened. This is the source of truth for every clip.
 
-| Surface | Clips | Why it has to be there |
+| # | On screen | What happens |
 |---|---|---|
-| Manager Telegram | 1, 2, 3, 5, 8, 9 | Where every decision gets made |
-| Vendor email | 3, 5 | Proof a vendor installs nothing |
-| Airtable | 4, 6 | Where the output lands, and it is the company's own base |
-| n8n editor | 7 | Proof this is assembled plumbing, not a black box |
-
-Vendor Telegram appears in clips 3, 5 and 6 as the inbound side.
-
----
-
-## Runtime
-
-Ten clips, 6 minutes 28 seconds. Builds 1 and 2 ran their demos at 2:40 and above, and this build has more mechanism to show, so longer is correct here.
-
-**617 spoken words across 6:28.** At a natural pace that is about 4 minutes 20 seconds of talking, which leaves roughly two minutes where something is happening on screen and nobody is saying anything: a message being typed live, an approval card arriving, a record opening, a node canvas being panned, and the two-second holds at every clip boundary. Those silences are deliberate. They are the proof, and they are also what makes each clip liftable.
-
-If it has to come in under six minutes, take it out of clip 7. The pan across the node chain is the most compressible thing in the recording and losing ten seconds of it costs nothing. Do not shorten clip 3.
-
----
-
-## Rules of the shoot
-
-These exist so the footage cuts cleanly afterwards. They cost nothing while recording and cannot be fixed later.
-
-1. **Start and end every clip on a still frame.** Two seconds with nothing moving and the cursor parked in a corner, before you speak and after you stop. A clip that opens mid-scroll cannot be lifted.
-2. **Never let a sentence cross a clip boundary.** Finish the sentence, stop talking, then stop moving, then leave three full seconds of silence before starting the next clip.
-3. **No back-references.** Never say "as I showed you", "like before", "that one from earlier", "now", or "next". Each of those makes a clip unusable on its own. Every clip has to open as though it is the first thing you have said.
-4. **Name things rather than pointing at them.** "The paint stage on 12B Maple", not "this one here". The audio has to survive without the cursor, because a short may crop the frame.
-5. **Set the window sizes once and never touch them.** No resizing, no zoom changes between clips. Lifted clips get intercut, and a size jump between two of them reads as a mistake.
-6. **Move or talk, never both.** Scroll in silence, hold still, then speak. Cursor motion under narration is the single most common reason a clip has to be re-recorded.
-7. **One take per clip is fine and preferred.** This is not a continuous performance. Stop the recording between clips if that is easier.
-8. **Use Telegram Desktop, not a phone frame.** Text has to be legible after LinkedIn's compression and after a vertical crop.
-9. **Do not narrate anything you have not just watched happen.** If a refusal did not appear on screen, do not describe one.
+| S1 | Manager Telegram, Make-Ready Operations | The daily digest is already in the chat. Six units in turn, each with its detail line. Narration explains what the numbers mean |
+| S2 | Airtable, Stages table | How the sequence of a unit turn is laid out, and the stage currently open that has to close before the next one can start |
+| S3 | Narration | The coordination problem as it stands today, without any automation |
+| S4 | Manager Telegram, the digest | The digest carries six buttons: Done and Chase for each of three units, 12B, 3 and 14A |
+| S5 | Manager Telegram | Chase pressed on 12B. Chase pressed on 3. Done pressed on 14A |
+| S6 | Manager Telegram | Three approval cards come back, one per unit, each carrying Email, Message and Both |
+| S7 | Manager Telegram | Message chosen on 12B. Both chosen on 3. Both chosen on 14A |
+| S8 | Rivera Painting group | Two messages arrive, for 12B and for 14A |
+| S9 | QuickHaul Junk Removal group | One message arrives, for unit 3 |
+| S10 | Gmail | The messages for 3 and 14A are also there as email, because Both was chosen for those two |
+| S11 | QuickHaul group | A reply is sent as the vendor: "hey the junk removal task is complete" |
+| S12 | Manager Telegram | A card arrives saying trash-out is complete on 3 and proposing repairs next, carrying all three channel buttons. 14A's card is already sitting above it, from a Rivera reply sent off camera |
+| S13 | Airtable, Stages table | Both 3 and 14A now show their updated status |
+| S14 | Manager Telegram, then Gmail | Email pressed on both cards. Both mails arrive. A reply of "completed" is sent as the vendor to each |
+| S15 | Manager Telegram | A new card arrives for 3. Nothing arrives for 14A, because its last vendor stage was the final one |
+| S16 | Airtable, Stages table | 3 has advanced again |
+| S17 | Manager Telegram, then Rivera Painting group | Message chosen for 3. It lands in the Rivera group. A reply of completed is sent as the vendor. The next card comes back |
+| S18 | Airtable, Stages table | 3 has advanced again |
+| S19 | n8n | Executions for the Vendor Communications workflow, and the output of the OpenAI node |
 
 ---
 
-## Script
-
-Each clip below gives you **what to do**, in order, and then the lines to say over specific steps. The doing is the script. The talking is the smaller half.
-
-### CLIP 1 · 0:00 to 0:22 · The morning list
-
-**Windows:** manager Telegram, full frame · **Standalone:** yes
-
-**Do this**
-
-1. Manager Telegram group open, the daily digest as the last message, scrolled so the entire message is visible with no approval card above it.
-2. Cursor parked bottom-right. Hold completely still for two seconds.
-3. Speak. Nothing moves during this clip, including the cursor. No scrolling.
-4. Stop speaking. Hold two seconds. End.
-
-**Say**
-
-> These are every vacant unit a property management company has in turn right now, ranked. It arrives once a day. Six units, and the number at the top is the rent all six are losing while they sit empty.
-
-### CLIP 2 · 0:22 to 0:57 · Why the top of the list is not the expensive one
-
-**Windows:** manager Telegram, same frame · **Standalone:** yes, and the strongest spare in the bank
-
-**Do this**
-
-1. Two seconds still. Move the cursor to rest on the first unit line. Speak.
-2. Stop speaking. Move the cursor down to the line carrying the largest dollar figure. Silence while moving.
-3. Hold still. Speak.
-4. Stop speaking. Move the cursor off the message entirely. Silence.
-5. Hold still. Speak the last block. Hold two seconds. End.
-
-**Say**
-
-> Top of the list is 12B Maple. Four days at paint, and paint is meant to take two.
->
-> *[cursor moves, silence]*
->
-> The unit that has cost the most money is further down. It has been empty longer, but it is still inside the time its current stage is allowed.
->
-> *[cursor moves off, silence]*
->
-> That is the whole ranking. Not what has cost the most, which nobody can change. What is stuck, which somebody still can.
-
-### CLIP 3 · 0:57 to 2:07 · One full loop, on 3 Oak
-
-**Windows:** vendor Telegram, then manager Telegram, then the vendor mailbox · **Standalone:** yes, after a trim
-
-This is the entire build in one minute and the most valuable minute in the recording. If any clip is worth a second take, it is this one.
-
-**Do this**
-
-1. QuickHaul vendor group. **Type the message live**, at readable speed. Do not paste. `hey all done with the trashout at 3 oak, hauled everything off this morning`
-2. Send. Hold on the sent message for two seconds, then speak the first block with nothing moving.
-3. Switch to manager Telegram. **Wait on screen** for the approval card to arrive rather than cutting to it already there. The wait is the proof. Trim it in the edit if it runs long, but keep some of it.
-4. Card arrives. Hold still. Speak the second block. Do not scroll while speaking.
-5. Press `Email`. Hold on the card for two seconds after it updates.
-6. Switch to the vendor mailbox. Open the received message so the body is readable without squinting. Hold two seconds, then speak the last block. Hold two seconds. End.
-
-**Say**
-
-> This is the trash-out crew on 3 Oak, telling me they are finished. An ordinary message. No form, no portal, nothing anybody had to install.
->
-> *[on the approval card]* That message got matched to the right unit and the right stage, the order was checked, and the stage closed. Then it drafted the next vendor's message and stopped. Repairs comes after trash-out, so Dale gets the handoff, and nothing has gone to him yet.
->
-> *[after pressing Email]* I choose how it leaves. Email, message, or both.
->
-> *[in the mailbox]* And that is Dale receiving it. He is not logged into anything.
-
-### CLIP 4 · 2:07 to 2:42 · Where the output lands
-
-**Windows:** Airtable · **Standalone:** yes · **Used by post 12 as its opening**
-
-Post 12 is built on this audio. Say it cleanly, unhurried, and do not fluff the first sentence.
-
-**Do this**
-
-1. Airtable on the Turns table, six turns visible, Stages view already sorted by Turn then Sequence from the prep run.
-2. Two seconds still. Speak the first line with nothing moving.
-3. Open the 3 Oak turn record so its stages list underneath. Silence while it opens and settles.
-4. Hold still. Speak the second block.
-5. Hold two seconds on the open record. End.
-
-**Say**
-
-> This is Airtable, and everything the automation does lands in it.
->
-> *[record open]* The turns, the stages, the vendors, every message and every approval. This is not a dashboard I built. It is a base the management company owns and already pays for. There is nothing new to log into, no seats to buy, and no screen that only I know how to maintain.
-
-### CLIP 5 · 2:42 to 3:17 · One approval, two channels
-
-**Windows:** vendor Telegram, then manager Telegram, then vendor Telegram again, then the mailbox · **Standalone:** no, needs clip 3 for context
-
-**Do this**
-
-1. Rivera Painting group. Type and send: `paint is done at 12b maple, second coat finished today`
-2. Switch to manager Telegram. Wait for the card. Hold still, speak the first line.
-3. Press `Both`. Hold two seconds.
-4. Switch to the Statewide Flooring group and show the handoff arriving there. Hold two seconds.
-5. Switch to the mailbox and show the same handoff as an email. Hold, speak the second block, hold two seconds. End.
-
-**Say**
-
-> Same loop on 12B Maple. The painter says he is finished, and the flooring handoff drafts.
->
-> *[over the two deliveries]* One approval, two separate deliveries, recorded separately. If one of them fails, only that one gets retried.
-
-### CLIP 6 · 3:17 to 3:57 · When one vendor has two of your units
-
-**Windows:** vendor Telegram, then Airtable · **Standalone:** yes
-
-**Do this**
-
-1. In the Statewide Flooring group, **use the reply action** on the 12B handoff message so the quoted message is visible above what you type. This matters; a plain new message is a different test.
-2. Type only `done`. Send. Hold two seconds.
-3. Speak the first block with nothing moving.
-4. Switch to Airtable, Stages view. Get 12B and 7 Oak into the same frame if the sort allows it.
-5. Hold still. Speak the last block. Hold two seconds. End.
-
-**Say**
-
-> Statewide Flooring now has two of these units sitting at flooring. 12B Maple and 7 Oak. So when they say done, that word on its own is not an answer. It could be either one of them.
->
-> They replied to the 12B message, so it resolves to 12B.
->
-> *[in Airtable]* 12B moves. 7 Oak does not. If there had been nothing to tell the two apart, it would have asked me rather than guessed.
-
-### CLIP 7 · 3:57 to 4:57 · Inside the workflows
-
-**Windows:** n8n editor · **Standalone:** yes, and the best spare for a builder audience
-
-This is the only clip where the machinery is on screen. Keep the panning slow; fast movement in a node graph is unreadable after compression.
-
-**Do this**
-
-1. n8n open on the workflow list, all seven visible and active. Two seconds still. Speak the first line.
-2. Open **Vendor Communications**. Let the canvas settle. Silence.
-3. Zoom to `Telegram Interpret Vendor Message With OpenAI` so the node name is legible. Hold still. Speak.
-4. Pan slowly right along the chain to `Telegram Score Unit Match`, then `Telegram Apply Safe Message Policy`. **Silence while panning.** Stop, hold, then speak.
-5. Back to the workflow list. Open **Vendor Delivery**. Zoom so `Delivery Send Vendor Email` and `Delivery Send Vendor Telegram` are both in frame at once.
-6. Hold still. Speak the last block. Hold two seconds. End.
-
-**Say**
-
-> There is no application here. Seven workflows in n8n, an open-source tool anyone can run.
->
-> *[on the OpenAI node]* This is the only place a model is asked anything.
->
-> *[after panning]* Everything after it is plain code. Which unit this is about gets decided on evidence, not on the model's opinion, and then a policy check decides whether anything is allowed to change at all. The model proposes. It never decides.
->
-> *[on the two send nodes]* And these two nodes are the entire outbound surface. Across seven workflows, those are the only things that can contact a vendor, and neither runs until somebody presses a button.
-
-### CLIP 8 · 4:57 to 5:30 · The part where it says no
-
-**Windows:** manager Telegram · **Standalone:** yes
-
-**Do this**
-
-1. Manager Telegram, on the digest. Press `Done` on a unit. Wait for it to complete on screen.
-2. Press `Done` on the same unit again. Wait for the refusal, with its reason visible.
-3. **Read the reason on screen before you say anything about it.** Hold two seconds, then speak.
-4. Hold two seconds. End.
-
-**Say**
-
-> This one matters more than it looks like it does. When something gets marked done that the order does not allow, it refuses, and it says why.
->
-> It refuses me too. I am the person paying for it, and it still says no. I can override that, and the override gets written down.
-
-**Capture note, read before filming.** Two ways to produce a refusal, and they are not equally verified:
-
-- **Verified live:** press `Done` twice on the same unit. The second press is refused with a reason naming the stage as already complete. This has been observed in a real run.
-- **Not verified on camera:** a vendor claiming a stage whose prerequisites are still open, for example a cleaner reporting 14A clean while repairs are still active. Expected behavior is that nothing moves and the manager is notified, which is a routing outcome rather than an ordering refusal.
-
-**Rehearse whichever you choose and confirm the exact on-screen wording before recording.** Do not narrate a refusal you have not just watched happen.
-
-### CLIP 9 · 5:30 to 5:55 · The silence
-
-**Windows:** manager Telegram · **Standalone:** yes
-
-**Do this**
-
-1. Manager Telegram, on a stall alert for a unit nothing has arrived about.
-2. Two seconds still. Speak. Nothing moves in this clip at all.
-3. Hold two seconds. End.
-
-**Say**
-
-> Nothing happened on this one. No message, no update, and nobody chased it.
->
-> That is what the alert is. A vendor who finished and said nothing looks exactly like a vendor who never started, and both cost the same per day. So the silence is the thing worth telling somebody about.
-
-### CLIP 10 · 5:55 to 6:28 · What it does not do
-
-**Windows:** static · **Standalone:** yes · **Used by post 12 as its close**
-
-**Do this**
-
-1. One static frame. The Airtable base sitting still, or a plain card with no motion.
-2. Do not move the cursor at any point in this clip.
-3. Slow the delivery down and leave a beat between each sentence.
-4. Hold three seconds after the last word. End.
-
-**Say**
-
-> What this does not do.
->
-> It does not write into your property management system.
->
-> It does not choose which vendor gets the job.
->
-> It does not tell the resident anything.
->
-> And it will not message a vendor without a person tapping a button. Ignoring the card is a valid answer. Nothing goes out.
+## What the recording does not contain
+
+Written down because three posts were built on the assumption that it did, and because the shoot rule against narrating something you have not watched happen applies just as hard to writing about it afterwards.
+
+| Planned beat | Status | Consequence |
+|---|---|---|
+| The refusal. A stage marked done that the order does not allow, refused on screen with its reason | **Not recorded** | No post may claim the video shows it. The refusal still exists in the build; it is simply not on this tape |
+| The stall alert. A unit where nothing arrived at all | **Not recorded** | Post 3 is a carousel and does not depend on footage, so it is unaffected |
+| The ambiguity. One vendor with two units at the same stage replying "done" | **Not recorded** as a demonstrated resolution. Rivera Painting does hold both 12B and 14A on screen, so the *setup* is visible, but no ambiguous reply is sent and no resolution is narrated | **Post 11's still does not exist.** See batch 5 |
+| The limits. "What it does not do", spoken over a static frame | **Not recorded** | **This is what breaks post 12.** See batch 3 |
+| Seven workflows visible in the n8n list, the policy node, and the two outbound send nodes | **Not recorded.** Only the Vendor Communications executions and the OpenAI node output | No post may say "two nodes are the entire outbound surface" on the strength of this video |
+| The ranking argument, that the unit at the top of the list is not the one that has cost the most | **Unconfirmed.** The digest and its numbers are explained, but this specific claim is not reported as spoken | Check the audio before cutting anything that needs it. **Post 8 depends on it** |
+
+**Nothing here is a defect in the build.** Every one of these behaviours exists and several are verified in fixtures. They are absent from one recording, which is a different problem with a different fix: either they get a pickup recording, or the posts that need them stop being video posts.
 
 ---
 
-## Clip bank
+## The single mailbox, and what has to be said about it
 
-What each clip is worth once the recording is done, so short-form posts can be assembled without filming anything again.
+**Every email in the recording sends and receives through one address.** There is no separate vendor mailbox. The same account stands in for Rivera Painting, for QuickHaul, and for the automation itself, so in the Gmail frames the sender and the recipient are the same person.
 
-| Clip | Runtime | Standalone | Assigned to |
-|---|---|---|---|
-| 1 The morning list | 22s | yes | spare |
-| 2 Why the top is not the expensive one | 35s | yes, strongest spare | spare |
-| 3 One full loop | 70s | yes, trim to about 45s | spare |
-| 4 Where the output lands | 35s | yes | **post 12, opening** |
-| 5 One approval, two channels | 35s | no, needs clip 3 | — |
-| 6 One vendor, two units | 40s | yes | spare |
-| 7 Inside the workflows | 60s | yes | spare, builder audience |
-| 8 The refusal | 33s | yes | spare |
-| 9 The silence | 25s | yes | spare |
-| 10 What it does not do | 33s | yes | **post 12, close** |
+This is fine for a synthetic demo and it is not fine to leave unsaid, because a viewer who looks closely will notice and will wonder what else is staged.
 
-Post 12 is clips 4 and 10 joined with one title card between them. Everything else marked standalone is a spare, available if another short is wanted later without a reshoot.
+**Required disclosure, on screen, wherever a Gmail frame appears in any cut:**
+
+> One test mailbox stands in for every vendor address.
+
+One line, burned in, on the first email frame of any clip that contains one. It costs nothing and it removes the only thing in this recording that could read as a trick. The existing synthetic-data disclosure does not cover it: "synthetic fixtures" tells a viewer the units are invented, not that the two ends of the email exchange are the same account.
+
+---
+
+## Clip map
+
+What can be cut from the recording. **Standalone status is marked "check" for every one of them, and that is not caution for its own sake:** the shoot rules that made clips liftable, no back-references, no sentence crossing a boundary, a still frame at each end, were written for a script that was not followed. Whether any given segment lifts cleanly is now a question about the tape, not about this document.
+
+| Clip | Source | Runtime | Standalone | Assigned to |
+|---|---|---|---|---|
+| A. The morning list | S1 | short | check | spare, and the likeliest strong one |
+| B. The sequence, in Airtable | S2 | short | check | spare |
+| C. The coordination problem today | S3 | short | check | spare |
+| D. Acting from the digest | S4 to S7 | medium | check | spare |
+| E. Where the deliveries land | S8 to S10 | medium | check | spare, **needs the mailbox disclosure** |
+| F. A vendor replies and the next stage drafts | S11 to S12 | medium | check | spare, the most valuable minute on the tape |
+| G. The record updates | S13 | short | check | spare |
+| H. Inbound by email, and the loop ending | S14 to S15 | medium | check | spare, **needs the mailbox disclosure** |
+| I. The loop repeating on one unit | S17 to S18 | medium | check | spare |
+| J. Inside the workflow | S19 | medium | check | spare, builder audience |
+
+**Every clip is currently a spare.** Post 12 was the only short assigned to this recording and it no longer has its footage. See batch 3.
+
+**Three segments are stronger than anything in the original plan**, and they are worth saying out loud because they were not designed, they happened:
+
+1. **Chase and Done as two different actions from the same digest (D).** The planned script opened its loop with an unprompted vendor message. Starting from the manager pressing a button is a better proof of the thesis in the post's own title: nothing reaches a vendor without a person, and here is the person, acting first.
+2. **The same unit going round three times over two channels (F, H, I).** Unit 3 completes trash-out by Telegram reply, the next stage by email reply, and the one after that by Telegram again. One loop shown once is a demo. The same loop closing three times, inbound over two different channels, is evidence.
+3. **The loop ending on 14A (H).** A card arrives for 3 and no card arrives for 14A, because 14A's last vendor stage was the final one. Nothing in the original script proved that the thing stops on its own. This does, and it does it by showing an absence, which is the pillar this whole build is about.
+
+---
+
+## Before cutting anything
+
+Four steps, in order. The first two are the reason nothing below this line is scheduled yet.
+
+1. **Transcribe the recording.** Every clip decision depends on what was said, and this document does not know. A rough transcript with timecodes is enough.
+2. **Fill in the timecodes** in the clip map and in the YouTube chapters.
+3. **Run the standalone test on each segment you intend to lift.** Play it with no context: does it open on a back-reference, does a sentence run in from the previous segment, is there a still frame at each end. A segment that fails is still usable inside the full video and is not usable as a short.
+4. **Check the digest audio for the ranking claim** before building post 8 on it.
 
 ---
 
 ## LinkedIn post text
 
-> Six vacant units, ranked by which one is stuck rather than which one has cost the most money.
+Rewritten. The previous version promised the ambiguity clip, the two outbound nodes and the refusal, none of which are in this recording. Promising them would have been the exact failure the shoot rules were written to prevent, arriving one step later.
+
+> Six vacant units in turn, and a list every morning of which ones are stuck.
 >
-> The one that has cost the most is not at the top. It has been empty longest, but its current stage is still inside the time that stage is allowed. Ranking by damage already done tells you where to feel bad. Ranking by what is stuck tells you where to go.
+> I press chase on two of them and done on a third. Three approvals come back, and each one asks the same question: email, message, or both.
 >
-> Then a trash-out crew sends an ordinary text message saying they are finished. It gets matched to the right unit, the order gets checked, the stage closes, the next vendor's handoff drafts, and then it stops and waits for me to decide whether that goes out by email, by message, or both.
+> That is the only decision the automation will not make. It drafts, it stops, and it waits.
 >
-> Six and a half minutes of it working, including three parts I would watch for:
+> The messages land where the vendors already are. Two of them in a Telegram group, two of them in an inbox, because I asked for both on those units. Nobody installed anything and nobody signed into anything.
 >
-> The vendor who has two of my units sitting at the same stage, where "done" on its own is not an answer.
+> Then the trash-out crew replies in ordinary words. It gets matched to the right unit and the right stage, the stage closes, and the next vendor's handoff drafts and waits for me again. That same unit goes round three times in this video, once by message and once by email and once by message again.
 >
-> The two nodes that are the entire outbound surface. Nothing else across seven workflows can contact a vendor.
+> The part I would watch for is the one where nothing happens. The last unit finishes its final vendor stage and no new card arrives, because there is nothing left to hand off. It stops on its own.
 >
-> The part where it refuses an instruction, including mine.
+> Everything lands in Airtable, which the company already owns.
 >
-> No portal for vendors to sign into and no dashboard. Everything lands in a base the company already owns.
->
-> All of it synthetic. Test vendors, test units, a controlled mailbox. Nobody real was contacted to make this.
+> All synthetic. Test units, test vendors, and one test mailbox standing in for every vendor address. Nobody real was contacted to make this.
 
 ---
 
 ## YouTube title
 
-Three options. All descriptive rather than curiosity-baited, because the title has to match the register of the video.
-
 **Option A, recommended:**
 
 > Make-Ready Turnover, Automated: A Vendor Says "Done" and the Next Handoff Drafts Itself
 
-Front-loads the searchable terms (make-ready, turnover) and states the mechanism plainly. Long, but YouTube truncates around 60 characters in some surfaces and the first half survives intact.
+Front-loads the searchable terms and states the mechanism plainly. Still accurate against the recording.
 
 **Option B, shorter:**
 
 > I Automated the Make-Ready Handoff for a Property Management Company
 
-First person, honest, no product claim. Weaker on search terms.
-
-**Option C, problem-led:**
-
-> Why Unit Turns Take Nine Days When the Work Takes Five
-
-Strongest hook, weakest search match, and it promises an explainer rather than a demo. Use only if the video is recut to lead with the problem.
+**Option C is withdrawn.** It promised an explainer that leads with the problem, and the recording leads with the list.
 
 ## YouTube description
 
-The first two lines are what shows before "show more". Everything load-bearing goes there.
+The first two lines are what shows before "show more".
 
-> Most of a unit turn is not work. It is waiting to find out the last vendor finished. This is a walkthrough of an automation that watches those handoffs, drafts the next vendor's message, and stops for a human before anything sends.
+> Most of a unit turn is not work. It is waiting to find out the last vendor finished. This is a walkthrough of an automation that watches those handoffs, drafts the next vendor's message, and stops for a person before anything sends.
 >
 > Built for a US residential property management company on tools they already own: Airtable, Telegram, email, and their own database, orchestrated with self-hosted n8n. There is no app for vendors to install and no dashboard to log into. Vendors reply however they already reply.
 >
 > Chapters
-> 0:00 The morning list
-> 0:22 Why the top unit is not the most expensive one
-> 0:57 A vendor says done, and the next handoff drafts
-> 2:07 Where the output lands
-> 2:42 One approval, two channels
-> 3:17 When one vendor has two of your units
-> 3:57 Inside the workflows, and the only two nodes that can contact a vendor
-> 4:57 The part where it refuses an instruction, including mine
-> 5:30 The alert for a unit where nothing happened at all
-> 5:55 What it does not do
+> [fill from the recording]
+> The morning list, and what the numbers mean
+> How a turn is sequenced, in Airtable
+> The coordination problem this replaces
+> Chasing two units and completing a third
+> Choosing how each message goes out
+> Where the messages land
+> A vendor replies, and the next stage drafts
+> The record updating behind it
+> A vendor replying by email instead
+> The unit that finishes, and gets no further message
+> Inside the workflow
 >
-> What it does not do: it does not write into your PMS, it does not choose the vendor, it does not communicate with residents, and it never messages a vendor without a person approving it.
->
-> The data in this video is synthetic. It is a working build running against test fixtures, not a client's live portfolio.
+> The data in this video is synthetic. It is a working build running against test fixtures, not a client's live portfolio, and a single test mailbox stands in for every vendor email address.
 >
 > If you run turns with outside vendors and want to work out where your own days go, get in touch and we can go through your numbers.
 
 ---
 
-## Capture checklist
+## If the demo is ever re-recorded
 
-Run in this order. Several of these were learned the hard way.
+These rules were written for the original shoot and were not applied to the take that exists. They are kept because they are the difference between a recording that yields shorts and one that does not, and because the pickup described in batch 3 should follow them.
 
-1. **Reset immediately before recording.** Run `scripts/prepare-demo-recording.ps1`. Fixture ages are relative to the reset and drift in real time. Recording six hours later puts 12B at 104 hours instead of 98, and the narration stops matching the screen.
-2. **Wait for the second Airtable reconciliation pass** before filming any Airtable frame. The first pass writes stages before the links exist, so linked records show empty. Roughly five minutes.
-3. **Apply the Stages view sort in Airtable** (Turn, then Sequence) or film stages from inside a Turn record. Airtable preserves no useful default row order. Do this before clip 4, not between clips 4 and 6, because the view has to look identical in both.
-4. **Probe the tunnel** before filming anything involving Telegram. A dead quick tunnel looks healthy from the n8n side and silently swallows every button press.
-5. **Clear the Telegram chats** of previous cards, digests and alerts.
-6. **Fire a fresh digest** so the numbers on screen match the state you just reset to.
-7. **Open n8n and let every workflow canvas render once** before clip 7. First render is slow and the delay is visible on camera.
-8. **Set window sizes now and do not touch them again.** Browser and Telegram Desktop both.
-9. **Let the stall alerts fire once and delete them**, unless you are filming clip 9, in which case keep one.
-10. **Rehearse clip 8** and confirm the exact refusal wording before recording it.
-11. **State on screen that the data is synthetic.** One line in the first ten seconds is enough, and it also covers anyone watching muted.
+1. **Start and end every clip on a still frame.** Two seconds with nothing moving and the cursor parked in a corner, before you speak and after you stop.
+2. **Never let a sentence cross a clip boundary.** Finish the sentence, stop talking, stop moving, then leave three full seconds of silence.
+3. **No back-references.** Never say "as I showed you", "like before", "that one from earlier", "now", or "next".
+4. **Name things rather than pointing at them.** "The paint stage on 12B Maple", not "this one here".
+5. **Set the window sizes once and never touch them.**
+6. **Move or talk, never both.**
+7. **One take per clip is fine and preferred.**
+8. **Use Telegram Desktop, not a phone frame.**
+9. **Do not narrate anything you have not just watched happen.**
 
-## Discipline check
-
-- No dashboard appears anywhere, because none exists. The Airtable frames are the company's own base.
-- The word "product" is never spoken. The framing is "something I built for a management company's turnover process."
-- All four required surfaces appear: Telegram in clips 1, 2, 3, 5, 8 and 9; email in clips 3 and 5; Airtable in clips 4 and 6; the n8n editor in clip 7.
-- Clip 10 volunteers the limits before anyone asks, and is not rushed.
-- The synthetic-data disclosure appears on screen and in the YouTube description.
-- No client is referenced or implied. There is no client.
-- Clip 8's capture note prevents narrating a refusal that has not been observed, per the verification rule in `AGENTS.md`.
-- Every clip marked standalone opens without a back-reference, which is what makes the clip bank real rather than aspirational.
-
-**Hashtags for LinkedIn:** #propertymanagement #propertymanagers #automation #multifamily
+**Capture checklist, unchanged and still correct:** reset immediately before recording with `scripts/prepare-demo-recording.ps1`; wait for the second Airtable reconciliation pass before filming any Airtable frame; apply the Stages view sort, Turn then Sequence; probe the tunnel before anything involving Telegram; clear the Telegram chats; fire a fresh digest; let every n8n canvas render once; set window sizes and leave them; state on screen that the data is synthetic, and that one mailbox stands in for every vendor.
 
 ---
 
-# Batch 3: Post 12 (a cut from the demo) and post 10 (now text)
+## Discipline check
 
-**Constraint that rebuilt this batch:** the short videos are **cuts from the main demo recording**, not new shoots, and they carry no new voiceover. A post can only be a video if that moment already exists in the demo footage, saying out loud what the post needs said. Nothing is filmed twice and nothing is narrated twice.
+- No dashboard appears, because none exists. The Airtable frames are the Stages table of a base the management company would own.
+- The word "product" is never spoken.
+- **Surface coverage, as recorded:** manager Telegram throughout, vendor Telegram in two groups, Gmail, Airtable, and n8n. All four required surfaces are present. This is the one claim from the original plan that survives intact.
+- **The recording does not contain the refusal, the stall alert, a resolved ambiguity, or the limits.** No post text, title, description or comment may say it does.
+- The synthetic-data disclosure appears on screen and in the description.
+- **The single-mailbox disclosure is required on every email frame in every cut.** It is new, it is not optional, and it is the only thing in the recording that could read as concealment if left unsaid.
+- No client is referenced or implied. There is no client.
+- Standalone status is unverified for every segment until the tape is checked. Nothing may be assigned to a short on the strength of this document alone.
 
-That made both original scripts impossible:
+**Hashtags for LinkedIn:** #propertymanagement #propertymanagers #automation #multifamily
+
+
+# Batch 3: Posts 12 and 10, both now text
+
+**Constraint that rebuilt this batch:** the short videos are **cuts from the main demo recording**, not new shoots, and they carry no new voiceover. A post can only be a video if that moment already exists in the footage, saying out loud what the post needs said.
+
+That constraint has now removed the video format from both posts in this batch, in two separate passes:
 
 | Post | Needed footage | Verdict |
 |---|---|---|
-| 10, the attribution bug | A card crediting a vendor who said nothing | The demo never shows that defect. **Format changed to text** |
-| 12, the deleted dashboard | The old board | No board is being shown, and none is being filmed. **Rewritten as a different argument** |
+| 10, the attribution bug | A card crediting a vendor who said nothing | The demo never shows that defect. **Format changed to text, 2026-08-18** |
+| 12, the deleted dashboard | The old board | No board is shown and none is filmed. **Rewritten as a different argument, 2026-08-18** |
+| 12, rewritten | Demo clips 4 and 10, where the output lands and the limits | **Neither is in the recording that was made. Format changed to text, 2026-08-29** |
 
-**Post 12 keeps its job and loses its story.** Its job was to prove "this is not a product" through an action rather than a claim. The deletion was one way to prove it. The demo proves it a second way: the manager surface is the company's own Airtable, and the video ends by listing what the automation refuses to do. That is the same argument, made with footage that exists.
+**Post 12 kept its job and lost its story, twice.** Its job is to prove "this is not a product" through something other than a claim. The deleted board was one way. The demo was meant to be the second: the manager surface is a base the company owns, and the video ends by listing what the automation refuses to do. The recording contains neither of those things said out loud, so the argument is made in text instead, which needs no footage because both halves are properties of the build rather than claims about a tape.
 
-**The demo script was then rewritten around this.** Batch 2 is now a numbered clip bank rather than a continuous walkthrough, and demo clips 4 and 10 are written to stand alone with their own audio so that this post is an edit and not a second recording session.
+**A forty-second pickup would restore the video version.** It is specified inside post 12 below, along with the reason to record it regardless of what this post ends up being.
 
 **No board, no dashboard, and no reference to either being deleted** appears anywhere below.
 
@@ -809,57 +626,45 @@ That made both original scripts impossible:
 
 ## Post 12. There is no dashboard
 
-**Format:** native video, roughly 65 seconds, cut from the demo · **Pillar:** failure lessons, reframed to positioning · **CTA:** none
+**Format:** text, 250 to 300 words · **Pillar:** failure lessons, reframed to positioning · **CTA:** none
 
-**No shoot, no new audio, no voiceover.** This post is two clips from the demo recording joined together, carrying their original audio exactly as recorded. Demo clip 4 (Where the output lands, 2:07 to 2:42) and demo clip 10 (What it does not do, 5:55 to 6:28). Both are written in batch 2 specifically so they stand alone, which is what makes this post an edit rather than a second recording session.
+**Format changed 2026-08-29, from video to text.** This is the second time this post has lost its footage, and the reason is worth keeping rather than quietly fixing.
 
-### Assembly
+The video version was two cuts from the demo: clip 4, where the output lands, and clip 10, the limits. **Neither exists in the recording that was made.** The limits segment was not recorded at all, and the Airtable frames that were recorded are about how a turn is sequenced, not about who owns the base. The post needs both halves said out loud, the rule for short-form posts is that they carry no new voiceover, and a cut cannot say something the tape does not.
 
-| Order | Source | Runtime | On-screen text |
-|---|---|---|---|
-| 1 | Demo clip 4, from its first frame, trimmed at the tail | 30s | `No dashboard. No login. No seats.` held over the first 4 seconds |
-| 2 | Title card, hard cut both sides | 1.5s | `So what does it refuse to do?` |
-| 3 | Demo clip 10, whole | 33s | `Ask where the output lands.` over the last 3 seconds |
+So it follows post 10 and becomes text. **The argument does not need footage.** Both halves are properties of the build rather than claims about a recording: where the records live, and what the automation refuses to do. Text states them directly and costs nothing.
 
-Roughly 65 seconds total. Clip 4 runs 35 seconds in the demo; trim the last five, not the first, because the opening sentence is the hook.
+**The alternative, if you would rather have the video.** Record one pickup, about forty seconds, one static frame, following the shoot rules in batch 2. Just the limits, spoken slowly with a beat between each sentence:
 
-### Why these two clips
+> What this does not do. It does not write into your property management system. It does not choose which vendor gets the job. It does not tell the resident anything. And it will not message a vendor without a person tapping a button. Ignoring the card is a valid answer. Nothing goes out.
 
-The post makes one argument in two halves, and each half already exists as footage. Where the work lands, and where the work stops. The first clip answers the question the post opens with. The second answers the question a sceptical viewer asks next, which is what a thing that claims to be modest actually refuses to do. Neither half needs anything said over it that is not already said in the demo.
+That single pickup would restore the video version of this post and would also be the most reusable forty seconds in the whole set, because volunteering limits is the thing almost nobody in this category does. **Recommendation: record it when convenient, ship the text version now.** They do not conflict, and the text below is written to stand on its own either way.
 
-### Edit notes
+### The post
 
-- **Original demo audio only.** Nothing is recorded over this footage. If clip 4's audio is unusable, re-record demo clip 4 as part of the demo, not as a voiceover for this post.
-- The hook is the first sentence of clip 4 spoken over a still frame, which is why batch 2 asks for that sentence to be clean and unhurried with nothing moving.
-- Both clips already open and close on still frames, so the joins need no fades. Hard cuts.
-- Subtitles burned in, mandatory. Two lines maximum, three to five words per line.
-- Original audio only. No trending sound, no music bed under the voice.
-- One title card in the whole edit. Everything else is footage.
-- If the vertical crop is needed, crop clip 4 to the Airtable record rather than the full table; the table does not survive a 9:16 crop legibly.
-
-### LinkedIn post text
-
-> If you are paying somebody to automate part of your business, ask one question before you look at anything they have built.
+> Before you look at what an automation does, ask where its output lands.
 >
-> Where does the output land?
+> If the answer is a screen the builder made, you are buying software with extra steps. You pay for it, your team gets trained on it, and the day that person stops answering their phone it becomes a screen nobody can maintain.
 >
-> If the answer is a screen they made, you are buying software with extra steps. You pay for it, your team gets trained on it, and the day that person stops answering their phone it becomes a screen nobody can maintain.
->
-> This one lands in Airtable, which the company already pays for. The turns are in it. The stages are in it. The vendors, the messages and the approvals are in it. Every one of those is an ordinary record somebody can open, sort, filter and export without me being involved at all.
+> The make-ready build I have been posting about has no screen of mine in it. The turns are in Airtable. So are the stages, the vendors, every message and every approval. Ordinary records anybody can open, sort, filter and export with me nowhere in the room. The manager works in Airtable and Telegram, and both of those were paid for before I arrived.
 >
 > Nothing new to log into. No seats. No screen only I understand.
 >
-> The second half of the clip is the other half of the same question. Not what it does, but what it refuses to do. It does not write into your property management system. It does not choose your vendor. It does not talk to your resident. And it will not message a vendor unless a person taps a button.
+> Then ask the second question, which is where it stops.
 >
-> Ask both questions when somebody shows you an automation. Where does it land, and where does it stop. The answers tell you whether you are buying a tool or renting a dependency.
+> It does not write into your property management system. It does not choose which vendor gets the job. It does not tell the resident anything. And it will not message a vendor without a person tapping a button. Ignoring the approval is a valid answer, and nothing goes out.
+>
+> Those two questions are worth more than a feature list. Where does it land, and where does it stop. The first tells you whether you own the result when the engagement ends. The second tells you what it does when nobody is watching.
 
 ### Discipline check
 
-- **The slogan "I don't sell software" is never stated.** That post belongs to builds 1 and 2 and is not repeated here. The argument is carried by showing where the work lands.
+- **The slogan "I don't sell software" is never stated.** That post belongs to builds 1 and 2 and is not repeated here.
 - Nobody who builds dashboards is disparaged. The claim is about where output belongs, not about a category of tool.
-- **Corrected in the Seven Sweeps pass.** The copy previously said "their base, their tables", which implies a client that does not exist. It now says the company owns the base once this is installed, which describes the delivery model without claiming an account is live.
 - No board is shown, mentioned, or implied.
-- **Corrected in the video pass.** This post previously called for thirty seconds of new voiceover recorded over the Airtable footage. Short-form posts carry no new audio, so the argument now comes entirely from lines the demo already says out loud, and those lines were written into demo clips 4 and 10 to make that possible.
+- **The limits are stated as properties of the build, which they are, and not as something the video shows.** The recording does not contain them. If the pickup above is filmed, that changes, and this post can go back to video with no rewriting of the argument.
+- "Before I arrived" describes the delivery model. It does not claim a live client account, because there is not one.
+
+**Hashtags:** #propertymanagement #automation #propertymanagers
 
 ---
 
@@ -902,20 +707,23 @@ The post makes one argument in two halves, and each half already exists as foota
 
 Recorded here so `linkedin-content-plan.md` can be updated to match.
 
-**Format split changes.** Post 10 moves from video to text:
+**Format split, after two passes.** Post 10 moved to text on 2026-08-18. Post 12 moved to text on 2026-08-29, once the recording turned out not to contain either of the clips it was built on:
 
-| Format | Was | Now | Posts |
-|---|---|---|---|
-| Document carousel | 4 | 4 | 1, 3, 5, 14 |
-| Native video | 3 | **2** | 2, 12 |
-| Single image | 2 | 2 | 8, 11 |
-| Text | 6 | **7** | 4, 6, 7, 9, 10, 13, 15 |
+| Format | Planned | After 08-18 | Now | Posts |
+|---|---|---|---|---|
+| Document carousel | 4 | 4 | 4 | 1, 3, 5, 14 |
+| Native video | 3 | 2 | **1** | 2 |
+| Single image | 2 | 2 | 2 | 8, 11 |
+| Text | 6 | 7 | **8** | 4, 6, 7, 9, 10, 12, 13, 15 |
 
-Still fifteen posts.
+Still fifteen posts. **The demo is now the only video in the set**, which puts more weight on it and is a reason to cut at least one short from the spares in batch 2 once the tape has been transcribed.
 
-**Posts 8 and 11 stay as single images and stay filmable**, because both are stills of moments the demo already contains: post 8 is the ranked morning list, post 11 is the one-vendor-two-units reply. Neither needs a new recording, and neither needs the video treatment now that video is scarce.
+**Posts 8 and 11 are affected differently, and only one of them still has its still.**
 
-**Every remaining video moment now traces to demo footage.** Nothing in this plan asks for a second shoot.
+- **Post 8, the ranked morning list.** The digest is on the tape with six units and their numbers explained. The still exists. What is not confirmed is the post's actual argument, that the unit at the top is not the one that has cost the most. **Check the digest against the fixtures before building the image**, because if the recorded digest does not happen to show that comparison the post needs a fresh capture with fixtures that do.
+- **Post 11, one vendor with two units.** Unaffected, and the earlier note in this plan that it was "a still the demo already contains" was wrong even before the recording. Its image is a **composed graphic**, a message bubble over two simplified unit cards, not a frame lifted from anything. It needs no footage. The recording happens to contain the setup, since Rivera Painting holds both 12B and 14A, but the post never needed it. The behaviour the copy describes is fixture-verified, which is what that copy rests on.
+
+**One video moment no longer traces to footage**, and that is post 12's. It is text now. Nothing else in the plan asks for a second shoot, and the one pickup that is worth recording is optional and specified in post 12.
 
 ---
 
@@ -1134,6 +942,8 @@ A ranked list of six units, exactly as the morning digest renders it, with two l
 
 The whole image works only if the reader notices that the two callouts are on different lines. Keep everything else visually quiet.
 
+**Capture note, added 2026-08-29.** The demo recording contains the digest with six units and their numbers explained, so a screenshot source exists. What is **not** confirmed is the comparison this post is built on, that the top line is not the line with the most money burned. Check the digest against the fixtures before building the image. If the recorded digest does not happen to show that contrast, reseed and capture a fresh digest that does; this is a screenshot, so it costs nothing.
+
 ### The post
 
 > Two lines from the same list, and they disagree about what to do this morning.
@@ -1177,6 +987,8 @@ One message bubble, and two units it could equally refer to.
 | Format | 4:5 portrait |
 
 No answer appears in the image. The post copy resolves it.
+
+**Capture note, added 2026-08-29.** This image is composed, not lifted from the demo, so the recording does not constrain it. Worth stating because the plan previously listed this post as a still the demo already contained, which was never accurate. The demo does contain the setup, one vendor group holding two units at the same stage, but no ambiguous reply is sent in it and no resolution is shown. Neither is needed here: the resolution lives in the post copy and is fixture-verified.
 
 ### The post
 
