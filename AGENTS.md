@@ -157,6 +157,8 @@ Before adding or pulling Docker images, check local images first. Build destruct
 
 Use short imperative or conventional commits, for example `docs: update local tunnel guidance` or `feat: add sequence guard fixtures`.
 
+Documentation deliverables default to `.md`. Do not create DOCX, PDF, slides, or other derivative formats unless the user explicitly requests that format.
+
 Before finishing implementation work, decide whether the task exposed a durable command, workaround, gotcha, or rule. If yes, update `AGENTS.md`, `CLAUDE.md` (both files must stay identical apart from this note), and `progress-notes.md`. For documentation-only planning edits, do not auto-commit unless the user asks.
 
 After every completed task, commit and push changes to `main`. If push fails because no remote or authentication is configured, report that clearly and include the local commit hash if a commit was created. Never commit secrets, local data, generated temp output, or n8n credential exports.

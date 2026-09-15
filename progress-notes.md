@@ -599,10 +599,10 @@ Two supporting audits: all ten HTTP Request nodes resolve to exactly two hosts (
 
 ## Production Business Blueprint, 2026-09-15
 
-- Created `docs/production-make-ready-sequencing-blueprint.md` as the business-level source and `docs/production-make-ready-sequencing-blueprint.docx` as the prospect-ready deliverable.
+- Created `docs/production-make-ready-sequencing-blueprint.md` as the sole business-level source and prospect-ready deliverable. Repository documentation remains Markdown unless another format is explicitly requested.
 - The blueprint begins with an illustrative 5,000-unit operating scenario, then explains the production service, its fit with an existing PM technology stack, component responsibilities, AI and human boundaries, a 48-step end-to-end flow, exception handling, visibility controls, and a complete Excalidraw mapping reference.
 - The map reference defines ten swimlanes, stable actor/system/process/decision IDs, 37 primary arrows, 13 decision diamonds, exception routes, and a shared status vocabulary so a workflow diagram can be built without reverse-engineering the narrative.
 - Production expansion is framed as an integration pattern rather than a claim about the current demo: the PMS remains the official business record, Postgres remains authoritative for coordination, Airtable is a manager-facing mirror and intake surface, and PMS write-back is enabled only where the client's system and controls allow it.
 - AI remains limited to classifying informal vendor messages and rewriting fact-locked drafts. It cannot choose units, approve messages or channels, bypass sequence rules, judge workmanship, decide tenant liability, or trigger vendor outreach on its own.
 - Portfolio impact figures are explicitly labelled illustrative assumptions, not measured customer results or guarantees.
-- Generated the DOCX through the committed build script and inspected all 23 pages after rendering with Microsoft Word and Poppler. The accessibility audit reported zero high, medium, or low findings, and the heading audit confirmed semantic Heading 1-3 structure.
+- Removed the unrequested DOCX derivative and its generator; the Markdown source is the maintained production blueprint.
