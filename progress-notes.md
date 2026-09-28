@@ -626,4 +626,5 @@ Two supporting audits: all ten HTTP Request nodes resolve to exactly two hosts (
   - QA prospect fixture: 4 pages, 864x864px, 0 escaped, 0 clipped, 0 tight elements. Generated `output/pdf/qa-sample-properties-make-ready-solution-brief.pdf`.
   - Safety checks verified: unpopulated template throws error (`Set slug to a short lowercase alphanumeric hyphenated prospect identifier`), and protected PDF overwrite attempt is blocked.
   - Clickable meeting CTA verified: points to `https://cal.com/sambhav-builds/pm-automation-audit`.
+  - Layout refinement: Resolved Page 3 hosting panel overlap between `.n8n-card` and `.stack-card.rules` by setting relative positioning context on `.hosting-inner` and placing stack cards with 10px breathing room. Raised `.hosting-note` ("PMS remains the official business record.") to `bottom: 16px` for comfortable margin inside the container.
 
