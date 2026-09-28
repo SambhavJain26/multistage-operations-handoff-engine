@@ -606,3 +606,24 @@ Two supporting audits: all ten HTTP Request nodes resolve to exactly two hosts (
 - AI remains limited to classifying informal vendor messages and rewriting fact-locked drafts. It cannot choose units, approve messages or channels, bypass sequence rules, judge workmanship, decide tenant liability, or trigger vendor outreach on its own.
 - Portfolio impact figures are explicitly labelled illustrative assumptions, not measured customer results or guarantees.
 - Removed the unrequested DOCX derivative and its generator; the Markdown source is the maintained production blueprint.
+
+## Prospect Solution Brief, 2026-09-28
+
+- Created reusable, prospect-personalized solution brief in `concept-brief/` matching the 4-page square (9in x 9in / 864px x 864px) executive format.
+- Content structured around four non-technical decision-maker questions:
+  1. What changes in your turnover coordination (problem, trade silence, rework risk, before/after comparison).
+  2. From notice to verified rent-ready (8-stage flow, physical sequence guard, manager decision gate, role boundaries).
+  3. How your systems connect (3-zone architecture: existing PMS & inspection tools, proposed private core with n8n/Postgres/AI/rules, external messaging channels, and confirmed/to-confirm routes).
+  4. How your team runs it each day (daily operating queues, human authority, fail-safe fallbacks, pilot metrics, meeting CTA).
+- Created template and fixtures:
+  - `concept-brief/prospect-data.template.json`: Reusable data template with clean bracketed placeholders and internal evidence isolation.
+  - `concept-brief/fixtures/prospect-data.qa.json`: Fictional prospect profile (Beacon Residential Partners) for end-to-end verification.
+  - `concept-brief/make-ready-solution-brief.html` & `.css`: Semantic HTML with text-only data binding (`textContent`), local variable typography (Geist and Manrope), Lucide inline SVG geometry, and print layout.
+  - `concept-brief/scripts/render-brief.cjs`: CLI renderer with automated DOM geometry checks (escaped elements, clipping, tight margins <8px), per-page PNG screenshot generation, and PDF export.
+  - `concept-brief/README.md`: Complete operating runbook and step-by-step instructions.
+- Verification results:
+  - Default template: 4 pages, 864x864px, 0 escaped, 0 clipped, 0 tight elements. Generated `output/pdf/make-ready-solution-brief-template.pdf`.
+  - QA prospect fixture: 4 pages, 864x864px, 0 escaped, 0 clipped, 0 tight elements. Generated `output/pdf/qa-sample-properties-make-ready-solution-brief.pdf`.
+  - Safety checks verified: unpopulated template throws error (`Set slug to a short lowercase alphanumeric hyphenated prospect identifier`), and protected PDF overwrite attempt is blocked.
+  - Clickable meeting CTA verified: points to `https://cal.com/sambhav-builds/pm-automation-audit`.
+

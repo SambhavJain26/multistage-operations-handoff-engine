@@ -1,0 +1,35 @@
+{
+  "slug": "replace-with-prospect-slug",
+  "company": "",
+  "decisionMaker": "",
+  "research": {
+    "reviewed": [
+      "[Portfolio / doors / markets]",
+      "[Operating structure / trade vendors]",
+      "[Verified website / hiring detail]"
+    ],
+    "note": "[Personalized observation: e.g. At Company, managing 1,200 doors across 8 properties means turnover coordination lag between trade handoffs directly drives vacancy loss. Connecting move-out signals to vendor updates keeps turns moving without asking coordinators to chase status.]",
+    "evidence": [
+      {
+        "fact": "Internal research observation: door count, trade vendor structure, or turnover volume",
+        "source": "https://example.com/company-source"
+      }
+    ]
+  },
+  "systems": {
+    "hosting": "Approved cloud (AWS / GCP / client server)",
+    "pms": "[Client PMS: e.g. Yardi / RealPage / AppFolio / Rent Manager]",
+    "inspectionTool": "[Inspection tool: e.g. HappyCo / zInspector / PMS punch list]",
+    "managerChannel": "[Manager channel: e.g. Telegram / SMS / Teams]",
+    "vendorChannel": "[Vendor channels: e.g. SMS text & email]",
+    "reportingTool": "[Reporting tool: e.g. Airtable / PowerBI / PMS dashboard]"
+  },
+  "routes": {
+    "intake": "[Notice intake route: e.g. PMS webhook / daily turn export / intake form]",
+    "pms": "[PMS integration: e.g. Read-only notice feed; approved rent-ready status write-back]",
+    "inspection": "[Inspection route: e.g. Punch-list completion signal via API or export]",
+    "manager": "[Manager approvals: e.g. Mobile approval card (Email / Message / Both / Skip)]",
+    "vendor": "[Vendor messaging: e.g. Two-way SMS & email without vendor portal login]",
+    "reporting": "[Operational visibility: e.g. Synchronized manager workspace mirror]"
+  }
+}

@@ -43,6 +43,8 @@ Useful commands:
 - `docker compose ps`: inspect service status.
 - `docker compose logs n8n`: inspect n8n startup/import/runtime failures.
 - `Get-Content -Raw .\n8n-workflows\<file>.json | ConvertFrom-Json | Out-Null`: validate workflow JSON.
+- `node concept-brief/scripts/render-brief.cjs`: render solution brief template and validate layout.
+- `node concept-brief/scripts/render-brief.cjs --data <file.json>`: render personalized prospect solution brief PDF.
 
 Do not assume Docker images, API keys, Telegram bots, OpenAI credentials, tunnel accounts, or n8n credentials already exist. Document missing prerequisites before depending on them.
 

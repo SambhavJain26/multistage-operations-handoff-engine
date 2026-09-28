@@ -1,0 +1,39 @@
+{
+  "slug": "qa-sample-properties",
+  "company": "Beacon Residential Partners",
+  "decisionMaker": "Marcus Vance",
+  "research": {
+    "reviewed": [
+      "1,850 doors across 12 properties",
+      "Centralized turnover desk",
+      "Public careers & portfolio review"
+    ],
+    "note": "At Beacon Residential Partners, managing 1,850 doors across 12 communities means turnover lag between paint, repairs, and flooring directly inflates vacancy days. Connecting move-out notices to vendor handoffs keeps turns moving without coordinators having to chase status.",
+    "evidence": [
+      {
+        "fact": "Operates 1,850 units across Southeast regional portfolio with centralized turnover coordinator",
+        "source": "Beacon Residential portfolio directory and careers listing"
+      },
+      {
+        "fact": "Turnover handoffs currently coordinated via coordinator phone calls and email threads",
+        "source": "Maintenance operations job description"
+      }
+    ]
+  },
+  "systems": {
+    "hosting": "Client AWS / approved cloud",
+    "pms": "Yardi Voyager",
+    "inspectionTool": "HappyCo punch list",
+    "managerChannel": "Manager messaging (SMS)",
+    "vendorChannel": "Direct SMS & email",
+    "reportingTool": "Airtable mirror"
+  },
+  "routes": {
+    "intake": "Yardi notice webhook or daily turnover export",
+    "pms": "Read notice & dates; mirror ready status upon completion",
+    "inspection": "HappyCo punch-list completion signal & photo link",
+    "manager": "Interactive decision cards (Email / Message / Both / Skip)",
+    "vendor": "Two-way text & email; replies routed without portal login",
+    "reporting": "Authoritative Postgres sync to Airtable manager board"
+  }
+}
