@@ -70,6 +70,8 @@ Because `db/postgres` is mounted into `/docker-entrypoint-initdb.d`, do not put 
 
 Prefer editable workflow JSON exports over manual-only UI changes. Name every node descriptively; never leave defaults like `Code`, `If`, `Set`, or `HTTP Request`.
 
+Before capturing workflow canvases for a demo or work sample, use n8n's Tidy Up broom on every workflow, then Zoom to Fit. Inspect the loaded canvas to confirm every node and connection is visible, and capture enlarged sections for labels that are too small in the full view.
+
 Use n8n credentials by name only. Never hardcode bearer tokens, Telegram bot tokens, OpenAI keys, tunnel URLs, or secrets in workflow JSON.
 
 Known n8n gotchas to account for:

@@ -628,3 +628,9 @@ Two supporting audits: all ten HTTP Request nodes resolve to exactly two hosts (
   - Clickable meeting CTA verified: points to `https://cal.com/sambhav-builds/pm-automation-audit`.
   - Layout refinement: Resolved Page 3 hosting panel overlap between `.n8n-card` and `.stack-card.rules` by setting relative positioning context on `.hosting-inner` and placing stack cards with 10px breathing room. Raised `.hosting-note` ("PMS remains the official business record.") to `bottom: 16px` for comfortable margin inside the container.
 
+## Make-Ready Automation Work Sample, 2026-09-29
+
+- Reviewed the seven consolidated workflow exports, current n8n and Postgres state, synthetic fixtures, prior live verification report, and the requested visual-reference PDF before writing the work sample.
+- Used n8n's Tidy Up broom and Zoom to Fit on each of the seven live editor canvases before capturing full views. The n8n editor saved these layout changes as drafts; the active published workflow snapshots and committed generated exports were not changed by the PDF capture.
+- Created `output/pdf/make-ready-sequencing-automation-work-sample.pdf` with 21 landscape pages, a full-canvas screenshot of each workflow, enlarged canvas sections, plain-English trigger/decision/output descriptions, a live successful execution screenshot, and synthetic fixture results.
+- Verification: rendered and visually inspected every page; corrected cropped neighboring lanes and enlarged execution statuses; extracted final PDF text and found no repository paths, internal document names, contact details, links, or excluded public sections; PDF text has no out-of-bounds words. The recorded F01-F20 guided report contains 20/20 passes, and the separate email/AI scenario set is documented as 16/16 passes.
