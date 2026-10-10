@@ -72,6 +72,8 @@ Prefer editable workflow JSON exports over manual-only UI changes. Name every no
 
 Before capturing workflow canvases for a demo or work sample, use n8n's Tidy Up broom on every workflow, then Zoom to Fit. Inspect the loaded canvas to confirm every node and connection is visible, and capture enlarged sections for labels that are too small in the full view.
 
+Capture enlarged sections again at native editor zoom; do not enlarge crops from a Zoom to Fit screenshot. Pair saved execution evidence with the originating input, manager release and observable business output where applicable. Crop unrelated UI and flatten privacy redactions into the image pixels before embedding, then verify that PDF images contain only the sanitized pixels and that links, attachments and metadata contain no private details.
+
 Use n8n credentials by name only. Never hardcode bearer tokens, Telegram bot tokens, OpenAI keys, tunnel URLs, or secrets in workflow JSON.
 
 Known n8n gotchas to account for:
