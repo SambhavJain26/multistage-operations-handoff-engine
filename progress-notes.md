@@ -645,3 +645,21 @@ Two supporting audits: all ten HTTP Request nodes resolve to exactly two hosts (
 - Cropped all unrelated Telegram chat lists and application sidebars. Flattened private chat/callback identifiers and the private execution URL into image pixels before embedding. Synthetic business names, addresses and queue IDs are labelled. No private mailbox screenshot was needed.
 - Rendered and visually reviewed all 48 pages, refining branch crops, conversation context and readable output images. Final automated checks: 0 out-of-bounds text words; 0 prohibited extracted-text matches; footer present on every page; 0 annotations/links; 0 attachments; generic metadata only; all 44 embedded images pixel-identical to the sanitized RGB images. Actual full canvases are overview maps, paired with native-zoom readable branches and plain-English descriptions.
 - Added the durable native-zoom capture and connected-output/privacy rule to both repository instruction files. Raw evidence, database extracts, authoring intermediates and private backups remain ignored under `tmp/`; only the public PDF and documentation are included in the completion commit.
+
+## Technical Retrospective Carousel, 2026-10-20
+
+- Created problem-first technical retrospective carousel and complete LinkedIn caption for property-management decision makers and technical evaluators.
+- Structure and assets:
+  - Markdown source, LinkedIn caption, and internal evidence mapping at `docs/build-4-content-strategy/technical-retrospective-carousel.md`.
+  - Build script at `carousel-kit/scripts/build-technical-retrospective.cjs`.
+  - Verification script at `carousel-kit/scripts/verify-technical-retrospective.py`.
+  - Editable HTML source at `carousel-kit/technical-retrospective-make-ready.html`.
+  - Rendered PDF at `carousel-kit/out/technical-retrospective-make-ready.pdf`.
+  - High-resolution contact-sheet preview at `carousel-kit/out/technical-retrospective-make-ready-contact-sheet.png` and `technical-retrospective-make-ready-preview.png`.
+- Design & typography:
+  - 11 slides matching reference styling: cream ruled notebook paper, subtle paper grain, Switzer body/headings, restrained Zodiak italic emphasis, and blue/gold annotations.
+  - Slide 9 inverted to charcoal theme for visual rhythm and emphasis on lessons learned.
+  - Baseline alignment script dynamically snaps headings and copy to the ruled paper baseline.
+- Verification checks:
+  - Ran `verify-technical-retrospective.py`: 11/11 pages verified with exact title, body, and footer text preservation; MediaBox dimensions confirmed (810 x 1013 pt); 9 embedded font subsets; exactly 1 shared grain tile image; 0 internal local paths or credentials.
+  - Visual QA performed across all 11 individual page renders and the full contact sheet; confirmed no text clipping, no overlaps, and balanced line breaks.

@@ -322,6 +322,118 @@ html, body {
 
 .body--close { bottom: 264px; }
 
+/* Technical retrospective: longer explanations and small workflow diagrams.
+   Uses the same paper, annotations and 24px rhythm as the statement decks. */
+.technical .body { top: 192px; bottom: 192px; }
+.technical .tech-title {
+  font-size: 64px; line-height: 72px; font-weight: 800;
+  letter-spacing: -0.035em; color: var(--ink); margin-bottom: 48px;
+}
+.technical .tech-copy {
+  font-size: 40px; line-height: 48px; font-weight: 500;
+  letter-spacing: -0.018em; color: var(--ink-soft);
+}
+.technical .tech-copy + .tech-copy { margin-top: 24px; }
+.technical .tech-cover { font-size: 96px; line-height: 120px; margin-bottom: 48px; }
+.technical .tech-flow { margin-top: 48px; border-top: var(--w-line) solid var(--rule); }
+.technical .tech-flow p {
+  font-size: 32px; line-height: 48px; font-weight: 600;
+  color: var(--ink); padding: 24px 0; border-bottom: var(--w-hair) solid var(--rule);
+}
+.technical .tech-flow strong { font-weight: 800; }
+.technical .tech-label {
+  font-size: 22px; line-height: 24px; letter-spacing: 0.08em;
+  text-transform: uppercase; font-weight: 700; color: var(--ink-micro); margin-top: 48px;
+}
+.technical .tech-figure { margin: 0 0 24px; }
+.technical .tech-pay { margin-top: 24px; }
+.technical .footer { font-size: 17px; letter-spacing: 0; }
+.technical .eyebrow { letter-spacing: 0.12em; }
+.technical.slide--invert .tech-title,
+.technical.slide--invert .tech-copy,
+.technical.slide--invert .tech-flow p { color: var(--paper); }
+.technical.slide--invert .tech-label { color: rgba(253,240,214,0.65); }
+.technical.slide--invert .tech-flow,
+.technical.slide--invert .tech-flow p { border-color: rgba(253,240,214,0.22); }
+
+/* User-directed annotation colors: shape and color are independent.
+   Scoped to technical decks so established carousel exports keep their look. */
+.technical .hl--blue {
+  --swipe: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='40' preserveAspectRatio='none'%3E%3Cpath d='M1,7 C46,1 128,11 206,5 C284,-1 348,10 399,3 L399,34 C352,39 268,29 186,35 C104,41 44,32 1,37 Z' fill='%2396B0E3'/%3E%3C/svg%3E");
+  color: var(--ink);
+}
+.technical .pen--gold > svg { stroke: var(--gold-400); }
+.technical .sel--gold { background: var(--marker); color: var(--ink); }
+.technical .sel--gold i { border-color: var(--gold-400); }
+.technical .pen--blue > svg { stroke: var(--pen); }
+.technical.slide--invert .pen--gold > svg { stroke: var(--marker); }
+.technical.slide--invert .pen--blue > svg { stroke: var(--blue-200); }
+.technical.slide--invert .sel { color: var(--paper); }
+.technical.slide--invert .sel--gold { color: var(--ink); }
+.technical.technical--ai .tech-title { font-size: 72px; line-height: 96px; }
+.technical.technical--ai .tech-copy { font-size: 44px; line-height: 48px; }
+.technical.technical--ai .tech-cover { font-size: 96px; line-height: 120px; }
+.technical .tech-measure { display: block; font-size: 120px; line-height: 144px; margin-bottom: 24px; }
+.technical .tech-schema p { font-size: 30px; }
+.technical .tech-schema code { font-family: var(--sans); font-weight: 600; }
+
+/* Visual technical layouts: diagrams carry the detail, copy supplies context. */
+.technical--visual .body { top: 192px; bottom: 192px; }
+.technical--visual .tech-title { font-size: 72px; line-height: 96px; margin-bottom: 48px; }
+.technical--visual .tech-copy { font-size: 40px; line-height: 48px; }
+.technical--visual .v-cover { font-size: 88px; line-height: 96px; margin-bottom: 48px; }
+.technical--visual .v-cover .pay { font-size: 144px; line-height: 168px; }
+.technical--visual .v-stack { font-size: 24px; line-height: 48px; font-weight: 600; margin-top: 24px; }
+.v-visual { margin-bottom: 48px; }
+.v-label { font-size: 22px; line-height: 24px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 24px; color: var(--ink-soft); }
+.v-lane + .v-lane { margin-top: 24px; }
+.v-chain { display: grid; align-items: stretch; gap: 0; }
+.v-chain--5 { grid-template-columns: 1fr 24px 1fr 24px 1fr 24px 1fr 24px 1fr; }
+.v-chain--4 { grid-template-columns: 1fr 32px 1fr 32px 1fr 32px 1fr; }
+.v-chain--3 { grid-template-columns: 1fr 40px 1fr 40px 1fr; }
+.v-node { border-top: var(--w-line) solid var(--ink); padding: 24px 0; font-size: 30px; line-height: 48px; font-weight: 700; text-align: center; }
+.v-arrow { font-size: 28px; line-height: 48px; text-align: center; color: var(--ink); align-self: center; }
+.v-rail { border-top: var(--w-hair) solid var(--rule); border-bottom: var(--w-hair) solid var(--rule); padding: 24px 0; margin-top: 24px; font-size: 30px; line-height: 48px; font-weight: 600; }
+.v-quiet { font-size: 24px; line-height: 48px; color: var(--ink-soft); }
+.v-columns { display: grid; grid-template-columns: 1fr 1fr; column-gap: 48px; margin-bottom: 24px; }
+.v-column { border-top: var(--w-line) solid var(--ink); padding-top: 24px; }
+.v-column h3 { font-size: 48px; line-height: 72px; font-weight: 800; margin-bottom: 24px; }
+.v-column p { font-size: 36px; line-height: 48px; padding-bottom: 24px; }
+.v-table { width: 100%; border-collapse: collapse; table-layout: fixed; color: var(--ink); }
+.v-table th { text-align: left; font-size: 24px; line-height: 48px; text-transform: uppercase; letter-spacing: .06em; border-bottom: var(--w-line) solid var(--ink); }
+.v-table td { vertical-align: top; font-size: 36px; line-height: 48px; padding: 24px 0; border-bottom: var(--w-hair) solid var(--rule); }
+.v-table th:first-child, .v-table td:first-child { width: 48%; padding-right: 24px; }
+.v-schema td { font-size: 32px; }
+.v-schema td:first-child { font-weight: 700; }
+.v-results td { padding: 24px 0 0; height: 72px; font-size: 34px; }
+.v-steps { list-style: none; }
+.v-steps li { position: relative; padding: 24px 0 24px 96px; border-top: var(--w-hair) solid var(--rule); }
+.v-steps b { position: absolute; left: 0; top: 24px; font-size: 48px; line-height: 72px; font-weight: 800; }
+.v-steps h3 { font-size: 40px; line-height: 48px; font-weight: 800; }
+.v-steps p { font-size: 30px; line-height: 48px; color: var(--ink-soft); }
+.v-root { font-size: 44px; line-height: 72px; font-weight: 800; text-align: center; border-bottom: var(--w-line) solid var(--ink); padding-bottom: 24px; }
+.v-branches { display: grid; grid-template-columns: 1fr 1.35fr; gap: 48px; margin-top: 24px; }
+.v-branches h3 { font-size: 24px; line-height: 48px; letter-spacing: .08em; }
+.v-branches p { font-size: 34px; line-height: 48px; font-weight: 600; }
+.v-branches .v-outcome { font-size: 30px; line-height: 48px; border-top: var(--w-hair) solid var(--rule); margin-top: 24px; padding-top: 24px; }
+.v-gap { text-align: right; padding-right: 192px; font-size: 26px; line-height: 48px; }
+.v-transition { display: grid; grid-template-columns: 1fr 48px 120px 48px 1fr; align-items: center; text-align: center; }
+.v-state { font-size: 64px; line-height: 96px; font-weight: 800; }
+.v-operation { font-size: 32px; line-height: 48px; font-weight: 600; }
+.v-lane--state { padding: 24px 0; border-top: var(--w-hair) solid var(--rule); }
+.v-route { text-align: center; }
+.v-route p { font-size: 48px; line-height: 72px; font-weight: 800; }
+.v-route .v-route-arrow { font-size: 28px; line-height: 48px; font-weight: 500; }
+.technical--visual.slide--invert .v-label,
+.technical--visual.slide--invert .v-route,
+.technical--visual.slide--invert .v-quiet,
+.technical--visual.slide--invert .v-stack { color: var(--paper); }
+.technical--visual.slide--invert .v-node,
+.technical--visual.slide--invert .v-table,
+.technical--visual.slide--invert .v-steps p,
+.technical--visual.slide--invert .v-rail,
+.technical--visual.slide--invert .v-arrow { color: var(--paper); border-color: rgba(253,240,214,.4); }
+
 /* ===========================================================================
    ANNOTATION LAYER — the marker, the pen, the selection
    Hand-drawn geometry, deliberately imperfect. Nothing here is a rectangle
@@ -451,6 +563,29 @@ html, body {
   color: var(--ink);
   margin-top: 48px;
 }
+
+/* Compare cover: two parallel prompts with one shared result beneath. ----- */
+.compare {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 48px;
+  row-gap: 72px;
+  font-weight: 800;
+  font-size: var(--size-claim);
+  line-height: 96px;
+  letter-spacing: -0.032em;
+  color: var(--ink);
+}
+
+.compare-result {
+  grid-column: 1 / -1;
+  font-weight: 900;
+  font-size: var(--size-lead);
+  line-height: 120px;
+  letter-spacing: -0.04em;
+}
+
+.slide--invert .compare { color: var(--paper); }
 
 /* Figure: a slide whose subject is a number ------------------------------ */
 /* The numeral is the loudest thing on the page and the sentence framing it is
