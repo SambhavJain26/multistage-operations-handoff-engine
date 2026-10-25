@@ -1,8 +1,8 @@
-# Repository Guidelines
+# Repository Guidelines & Operational Architecture (Claude Agent Workflow)
 
-This repository is the planning and implementation workspace for a local-first n8n make-ready sequencing AI automation demo. Treat it as an automation project, not a software product, SaaS, or compiled app. Core behavior will live in n8n workflow exports, Postgres schema/state, synthetic fixtures, demo visualization UI, and helper scripts.
+These guidelines define the architecture, invariants, coding standards, and verification gates for Claude-assisted workflows in this repository. All agentic workflows must strictly adhere to these specifications.
 
-## Read Order And Authority
+This repository is the implementation workspace for an enterprise n8n make-ready sequencing and trade coordination automation system. Core behavior lives in n8n workflow exports, Postgres schema and state, synthetic fixtures, Airtable workspaces, and helper scripts.
 
 Before changing scope or implementation details, read:
 

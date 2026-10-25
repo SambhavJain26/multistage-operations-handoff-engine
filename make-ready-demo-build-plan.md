@@ -1,9 +1,9 @@
-# Make-Ready Coordination — Demo Build Plan
+﻿# Make-Ready Coordination — Demo Build Plan
 
 **Working name:** none. This is a make-ready sequencing AI automation demo, not a named software/SaaS product.
 **Target:** US residential PM companies, 150–600 doors
 **Deliverable:** a live demo that survives five minutes on a sales call with an unproven vendor running it
-**Audience for this document:** Claude Code, executing directly
+**Audience for this document:** Implementation Engineering
 
 ## Current Airtable/Email Redesign Override
 
@@ -183,7 +183,7 @@ Rechecked against current OpenAI docs on 1 August 2026:
 | Vendor message drafting (client tone) | `gpt-5.6-luna` first; fallback to `gpt-5.6-terra` or `gpt-5.4-mini` only if tested wording is visibly poor | Drafts are short and human-approved. Start cheap, upgrade only if quality fails in fixtures |
 | Everything else | No model | Sequence logic, stall detection, and cost arithmetic are deterministic code. See §3.4 |
 
-**Build-time action for Claude Code:** before writing any workflow, call `GET https://api.openai.com/v1/models` with the user's key and confirm `gpt-5.6-luna` is present. If it is absent, fall back in this order: `gpt-5.4-nano` for classification, then `gpt-5.4-mini` or `gpt-5.6-terra` for drafting depending on availability and tested quality. Record the model ID actually used in env vars (`OPENAI_MODEL_CLASSIFY`, `OPENAI_MODEL_DRAFT`) referenced by every workflow, so a future swap is a one-line change.
+**Build-time action:** before writing any workflow, call `GET https://api.openai.com/v1/models` with the user's key and confirm `gpt-5.6-luna` is present. If it is absent, fall back in this order: `gpt-5.4-nano` for classification, then `gpt-5.4-mini` or `gpt-5.6-terra` for drafting depending on availability and tested quality. Record the model ID actually used in env vars (`OPENAI_MODEL_CLASSIFY`, `OPENAI_MODEL_DRAFT`) referenced by every workflow, so a future swap is a one-line change.
 
 ### 1.8 Competitive landscape — read this before you price anything
 
@@ -648,7 +648,7 @@ Rules:
   intent "question" and copy nothing further.
 ```
 
-**Prompt design notes for Claude Code:**
+**Prompt design notes:**
 - The user message carries only the vendor's text plus a compact list of that vendor's open stages (`unit_label | stage_name` pairs). Nothing else. Keeps input under ~350 tokens and keeps addresses and tenant data out of the request where possible.
 - The "verbatim, never infer" rule is what makes the deterministic matcher in §3.5 the sole authority on which unit is meant. Do not soften it.
 - The deposit/damage clause exists because move-out inspection messages routinely mention damage, and a model that helpfully opines on tenant liability creates the exposure described in §1.4.
@@ -692,7 +692,7 @@ Draft: {{deterministic_template_output}}
 
 ## 6. Build plan — sequenced, action by action
 
-No time estimates anywhere in this section, by instruction. The ordering is a dependency chain, not a schedule. Each step states what "done" means so Claude Code can self-verify before moving on.
+No time estimates anywhere in this section, by instruction. The ordering is a dependency chain, not a schedule. Each step states what "done" means so execution can be verified before moving on.
 
 Work in the order given. Every step depends on the one before it.
 
@@ -1113,7 +1113,7 @@ The fail-safe argument is your strongest structural answer here. Every outbound 
 | Tool licences | $0 |
 | **Runtime API spend to build and test** | **under $0.25** |
 
-Your $10 budget is not at risk from the product's own API calls — they round to nothing. **The real spend is Claude Code's own generation tokens**, which are the dominant cost by an order of magnitude. To keep that down:
+Your $10 budget is not at risk from the product's own API calls — they round to nothing. **The real spend is generation tokens**, which are the dominant cost by an order of magnitude. To keep that down:
 
 - Never paste a full workflow JSON back into context for a small edit — patch by node
 - Generate SQL, Code node bodies, and the board HTML as files on disk, not as chat output

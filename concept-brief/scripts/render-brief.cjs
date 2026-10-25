@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Render and validate the Make-Ready Sequencing Solution Brief.
  * 
  * Usage:
@@ -94,7 +94,7 @@ let playwright;
 try {
   playwright = require("playwright");
 } catch {
-  playwright = require(path.join(os.homedir(), ".cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright"));
+  playwright = require(path.join(os.homedir(), ".cache/playwright-runtimes/dependencies/node/node_modules/playwright"));
 }
 
 (async () => {

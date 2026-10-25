@@ -1,4 +1,4 @@
-# Problem 3 — Make-Ready / Unit Turn Coordination
+﻿# Problem 3 — Make-Ready / Unit Turn Coordination
 
 **Build order: THIRD — and CONDITIONAL**
 **Verdict: Validated problem, high-variance delivery. Build only when one question is answered yes.**
@@ -337,7 +337,7 @@ State machines have many failure paths, and most of your build time is edge case
 - A vendor never replies at all
 - Manager manually overrides a stage
 
-Claude Code compresses code generation. It does not compress deciding what should happen in each of these cases.
+Assisted tooling compresses generation. It does not compress deciding what should happen in each of these cases.
 
 ### Cost to run
 
