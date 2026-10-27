@@ -1,4 +1,4 @@
-# Case Study: Autonomous Make-Ready Sequencing & Multi-Trade Coordination Engine
+# Case Study: Multi-Stage Operations & Task Handoff Engine
 
 > *A comprehensive portfolio case study detailing the architecture, engineering decisions, and operational impact of an enterprise turnover automation engine.*
 
@@ -6,7 +6,7 @@
 
 ## Project Hero
 
-* **Project Title**: Autonomous Make-Ready Sequencing & Multi-Trade Coordination Engine
+* **Project Title**: Multi-Stage Operations & Task Handoff Engine
 * **Subtitle**: An event-driven n8n and PostgreSQL automation engine that compresses residential apartment turnover from 11+ days to 3-5 days by eliminating communication lag between subcontractors with topological safety.
 * **Role**: Lead Workflow Automation Architect & Backend Engineer
 * **Timeline**: 3 Weeks (Architecture, Schema Design, Implementation, and Hardening)
