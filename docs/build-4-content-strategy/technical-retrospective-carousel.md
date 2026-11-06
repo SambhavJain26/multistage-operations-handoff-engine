@@ -2,6 +2,8 @@
 
 Revised: 2026-10-20. Status: rendered draft for review; not published or queued.
 
+**LinkedIn document title:** `Turnover coordination that protects the sequence`
+
 Review PDF: `carousel-kit/out/technical-retrospective-make-ready.pdf`.
 Editable HTML: `carousel-kit/technical-retrospective-make-ready.html`.
 Build: `node carousel-kit/scripts/build-technical-retrospective.cjs`.

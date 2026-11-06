@@ -663,3 +663,8 @@ Two supporting audits: all ten HTTP Request nodes resolve to exactly two hosts (
 - Verification checks:
   - Ran `verify-technical-retrospective.py`: 11/11 pages verified with exact title, body, and footer text preservation; MediaBox dimensions confirmed (810 x 1013 pt); 9 embedded font subsets; exactly 1 shared grain tile image; 0 internal local paths or credentials.
   - Visual QA performed across all 11 individual page renders and the full contact sheet; confirmed no text clipping, no overlaps, and balanced line breaks.
+
+
+## 2026-11-07 - Add retrospective upload title
+
+- Added the explicit LinkedIn document title `Turnover coordination that protects the sequence` to `docs/build-4-content-strategy/technical-retrospective-carousel.md`, matching the existing cover. Verified publishing metadata only; caption and slide fields remain unchanged. No PDF re-render or runtime changes were needed. No new durable repository rule was needed.
