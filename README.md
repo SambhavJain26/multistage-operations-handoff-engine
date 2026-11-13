@@ -20,7 +20,7 @@ In US residential property management, unit turns represent one of the largest c
 * **Costly Sequencing Errors**: 20-25% of turnover repairs require a second visit due to improper sequencing (e.g., cleaning before drywall repairs, or laying carpet before painting), resulting in 30-50% expedited trade surcharges (*NAA Benchmarks*).
 
 ### The Solution
-This system is an **autonomous state machine and dispatch engine** that manages the entire multi-trade chain:
+This system is a **manager-approved state machine and dispatch engine** that manages the entire multi-trade chain:
 1. Ingests vendor completions across **Telegram, Email (IMAP), and REST Webhooks** without requiring subcontractors to register for new software portals.
 2. Interprets incoming messages using OpenAI with strict JSON schemas and deterministic unit-matching scoring.
 3. Automatically transitions the unit through an **11-stage dependency graph** (repairs -> paint -> flooring -> clean -> QA inspection).
