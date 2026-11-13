@@ -260,5 +260,5 @@ make-ready-sequencing/
 
 ---
 
-## License & Security
+## Security & Privacy
 Private Client Build: Proprietary Intellectual Property. All vendor identities, property addresses, and contact numbers in this repository are synthetic test fixtures.
