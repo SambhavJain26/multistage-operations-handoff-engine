@@ -181,7 +181,7 @@ Inactivity is the primary driver of turnover delay. The **Monitoring workflow (1
 ## Visual Asset Placeholders
 
 > **Visual Asset Embed 1**:
-> *Asset Reference: `carousel-kit/out/technical-retrospective-make-ready-carousel-preview.png`*
+> *Asset Reference: Work Sample PDF Overview (`output/pdf/make-ready-sequencing-automation-work-sample.pdf`)*
 > *Caption: Architectural overview showing multi-channel intake, PostgreSQL transactional engine, and Telegram mobile approval interface.*
 
 > **Visual Asset Embed 2**:
